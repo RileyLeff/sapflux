@@ -30,7 +30,7 @@ get_path_to_stupid_chrome <- function() {
 
 
 get_command_to_start_chrome <- function(
-    wdpath = "/Users/rileyleff/Documents/dev/sapflux/util/selenium-server-standalone-3.9.1.jar",
+    wdpath = "util/selenium-server-standalone-3.9.1.jar",
     port = 4445,
     chromepath
 ){
@@ -48,7 +48,7 @@ get_command_to_start_chrome <- function(
 }
 
 start_selenium_webserver_for_this_platform <- function(
-    wdpath = "/Users/rileyleff/Documents/dev/sapflux/util/selenium-server-standalone-3.9.1.jar", 
+    wdpath = "util/selenium-server-standalone-3.9.1.jar", 
     port = 4445, 
     chromepath = get_path_to_stupid_chrome()
 ){
@@ -66,5 +66,5 @@ start_selenium_webserver_for_this_platform <- function(
 # note the java dependency
 # I have legitimately no idea whether this will work on windows
 
-command <- 'java -Dwebdriver.chrome.driver=util/webdrivers/chromedriver-mac-arm64/chromedriver -jar util/selenium-server-standalone-3.9.1.jar -port 4445'
-system(command)
+# command <- 'java -Dwebdriver.chrome.driver=util/webdrivers/chromedriver-mac-arm64/chromedriver -jar util/selenium-server-standalone-3.9.1.jar -port 4445'
+# system(command)
