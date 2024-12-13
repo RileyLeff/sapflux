@@ -1,0 +1,7 @@
+.env
+.fuckaround.R
+data/.cache
+data/.cache2
+.testgdrive
+.testselenium
+.testselenium2
