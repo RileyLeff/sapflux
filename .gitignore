@@ -5,3 +5,4 @@ data/.cache2
 .testgdrive
 .testselenium
 .testselenium2
+util/chromedriver
