@@ -1,4 +1,4 @@
-source("exec/get_constants.R")
+source("R/get_constants.R")
 
 #' Downloads deployments from google drive.
 #' 
@@ -27,7 +27,7 @@ readin_deployments <- function(path = "data/deployments.csv"){
 
 get_deployments <- function(
     id = constants$resource_ids$deployment_resource_id, 
-    path = "data/deployments.csv"
+    path = "data/deployments.csv",
     save_to = "data/deployments.csv"
 ) {
     download_deployments(id, save_to)

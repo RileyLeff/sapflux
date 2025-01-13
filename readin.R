@@ -1,8 +1,8 @@
-source("exec/readin_util.R")
-source("exec/fix_time.R")
-source("exec/calculate.R")
-source("exec/deployments.R")
-source("exec/sensors.R")
+source("R/readin_util.R")
+source("R/fix_time.R")
+source("R/calculate.R")
+source("R/get_deployments.R")
+source("R/get_sensors.R")
 
 # readin data
 list_of_dfs <- unique(

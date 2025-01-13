@@ -1,4 +1,4 @@
-source("exec/load_constants.R")
+source("R/get_constants.R")
 
 #' Get paths to only the files that contain actionable data.
 #' 

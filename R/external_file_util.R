@@ -1,3 +1,5 @@
+library(processx)
+
 get_id_from_multi_id_case_or_throw_error <- function(lut_entry){
     # case where we don't have any function name to determine which ID to use
     if(!("id_determiner" %in% names(lut_entry))) {
@@ -30,7 +32,7 @@ get_id_or_throw_error <- function(lut_entry){
 
 get_last_modification_on_gdrive <- function(drive_id) {
     if(!googledrive::drive_has_token()) stop("authenticate gdrive, you heathen!")
-    file_info <- googledrive::drive_get(googledrive::as_id(drive_id))
+    file_info <- googledrive::drive_get(googledrive::as_id(drive_id[[1]]))
     mod_time <- file_info$drive_resource[[1]]$modifiedTime
     mod_time <- as.POSIXct(mod_time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")
     return(mod_time)
@@ -60,12 +62,10 @@ auth_interactive_or_from_path_to_key <- function(
 ) {
     if(Sys.getenv(env_key) == "interactive"){
         googledrive::drive_auth()
-        print("hi")
     } else {
-                print("2")
         googledrive::drive_auth(
-
             path = path_to_key,
+            token = gargle::credentials_service_account(path = path_to_key),
             scopes = "https://www.googleapis.com/auth/drive.readonly",
             cache = FALSE
         )
@@ -85,14 +85,14 @@ authenticate_to_gdrive_if_necessary <- function(
 }
 
 get_command_to_start_chromedriver <- function(
-    path_to_selenium_webserver = constants$path_to_selenium_server,
+    path_to_selenium_server = constants$path_to_selenium_server,
     port = constants$selenium_port,
     chrome_path = constants$externals$chromedriver$local_path 
 ){
     args <- c(
         paste0("-Dwebdriver.chrome.driver=", chrome_path),
         "-jar",
-        path_to_selenium_webserver,
+        path_to_selenium_server,
         "-port",
         as.character(port)
     )
@@ -105,13 +105,13 @@ get_command_to_start_chromedriver <- function(
     )
 }
 
-start_selenium_webserver <- function(
-    path_to_selenium_webserver = constants$path_to_selenium_server,
+start_selenium_server <- function(
+    path_to_selenium_server = constants$path_to_selenium_server,
     port = constants$selenium_port,
     chrome_path = constants$externals$chromedriver$local_path,
     wait_time_sec = constants$selenium_server_startup_wait_time_sec
 ) {
-    cmd <- get_command_to_start_chromedriver(path_to_selenium_webserver, port, chrome_path)
+    cmd <- get_command_to_start_chromedriver(path_to_selenium_server, port, chrome_path)
     selenium_process <- process$new(
         command = cmd$command,
         args = cmd$args,
@@ -130,19 +130,6 @@ start_selenium_webserver <- function(
     
     return(selenium_process)
 }
-
-
-# dir_of_interest <- "data/.cache"
-# unzipped_dir <- "data/sap_flux_dont_touch"
-# file_of_interest <- list.files(dir_of_interest, full.names = TRUE)
-
-# unzip(
-#     zipfile = path_of_interest,
-#     exdir = "data"
-# )
-
-# fs::file_move(list.files(unzipped_dir, full.names = TRUE), "data")
-# fs::file_delete(unzipped_dir)
 
 download_via_api <- function(id, local_path){
     authenticate_to_gdrive_if_necessary()
@@ -186,8 +173,8 @@ download_via_selenium <- function(
         )
         stop(errmsg)
     }
-    server <- start_selenium_webserver(
-            path_to_selenium_webserver, 
+    server <- start_selenium_server(
+            path_to_selenium_server, 
             port, 
             path_to_chromedriver, 
             wait_time_sec
@@ -238,7 +225,37 @@ sync_external_data <- function(
 sync_all_external_data <- function(
     luts = constants$externals,
     path_to_chromedriver = constants$externals$chromedriver$local_path,
-    name_of_chromedriver_entry = "chromedriver"
+    name_of_chromedriver_entry = "chromedriver",
+    path_to_selenium_server = constants$path_to_selenium_server,
+    port = constants$selenium_port,
+    wait_time_sec = constants$selenium_server_startup_wait_time
 ){
-    if(!file.exists(path_to_chromedriver)) print("hi")
+    # if we're missing the chromedriver, do that one first
+    # throw error if we're missing chromedriver and we try to download something without it
+    # is it possible to download api stuff without chromedriver? yes, but I'm not covering that.
+    if(!file.exists(path_to_chromedriver)) {
+        if(!(name_of_chromedriver_entry %in% names(luts))){
+            errmsg <- "Can't sync all external data without a chromedriver instance! Provide one in luts."
+            stop(errmsg)
+        }
+        sync_external_data(
+            lut_entry = luts[[name_of_chromedriver_entry]],
+            path_to_selenium_server,
+            port,
+            path_to_chromedriver,
+            wait_time_sec
+        )
+    }
+
+    for(this_lut in luts){
+        Sys.sleep(wait_time_sec)
+        print(this_lut$local_path)
+        sync_external_data(
+            this_lut,
+            path_to_selenium_server,
+            port,
+            path_to_chromedriver,
+            wait_time_sec
+        )
+    }
 }
