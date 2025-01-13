@@ -1,4 +1,4 @@
-path_to_selenium_server = "util/selenium-server-standalone-3.9.1.jar"
+path_to_selenium_server = "util/selenium-server-standalone-4.27.0.jar"
 
 # this is by far the most likely way for this system to break or fail.
 # if the external data sync via selenium stops working, take a look at this.
@@ -19,7 +19,7 @@ path_to_key = ".env/key.json"
 # If you're working interactively, make sure you do this in the console, not in the project files.
 # This is a feature of the environment the code is executing in, not a feature of the code itself.
 # From bash/zsh, this is achievable with export SAP_RUN_SETTING="interactive"
-# In general this is more chad than interactive development. e.g. Rscript exec/main.R
+# In general this is more chad than interactive development. e.g. Rscript R/main.R
 env_key = "SAP_RUN_SETTING"
 
 # Default port 4444 is often in use for other stuff on MacOS

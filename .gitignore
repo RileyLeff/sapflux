@@ -6,3 +6,4 @@ data/.cache2
 .testselenium
 .testselenium2
 util/chromedriver
+.Rproj.user

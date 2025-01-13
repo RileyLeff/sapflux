@@ -10,7 +10,7 @@ Let me explain myself briefly:
 
 - we want to (ab)use google drive as a live database
 - we want to build & process the data from google drive using a github actions instance
-- that github action should occasionally check for updates to the google drive folder, download a new copy of the dataset if appropriate, then process it using some of the R functions in /exec/.
+- that github action should occasionally check for updates to the google drive folder, download a new copy of the dataset if appropriate, then process it using some of the R functions in /R/.
 - we don't want to version control the very large # of data files that get spat out of our loggers
 - imo it's too big of a file size (several hundred MB) to make git tracking reasonable
 - and i don't want to have to explain to downstream users about git pull to synchronize state 1000x. it's not the responsibility of this repository to teach people (likely researchers that are unfamiliar with version control) how to use git.
