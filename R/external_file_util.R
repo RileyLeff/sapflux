@@ -1,29 +1,27 @@
 library(processx)
+library(RSelenium)
+library(httr)
 
 get_id_from_multi_id_case_or_throw_error <- function(lut_entry){
-    # case where we don't have any function name to determine which ID to use
     if(!("id_determiner" %in% names(lut_entry))) {
         stop("Missing an id_determiner function for an external dataset with multiple possible IDs.")
-    # case where we have a name but it doesn't point to an actual function
     } else if(!existsFunction(lut_entry$id_determiner)) {
         stop("id_determiner doesn't point to a valid function in current namespace.")
     }
-    # run the id_determiner function to get the name
     id_determiner_fn <- eval(parse(text = lut_entry$id_determiner))
     which_id_to_grab <- id_determiner_fn()
     
-    # case where the id_determiner doesn't produce a valid name
-    if(!(which_id_to_grab %in% names(lut_entry$possible_ids))) {
+    if(!(which_id_to_grab %in% names(lut_entry$id))) {
         stop("id_determiner function produced an invalid possible_id name.")
     }
 
-    correct_id <- lut_entry$possible_ids[which_id_to_grab]
+    correct_id <- lut_entry$id[which_id_to_grab]
     return(correct_id)
 }
 
 get_id_or_throw_error <- function(lut_entry){
-    if(length(lut_entry$possible_ids) == 1){
-        this_id <- lut_entry$possible_ids
+    if(length(lut_entry$id) == 1){
+        this_id <- lut_entry$id
     } else {
         this_id <- get_id_from_multi_id_case_or_throw_error(lut_entry)
     }
@@ -40,21 +38,17 @@ get_last_modification_on_gdrive <- function(drive_id) {
 
 do_we_need_to_download_new_copy_of_file <- function(drive_id, local_path) {
     if(!file.exists(local_path)){
-        # case where we don't have a local copy
         return(TRUE)
     }
 
     local_mt <- file.info(local_path)$mtime
     remote_mt <- get_last_modification_on_gdrive(drive_id)
     if(remote_mt > local_mt){
-        # case where remote file is more updated than local
         return(TRUE)
     } else {
-        # case where local file is at least as recent as remote
         return(FALSE)
     }
 }
-
 
 auth_interactive_or_from_path_to_key <- function(
     path_to_key = constants$path_to_key,
@@ -84,51 +78,93 @@ authenticate_to_gdrive_if_necessary <- function(
     }
 }
 
-get_command_to_start_chromedriver <- function(
-    path_to_selenium_server = constants$path_to_selenium_server,
+start_selenium_container <- function(
     port = constants$selenium_port,
-    chrome_path = constants$externals$chromedriver$local_path 
-){
-    args <- c(
-        paste0("-Dwebdriver.chrome.driver=", chrome_path),
-        "-jar",
-        path_to_selenium_server,
-        "-port",
-        as.character(port)
-    )
-    
-    return(
-        list(
-            command = "java",
-            args = args
-        )
-    )
-}
-
-start_selenium_server <- function(
-    path_to_selenium_server = constants$path_to_selenium_server,
-    port = constants$selenium_port,
-    chrome_path = constants$externals$chromedriver$local_path,
-    wait_time_sec = constants$selenium_server_startup_wait_time_sec
+    image = "selenium/standalone-chrome:3.141.59",
+    container_engine = Sys.getenv("CONTAINER_ENGINE", "docker")
 ) {
-    cmd <- get_command_to_start_chromedriver(path_to_selenium_server, port, chrome_path)
-    selenium_process <- process$new(
-        command = cmd$command,
-        args = cmd$args,
-        stdout = "|",
-        stderr = "|",
-        cleanup = TRUE
+    message("Starting Selenium container...")
+    
+    # Check if we're running in GitHub Actions
+    is_github_actions <- Sys.getenv("GITHUB_ACTIONS") == "true"
+    
+    # Adjust arguments based on environment
+    args <- c(
+        "run",
+        "--rm",
+        "-d",  # Run in detached mode
+        "-p", sprintf("%d:4444", port),
+        "--shm-size", "2g"
     )
     
-    Sys.sleep(wait_time_sec)
-    
-    if (!selenium_process$is_alive()) {
-        stop("Failed to start Selenium server: ", 
-             selenium_process$read_error(), 
-             selenium_process$read_output())
+    # Add VNC ports only if not in CI
+    if (!is_github_actions) {
+        args <- c(args,
+            "-p", "5900:5900",
+            "-p", "7900:7900"
+        )
     }
     
-    return(selenium_process)
+    args <- c(args, image)
+    
+    message("Starting container with command: ", container_engine, " ", paste(args, collapse = " "))
+    
+    container_process <- process$new(
+        command = container_engine,
+        args = args,
+        stdout = "|",
+        stderr = "|",
+        cleanup = TRUE,
+        supervise = TRUE
+    )
+    
+    # Wait for container to be ready
+    max_attempts <- 10
+    attempt <- 1
+    container_ready <- FALSE
+    
+    while (attempt <= max_attempts && !container_ready) {
+        Sys.sleep(3)
+        tryCatch({
+            resp <- httr::GET(sprintf("http://localhost:%d/wd/hub/status", port))
+            if (httr::status_code(resp) == 200) {
+                container_ready <- TRUE
+                break
+            }
+        }, error = function(e) {
+            message("Waiting for container to be ready... (attempt ", attempt, "/", max_attempts, ")")
+        })
+        attempt <- attempt + 1
+    }
+    
+    if (!container_ready) {
+        container_process$kill()
+        error_out <- container_process$read_error()
+        stdout_out <- container_process$read_output()
+        stop(sprintf("Failed to start Selenium container after %d attempts:\nSTDERR: %s\nSTDOUT: %s", 
+                    max_attempts, error_out, stdout_out))
+    }
+    
+    message("Selenium container started successfully")
+    return(container_process)
+}
+
+get_remote_driver <- function(
+    port = constants$selenium_port
+){
+    remDr <- RSelenium::remoteDriver(
+        remoteServerAddr = "localhost",
+        port = port,
+        browserName = "chrome"
+    )
+    
+    tryCatch({
+        remDr$open(silent = TRUE)
+        return(remDr)
+    }, error = function(e) {
+        message("Failed to connect to Selenium server. Error: ", e$message)
+        stop(e)
+    })
 }
 
 download_via_api <- function(id, local_path){
@@ -141,67 +177,67 @@ download_via_api <- function(id, local_path){
     }
 }
 
-get_remote_driver <- function(
-    chrome_options = constants$chrome_options,
-    port = constants$selenium_port,
-    save_path
-){
-
-    chrome_options$chromeOptions$prefs["download.default_directory"] <-  save_path
-
-    RSelenium::remoteDriver(
-        remoteServerAddr = "localhost",
-        port = port,
-        browserName = "chrome",
-        extraCapabilities = chrome_options
-    )
-}
-
 download_via_selenium <- function(
     lut_entry,
-    path_to_selenium_server = constants$path_to_selenium_server,
     port = constants$selenium_port,
-    path_to_chromedriver = constants$externals$chromedriver$local_path,
     wait_time_sec = constants$selenium_server_startup_wait_time_sec,
     url_prefix = constants$drive_url_prefix
 ) {
-    if(!file.exists(path_to_chromedriver)){
-        errmsg <- paste(
-            "no chromedriver found at provided path: ",
-            path_to_chromedriver,
-            " make sure chromedriver is downloaded first."
+    container <- NULL
+    remDr <- NULL
+    
+    tryCatch({
+        container <- start_selenium_container(port = port)
+        
+        remDr <- get_remote_driver(port = port)
+
+        fullurl <- paste0(url_prefix, lut_entry$id)
+        message("Navigating to: ", fullurl)
+        remDr$navigate(fullurl)
+        
+        Sys.sleep(5)  # Wait for page load
+        
+        message("Finding download button...")
+        download_all <- remDr$findElement(
+            using = "xpath",
+            value = constants$download_button_finder
         )
-        stop(errmsg)
-    }
-    server <- start_selenium_server(
-            path_to_selenium_server, 
-            port, 
-            path_to_chromedriver, 
-            wait_time_sec
-    )
-
-    rem_dr <- get_remote_driver(
-        chrome_options = constants$chrome_options,
-        port = port,
-        save_path = dirname(lut_entry$local_path)
-    )
-
-    rem_dr$open()
-    fullurl <- paste(constants$drive_url_prefix, lut_entry$possible_ids)
-    rem_dr$navigate()
-    download_all <- rem_dr$findElement(
-        using = "xpath",
-        constants$download_button_finder
-    )
-    download_all$clickElement()
-    server$kill()
+        
+        message("Clicking download button...")
+        download_all$clickElement()
+        
+        Sys.sleep(wait_time_sec)  # Wait for download
+        message("Download initiated")
+        
+    }, error = function(e) {
+        if (!is.null(remDr)) {
+            tryCatch({
+                remDr$close()
+            }, error = function(e) {
+                message("Failed to close browser: ", e$message)
+            })
+        }
+        if (!is.null(container)) {
+            container$kill()
+        }
+        stop(e)
+    }, finally = {
+        if (!is.null(remDr)) {
+            tryCatch({
+                remDr$close()
+            }, error = function(e) {
+                message("Failed to close browser: ", e$message)
+            })
+        }
+        if (!is.null(container)) {
+            container$kill()
+        }
+    })
 }
 
 sync_external_data <- function(
     lut_entry,
-    path_to_selenium_server = constants$path_to_selenium_server,
     port = constants$selenium_port,
-    path_to_chromedriver = constants$externals$chromedriver$local_path,
     wait_time_sec = constants$selenium_server_startup_wait_time_sec
 ){
     this_id <- get_id_or_throw_error(lut_entry)
@@ -210,13 +246,10 @@ sync_external_data <- function(
             this_id, 
             lut_entry$local_path
         )
-        
     } else if(lut_entry$download_via == "selenium"){
         download_via_selenium(
             lut_entry,
-            path_to_selenium_server,
             port,
-            path_to_chromedriver,
             wait_time_sec
         )
     }
@@ -224,38 +257,16 @@ sync_external_data <- function(
 
 sync_all_external_data <- function(
     luts = constants$externals,
-    path_to_chromedriver = constants$externals$chromedriver$local_path,
-    name_of_chromedriver_entry = "chromedriver",
-    path_to_selenium_server = constants$path_to_selenium_server,
     port = constants$selenium_port,
-    wait_time_sec = constants$selenium_server_startup_wait_time
+    wait_time_sec = constants$selenium_server_startup_wait_time_sec
 ){
-    # if we're missing the chromedriver, do that one first
-    # throw error if we're missing chromedriver and we try to download something without it
-    # is it possible to download api stuff without chromedriver? yes, but I'm not covering that.
-    if(!file.exists(path_to_chromedriver)) {
-        if(!(name_of_chromedriver_entry %in% names(luts))){
-            errmsg <- "Can't sync all external data without a chromedriver instance! Provide one in luts."
-            stop(errmsg)
-        }
-        sync_external_data(
-            lut_entry = luts[[name_of_chromedriver_entry]],
-            path_to_selenium_server,
-            port,
-            path_to_chromedriver,
-            wait_time_sec
-        )
-    }
-
     for(this_lut in luts){
-        Sys.sleep(wait_time_sec)
-        print(this_lut$local_path)
+        message("Syncing: ", this_lut$local_path)
         sync_external_data(
             this_lut,
-            path_to_selenium_server,
             port,
-            path_to_chromedriver,
             wait_time_sec
         )
+        Sys.sleep(wait_time_sec)
     }
 }

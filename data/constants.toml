@@ -1,30 +1,23 @@
-path_to_selenium_server = "util/selenium-server-standalone-4.27.0.jar"
-
-# this is by far the most likely way for this system to break or fail.
-# if the external data sync via selenium stops working, take a look at this.
-download_button_finder = "/html/body/div[3]/div/div[3]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[2]/div/div[1]"
-
-drive_url_prefix = "https://drive.google.com/drive/folders/"
-
-selenium_server_startup_wait_time_sec = 2
-
-# Key to authenticate to gdrive using a service account for automated runs (e.g. on github actions).
-# If for some reason you want one of these, look up something like "google drive api gcloud service account"
-path_to_key = ".env/key.json"
-
-# To run the pipeline without a key at the above path, you need to set env variable SAP_RUN_SETTING 
-# to "interactive". This will open a browser window or console response for you to authenticate 
-# manually when you fire up the pipeline.
-# From R, setting this env var is achievable with Sys.setenv(SAP_RUN_SETTING = "interactive")
-# If you're working interactively, make sure you do this in the console, not in the project files.
-# This is a feature of the environment the code is executing in, not a feature of the code itself.
-# From bash/zsh, this is achievable with export SAP_RUN_SETTING="interactive"
-# In general this is more chad than interactive development. e.g. Rscript R/main.R
-env_key = "SAP_RUN_SETTING"
-
 # Default port 4444 is often in use for other stuff on MacOS
 selenium_port = 4445
 
+# Waiting times
+selenium_server_startup_wait_time_sec = 5  # Increased for container startup
+
+# Selenium container configuration
+selenium_container = "selenium/standalone-chrome:3.141.59"
+
+# XPath for Google Drive download button
+download_button_finder = "/html/body/div[3]/div/div[3]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[2]/div/div[1]"
+
+# Google Drive URL prefix
+drive_url_prefix = "https://drive.google.com/drive/folders/"
+
+# Authentication settings
+path_to_key = ".env/key.json"
+env_key = "SAP_RUN_SETTING"
+
+# Data processing settings
 forbidden_words_in_datafile_paths = ["public", "Public", "status", "Status", "DataTableInfo"]
 
 possible_timestamp_formats = [
@@ -137,55 +130,26 @@ implexx_colnames = [
     value = 1000
 
 [externals]
-# required fields: 
-    # possible_ids 
-        # may be either a single string or a named table of multiple strings
-    # download_via
-        # may be either "api" or "selenium"
-    # local_path
-        # must be a valid path within the project directory, relative to project root
+    [externals.deployments]
+    id = "1mFr-Y5TmiqUqZFoxtfd68nqoNgtceU-xBcRmnrw6hfo"
+    download_via = "api"
+    local_path = "data/deployments.csv"
+    formatter = "format_deployments"
 
-# optional fields or depend on above:
-    # formatter
-        # optional name of a function to format the dataset after download before saving to 
-        # local_path
-    # id_determiner
-        # required if possible_ids contains multiple possible IDs. name of a function to determine
-        # which name from the named table of possible IDs contains the correct ID string.
-        # e.g. for chromedriver, "get_platform_for_chromedriver" is a function that returns one of 
-        # "windows_x64", "mac_aarch64" or similar. 
-[externals.deployments]
-possible_ids = "1mFr-Y5TmiqUqZFoxtfd68nqoNgtceU-xBcRmnrw6hfo"
-download_via = "api"
-local_path = "data/deployments.csv"
-formatter = "format_deployments"
+    [externals.sensors]
+    id = "10xYreHihXAF8LRmgjzAV45WLQOK4GcChkOKCK7YQ1nI"
+    download_via = "api"
+    local_path = "data/sensors.csv"
+    formatter = "format_sensors"
 
-[externals.sensors]
-possible_ids = "10xYreHihXAF8LRmgjzAV45WLQOK4GcChkOKCK7YQ1nI"
-download_via = "api"
-local_path = "data/sensors.csv"
-formatter = "format_sensors"
+    [externals.dst_transitions]
+    id = "13X7l7a7vGK2J5YwTX-4zjf8KpPsGSD8XWdXbDfU8BXk"
+    download_via = "api"
+    local_path = "data/dst_transitions.csv"
+    formatter = "format_dst"
 
-[externals.dst_transitions]
-possible_ids = "13X7l7a7vGK2J5YwTX-4zjf8KpPsGSD8XWdXbDfU8BXk"
-download_via = "api"
-local_path = "data/dst_transitions.csv"
-formatter = "format_dst"
+    [externals.raw]
+    id = "147L5_KrDVFfFyIScO1jkWNXgJeGPqDbz?usp=drive_link"
+    download_via = "selenium"
+    local_path = "data/raw"
 
-[externals.raw]
-possible_ids = "147L5_KrDVFfFyIScO1jkWNXgJeGPqDbz?usp=drive_link"
-download_via = "selenium"
-local_path = "data/raw"
-
-[externals.chromedriver]
-possible_ids.windows_x64 = "1Nsx_VhGPPJZK2JsIw0oeJ3GEB0B7r3R_"
-possible_ids.linux_x64 = "1W_og0FafTQeOulERDDvEJTAwqnXAnN6R"
-possible_ids.mac_x64 = "1W_6EeRWN26gvUCl1lROVrFpEkeBo6xAl"
-possible_ids.mac_aarch64 = "1SBzk8E3b6VOAzdaiZN6xyK1j-8UV94Mx"
-download_via = "api"
-local_path = "util/chromedriver"
-id_determiner = "get_platform_for_chromedriver"
-
-[chrome_options]
-chromeOptions.prefs."download.prompt_for_download" = false
-chromeOptions.prefs."download.directory_upgrade" = true
