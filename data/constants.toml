@@ -1,38 +1,78 @@
-# Default port 4444 is often in use for other stuff on MacOS
-selenium_port = 4445
-
-# Waiting times
-selenium_server_startup_wait_time_sec = 5  # Increased for container startup
-
-# Selenium container configuration
-selenium_container = "selenium/standalone-chrome:3.141.59"
-
-# XPath for Google Drive download button
-download_button_finder = "/html/body/div[3]/div/div[3]/div[1]/div/div/div/div[2]/div/div[1]/div/div/div[2]/div/div[1]"
-
-# Google Drive URL prefix
-drive_url_prefix = "https://drive.google.com/drive/folders/"
-
-# Authentication settings
-path_to_key = ".env/key.json"
-env_key = "SAP_RUN_SETTING"
-
-# Data processing settings
-forbidden_words_in_datafile_paths = ["public", "Public", "status", "Status", "DataTableInfo"]
-
+# Time-related constants
+[time]
+# Format strings for parsing timestamps in data files
 possible_timestamp_formats = [
-    # 2021-06-06 08:30:00
-    "%Y-%m-%d %H:%M:%S", 
-    # 2021/06/06 08:30:00
-    "%m/%d/%y %H:%M"
+    "%Y-%m-%d %H:%M:%S",  # Example: 2021-06-06 08:30:00
+    "%m/%d/%y %H:%M"      # Example: 2021/06/06 08:30:00
 ]
-
-cols_to_make_numeric = ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_t_out", "tmax_t_in"]
-
 early_bound_timestamp = 2020-06-06T00:00:00Z
-
 measurement_interval_in_seconds = 1800
 
+# Selenium configuration
+[selenium]
+port = 4445  # Default port 4444 is often in use for other stuff on MacOS
+container_name = "rileyleff/riley-selenium-3.x"
+startup_wait_time_sec = 5  # Time to wait for container to be ready
+
+# Chrome-specific settings
+[selenium.chrome_capabilities]
+[selenium.chrome_capabilities.chromeOptions.prefs]
+"download.default_directory" = "DOWNLOAD_DIR_HERE"
+"download.prompt_for_download" = false
+"download.directory_upgrade" = true
+"safebrowsing.enabled" = true
+
+[selenium.chrome_capabilities.chromeOptions]
+args = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu"
+]
+
+# Selectors for finding the download button, in order of preference
+[selenium.selectors]
+button_text = "Download all"
+wait_timeout = 3
+elements = [
+    { using = "xpath", value = "//div[@role='button'][contains(text(), 'Download all')]" },
+    { using = "css selector", value = "div.h-sb-Ic.h-R-d[role='button']" },
+    { using = "xpath", value = "//div[@role='button'][@aria-hidden='false'][@aria-disabled='false'][contains(text(), 'Download all')]" },
+    { using = "xpath", value = "//*[@id='drive_main_page']//div[@role='button'][contains(text(), 'Download all')]" }
+]
+
+# Google Drive configuration
+[google_drive]
+url_prefix = "https://drive.google.com/drive/folders/"
+path_to_key = ".env/key.json"
+env_key = "SAP_RUN_SETTING"
+scopes = [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.metadata.readonly"
+]
+
+# Data processing configuration
+[data_processing]
+# Words that indicate files should be excluded from processing
+forbidden_words_in_datafile_paths = [
+    "public", 
+    "Public", 
+    "status", 
+    "Status", 
+    "DataTableInfo"
+]
+
+# Columns that should be converted to numeric type
+cols_to_make_numeric = [
+    "alpha_out", 
+    "alpha_in", 
+    "beta_out", 
+    "beta_in", 
+    "tmax_t_out", 
+    "tmax_t_in"
+]
+
+# Expected column names in Implexx data files
 implexx_colnames = [
     "ts", 
     "rn", 
@@ -152,4 +192,3 @@ implexx_colnames = [
     id = "147L5_KrDVFfFyIScO1jkWNXgJeGPqDbz?usp=drive_link"
     download_via = "selenium"
     local_path = "data/raw"
-

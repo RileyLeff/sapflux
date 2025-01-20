@@ -1,32 +1,5 @@
 library(processx)
 library(RSelenium)
-library(httr)
-
-get_id_from_multi_id_case_or_throw_error <- function(lut_entry){
-    if(!("id_determiner" %in% names(lut_entry))) {
-        stop("Missing an id_determiner function for an external dataset with multiple possible IDs.")
-    } else if(!existsFunction(lut_entry$id_determiner)) {
-        stop("id_determiner doesn't point to a valid function in current namespace.")
-    }
-    id_determiner_fn <- eval(parse(text = lut_entry$id_determiner))
-    which_id_to_grab <- id_determiner_fn()
-    
-    if(!(which_id_to_grab %in% names(lut_entry$id))) {
-        stop("id_determiner function produced an invalid possible_id name.")
-    }
-
-    correct_id <- lut_entry$id[which_id_to_grab]
-    return(correct_id)
-}
-
-get_id_or_throw_error <- function(lut_entry){
-    if(length(lut_entry$id) == 1){
-        this_id <- lut_entry$id
-    } else {
-        this_id <- get_id_from_multi_id_case_or_throw_error(lut_entry)
-    }
-    return(this_id)
-}
 
 get_last_modification_on_gdrive <- function(drive_id) {
     if(!googledrive::drive_has_token()) stop("authenticate gdrive, you heathen!")
@@ -51,64 +24,67 @@ do_we_need_to_download_new_copy_of_file <- function(drive_id, local_path) {
 }
 
 auth_interactive_or_from_path_to_key <- function(
-    path_to_key = constants$path_to_key,
-    env_key = constants$env_key
+    path_to_key,
+    scopes,
+    interactive_auth
 ) {
-    if(Sys.getenv(env_key) == "interactive"){
+    if(interactive_auth){
         googledrive::drive_auth()
     } else {
-        googledrive::drive_auth(
+        credentials <- gargle::credentials_service_account(
             path = path_to_key,
-            token = gargle::credentials_service_account(path = path_to_key),
-            scopes = "https://www.googleapis.com/auth/drive.readonly",
+            scopes = scopes
+        )
+        googledrive::drive_auth(
+            token = credentials,
+            path = path_to_key,
             cache = FALSE
         )
     }
 }
 
 authenticate_to_gdrive_if_necessary <- function(
-    path_to_key = constants$path_to_key,
-    env_key = constants$env_key
+    path_to_key,
+    scopes,
+    interactive_auth
 ) {
     if(!googledrive::drive_has_token()){
         auth_interactive_or_from_path_to_key(
             path_to_key,
-            env_key
+            scopes,
+            interactive_auth
         )
     }
 }
 
 start_selenium_container <- function(
-    port = constants$selenium_port,
-    image = "selenium/standalone-chrome:3.141.59",
-    container_engine = Sys.getenv("CONTAINER_ENGINE", "docker")
+    port,
+    image,
+    container_engine,
+    max_attempts,
+    delay_per_container_attempt,
+    local_download_dir  # Add this parameter
 ) {
-    message("Starting Selenium container...")
+    # Ensure the local directory exists
+    dir.create(local_download_dir, recursive = TRUE, showWarnings = FALSE)
     
-    # Check if we're running in GitHub Actions
-    is_github_actions <- Sys.getenv("GITHUB_ACTIONS") == "true"
+    # Get absolute path for the download directory
+    abs_download_dir <- normalizePath(local_download_dir)
     
-    # Adjust arguments based on environment
     args <- c(
         "run",
         "--rm",
-        "-d",  # Run in detached mode
+        "-d",
         "-p", sprintf("%d:4444", port),
-        "--shm-size", "2g"
+        "--shm-size", "2g",
+        "--dns", "8.8.8.8",
+        "--dns", "8.8.4.4",
+        "--network", "bridge",
+        "-v", sprintf("%s:/downloads", abs_download_dir)  # Mount local dir to /downloads in container
     )
-    
-    # Add VNC ports only if not in CI
-    if (!is_github_actions) {
-        args <- c(args,
-            "-p", "5900:5900",
-            "-p", "7900:7900"
-        )
-    }
-    
+
     args <- c(args, image)
-    
-    message("Starting container with command: ", container_engine, " ", paste(args, collapse = " "))
-    
+
     container_process <- process$new(
         command = container_engine,
         args = args,
@@ -117,14 +93,12 @@ start_selenium_container <- function(
         cleanup = TRUE,
         supervise = TRUE
     )
-    
-    # Wait for container to be ready
-    max_attempts <- 10
+
     attempt <- 1
     container_ready <- FALSE
     
     while (attempt <= max_attempts && !container_ready) {
-        Sys.sleep(3)
+        Sys.sleep(delay_per_container_attempt)
         tryCatch({
             resp <- httr::GET(sprintf("http://localhost:%d/wd/hub/status", port))
             if (httr::status_code(resp) == 200) {
@@ -132,7 +106,7 @@ start_selenium_container <- function(
                 break
             }
         }, error = function(e) {
-            message("Waiting for container to be ready... (attempt ", attempt, "/", max_attempts, ")")
+            message("Waiting for container... (attempt ", attempt, "/", max_attempts, ")")
         })
         attempt <- attempt + 1
     }
@@ -150,12 +124,16 @@ start_selenium_container <- function(
 }
 
 get_remote_driver <- function(
-    port = constants$selenium_port
+    remote_server_addr = "localhost",
+    browser_name = "chrome",
+    port,
+    extra_capabilities
 ){
     remDr <- RSelenium::remoteDriver(
-        remoteServerAddr = "localhost",
+        remoteServerAddr = remote_server_addr,
         port = port,
-        browserName = "chrome"
+        browserName = browser_name,
+        extraCapabilities = extra_capabilities
     )
     
     tryCatch({
@@ -167,28 +145,21 @@ get_remote_driver <- function(
     })
 }
 
-download_via_api <- function(id, local_path){
-    authenticate_to_gdrive_if_necessary()
-    if(do_we_need_to_download_new_copy_of_file(id, local_path)){
-        googledrive::drive_download(
-            file = googledrive::as_id(id),
-            path = local_path
-        )
-    }
-}
 
 download_via_selenium <- function(
     lut_entry,
-    port = constants$selenium_port,
-    wait_time_sec = constants$selenium_server_startup_wait_time_sec,
-    url_prefix = constants$drive_url_prefix
+    remote_server_addr = "localhost",
+    browser_name = "chrome", 
+    port, 
+    extra_capabilities,
+    wait_time_sec, 
+    url_prefix,
 ) {
     container <- NULL
     remDr <- NULL
     
     tryCatch({
         container <- start_selenium_container(port = port)
-        
         remDr <- get_remote_driver(port = port)
 
         fullurl <- paste0(url_prefix, lut_entry$id)
@@ -198,10 +169,7 @@ download_via_selenium <- function(
         Sys.sleep(5)  # Wait for page load
         
         message("Finding download button...")
-        download_all <- remDr$findElement(
-            using = "xpath",
-            value = constants$download_button_finder
-        )
+        download_all <- wait_and_find_download_button(remDr)
         
         message("Clicking download button...")
         download_all$clickElement()
@@ -235,12 +203,19 @@ download_via_selenium <- function(
     })
 }
 
-sync_external_data <- function(
-    lut_entry,
-    port = constants$selenium_port,
-    wait_time_sec = constants$selenium_server_startup_wait_time_sec
-){
-    this_id <- get_id_or_throw_error(lut_entry)
+download_via_api <- function(id, local_path){
+    print("in download via api")
+    authenticate_to_gdrive_if_necessary()
+    if(do_we_need_to_download_new_copy_of_file(id, local_path)){
+        googledrive::drive_download(
+            file = googledrive::as_id(id),
+            path = local_path
+        )
+    }
+}
+
+sync_external_data <- function(lut_entry, port, wait_time_sec){
+    this_id <- lut_entry$id
     if(lut_entry$download_via == "api"){
         download_via_api(
             this_id, 
@@ -255,11 +230,7 @@ sync_external_data <- function(
     }
 }
 
-sync_all_external_data <- function(
-    luts = constants$externals,
-    port = constants$selenium_port,
-    wait_time_sec = constants$selenium_server_startup_wait_time_sec
-){
+sync_all_external_data <- function(luts, port, wait_time_sec){
     for(this_lut in luts){
         message("Syncing: ", this_lut$local_path)
         sync_external_data(
