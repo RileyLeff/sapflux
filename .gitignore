@@ -8,5 +8,4 @@ data/.cache2
 util/chromedriver
 .Rproj.user
 data/raw
-data/deployments.csv
-data/dst_transitions.csv
+data/raw/*
