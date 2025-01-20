@@ -1,0 +1,5 @@
+"TOA5","CR200Series_304","CR2xx","","v05","Sapflux2sensor.","63887","Public"
+"TIMESTAMP","RECORD","BattV","SapFlwTot0","VhOuter0","VhInner0","AlphaOut0","AlphaIn0","BetaOut0","BetaIn0","tMaxTout0","tMaxTin0","SapFlwTot1","VhOut1","VhIn1","AlphaOut1","AlphaIn1","BetaOut1","BetaIn1","tMaxTout1","tMaxTin1","id","SDI0","SDI1"
+"TS","RN","Volts","literPerHo","heatVeloci","heatVeloci","logTRatio","logTRatio","logTRatio","logTRatio","second","second","unit","unit","unit","unit","unit","unit","unit","unit","unit","","",""
+"","","","","","","","","","","","","","","","","","","","","","","",""
+"2024-08-29 18:23:14",636,12.28015,0.317,2.66,13.29,0.21984,1.29101,0.24727,1.25401,84.135,70.932,"NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN",304,0,1

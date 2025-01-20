@@ -1,0 +1,6 @@
+"TOA5","CR300Series_511","CR300","4258","CR300.Std.11.00","CPU:CR300_sapflow.CR300","32345","DataTableInfo"
+"TIMESTAMP","RECORD","DataTableName(1)","DataTableName(2)","SkippedRecord(1)","SkippedRecord(2)","DataRecordSize(1)","DataRecordSize(2)","SecsPerRecord(1)","SecsPerRecord(2)","DataFillDays(1)","DataFillDays(2)","DataFilled(1,1)","DataFilled(2,1)"
+"TS","RN","","","","","records","records","","","days","days","",""
+"","","","","","","","","","","","","",""
+"2024-08-04 18:07:51.091",2,"Table1","Table2",0,0,632880,632880,1800,1800,13185,13185," 0.1 percent filled"," 0.1 percent filled"
+"2024-08-04 18:18:24.677",2,"Table1","Table2",0,0,632880,632880,1800,1800,13185,13185," 0.1 percent filled"," 0.1 percent filled"
