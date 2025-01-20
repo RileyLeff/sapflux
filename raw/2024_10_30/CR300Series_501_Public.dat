@@ -1,5 +1,0 @@
-"TOA5","CR300Series_501","CR300","27030","CR300-RF407.Std.10.03","CPU:CR300_sapflow.CR300","32345","Public"
-"TIMESTAMP","RECORD","BattV","PTemp_C","SapFlwTot0","VhOuter0","VhInner0","AlphaOut0","AlphaIn0","BetaOut0","BetaIn0","tMaxTout0","tMaxTin0","SapFlwTot1","VhOuter1","VhInner1","AlphaOut1","AlphaIn1","BetaOut1","BetaIn1","tMaxTout1","tMaxTin1","id","SDI0","SDI1"
-"TS","RN","Volts","Deg C","literPerHour","heatVelocity","heatVelocity","logTRatio","logTRatio","logTRatio","logTRatio","second","second","literPerHour","heatVelocity","heatVelocity","logTRatio","logTRatio","logTRatio","logTRatio","second","second","","",""
-"","","","","","","","","","","","","","","","","","","","","","","","",""
-"2024-10-31 15:51:46.886",860,12.17526,26.4732,0.279,1.74,6.57,0.15412,0.58182,0.13498,0.48552,63.267,52.542,3.642,4.97,6.48,0.43979,0.5735,0.36922,0.31094,55.193,43.726,1,0,1
