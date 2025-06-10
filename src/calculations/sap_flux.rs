@@ -1,11 +1,8 @@
-use polars::prelude::*;
 use crate::types::sensor::SensorType;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SapFluxError {
-    #[error("Polars error: {0}")]
-    Polars(#[from] PolarsError),
     #[error("Calculation error: {0}")]
     Calculation(String),
     #[error("Invalid sensor configuration: {0}")]
@@ -240,41 +237,43 @@ impl DmaPecletCalculator {
         Ok((a, b, c))
     }
     
-    /// Apply DMA_Péclet calculations to a Polars DataFrame
-    pub fn process_dataframe(
-        df: LazyFrame,
-        sensor_type: &SensorType,
-        wound_diameter_mm: f64,
+    /// Calculate heat velocity for HRM method
+    pub fn calculate_hrm_heat_velocity(
+        alpha: f64,
+        probe_distance: f64,
         params: &SapFluxParameters,
-    ) -> Result<LazyFrame, SapFluxError> {
-        // Check required columns exist
-        let required_cols = [
-            "alpha_out", "alpha_in", "beta_out", "beta_in", 
-            "t_max_out", "t_max_in"
-        ];
+    ) -> f64 {
+        // HRM: Vh = (2kα)/(xd + xu) + (xd - xu)/(2(t - t0/2))
+        // For symmetric probes: xd = xu = probe_distance
+        let term1 = (2.0 * params.k * alpha) / (2.0 * probe_distance);
+        let term2 = 0.0; // (xd - xu) = 0 for symmetric probes
+        term1 + term2
+    }
+    
+    /// Calculate heat velocity for Tmax method
+    pub fn calculate_tmax_heat_velocity(
+        t_max: f64,
+        probe_distance: f64,
+        params: &SapFluxParameters,
+    ) -> Result<f64, SapFluxError> {
+        if t_max <= params.heat_pulse_duration {
+            return Err(SapFluxError::Calculation(
+                "t_max must be greater than heat pulse duration".to_string()
+            ));
+        }
         
-        // Apply calculations using Polars expressions
-        let with_calculations = df
-            .with_columns([
-                // Calculate beta for method determination
-                (col("beta_out")).alias("beta_outer"),
-                (col("beta_in")).alias("beta_inner"),
-                
-                // Determine method (simplified - assume HRM for β ≤ 1, Tmax for β > 1)
-                when(col("beta_out").lt_eq(lit(1.0)))
-                    .then(lit("HRM"))
-                    .otherwise(lit("Tmax"))
-                    .alias("method_outer"),
-                    
-                when(col("beta_in").lt_eq(lit(1.0)))
-                    .then(lit("HRM"))
-                    .otherwise(lit("Tmax"))
-                    .alias("method_inner"),
-            ]);
-            
-        // Note: Full implementation would require custom Polars functions
-        // for the complex calculations. For now, return the prepared DataFrame.
-        Ok(with_calculations)
+        // Tmax: Vh = √[(4k/t0) × ln(1 - t0/tm) + xd²] / (tm(tm - t0))
+        let ln_term = (1.0 - params.heat_pulse_duration / t_max).ln();
+        if ln_term >= 0.0 {
+            return Err(SapFluxError::Calculation(
+                "Invalid t_max value leads to positive ln term".to_string()
+            ));
+        }
+        
+        let sqrt_term = ((4.0 * params.k / params.heat_pulse_duration) * ln_term + probe_distance * probe_distance).sqrt();
+        let denominator = t_max * (t_max - params.heat_pulse_duration);
+        
+        Ok(sqrt_term / denominator)
     }
 }
 

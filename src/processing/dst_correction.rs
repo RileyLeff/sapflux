@@ -222,8 +222,9 @@ impl DstCorrector {
         // The first timestamp in a chunk represents when the logger was last synced
         // We need to determine if the logger was set to EST or EDT at that time
         
-        // Check if the first timestamp falls within DST period
-        let offset = self.transition_table.determine_timezone_offset(first_timestamp);
+        // Convert to naive datetime since the timestamp should be treated as naive local time
+        let naive_local_time = first_timestamp.naive_utc();
+        let offset = self.transition_table.determine_timezone_offset(naive_local_time);
         offset
     }
     

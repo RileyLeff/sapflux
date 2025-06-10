@@ -18,7 +18,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # CSV parsing and data processing
 csv = "1.3"
-polars = { version = "0.48.1", features = ["lazy", "temporal", "strings", "parquet"] }
+polars = { version = "0.48.1", features = ["lazy", "temporal", "strings", "parquet", "asof_join"] }
 serde_derive = "1.0"
 
 # Error handling and utilities

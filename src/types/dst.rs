@@ -62,10 +62,9 @@ impl DstTransitionTable {
         Self { transitions }
     }
 
-    pub fn determine_timezone_offset(&self, naive_local_timestamp: DateTime<Utc>) -> i32 {
+    pub fn determine_timezone_offset(&self, naive_local_timestamp: NaiveDateTime) -> i32 {
         // CRITICAL: This function determines what timezone the logger was set to when it recorded
-        // the given timestamp. The input timestamp should be treated as a NAIVE local time
-        // (even though it's typed as DateTime<Utc> for convenience).
+        // the given timestamp. The input is a NAIVE local time (no timezone info).
         //
         // The algorithm:
         // 1. Find the most recent DST transition before this naive local timestamp
@@ -73,8 +72,8 @@ impl DstTransitionTable {
         
         let mut is_dst = false;
         
-        // Convert naive timestamp to local for comparison with transition times
-        let naive_dt = naive_local_timestamp.naive_utc();
+        // Use the naive timestamp directly for comparison with transition times
+        let naive_dt = naive_local_timestamp;
         
         for transition in &self.transitions {
             // Convert UTC transition times to local times for comparison
@@ -117,12 +116,18 @@ mod tests {
     fn test_dst_transitions() {
         let table = DstTransitionTable::us_eastern_2011_2030();
         
-        // Test EST (winter)
-        let winter_time = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
+        // Test EST (winter) - naive local time
+        let winter_time = NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()
+        );
         assert_eq!(table.determine_timezone_offset(winter_time), -5);
         
-        // Test EDT (summer) 
-        let summer_time = Utc.with_ymd_and_hms(2024, 7, 15, 12, 0, 0).unwrap();
+        // Test EDT (summer) - naive local time
+        let summer_time = NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(2024, 7, 15).unwrap(),
+            chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()
+        );
         assert_eq!(table.determine_timezone_offset(summer_time), -4);
     }
 }
