@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(cargo:*)",
+      "Bash(mkdir:*)",
+      "Bash(rustc:*)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(ls:*)",
+      "Bash(RUST_BACKTRACE=1 cargo run --bin sapflux)",
+      "Bash(uv run:*)",
+      "Bash(python scripts/dst_bulletproof_validation.py:*)"
+    ],
+    "deny": []
+  }
+}

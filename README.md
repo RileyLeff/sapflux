@@ -343,6 +343,7 @@ We save a lookup table for implexx sensor parameters. Note that thermistor_depth
 |-------------|------------------------------|----------------------------|-------------------------|-------------------------|
 | implexx_old | 0.6                          | 0.6                        | 10                      | 20                      |
 | implexx_new | 0.8                          | 0.8                        | 10                      | 20                      |
+
 #### The "Deployment"
 
 The "deployment" is how we match raw data files to their metadata.
