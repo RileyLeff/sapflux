@@ -8,16 +8,35 @@ possible_timestamp_formats = [
 early_bound_timestamp = 2020-06-06T00:00:00Z
 measurement_interval_in_seconds = 1800
 
+[network]
+current = "gw"  # or "default" - makes it easy to switch
+
+[network.default]
+dns_servers = ["8.8.8.8", "8.8.4.4"]
+network_mode = "bridge"
+
+[network.gw]
+dns_servers = [
+    "128.164.141.231",
+    "128.164.141.232",
+    "161.253.152.241",
+    "161.253.152.242"
+]
+network_mode = "bridge"
+
 # Selenium configuration
 [selenium]
 port = 4445  # Default port 4444 is often in use for other stuff on MacOS
 container_name = "rileyleff/riley-selenium-3.x"
 startup_wait_time_sec = 5  # Time to wait for container to be ready
+max_start_time = 120
+max_completion_time = 120
+local_download_dir = "data"
 
 # Chrome-specific settings
 [selenium.chrome_capabilities]
 [selenium.chrome_capabilities.chromeOptions.prefs]
-"download.default_directory" = "DOWNLOAD_DIR_HERE"
+"download.default_directory" = "/downloads"
 "download.prompt_for_download" = false
 "download.directory_upgrade" = true
 "safebrowsing.enabled" = true
@@ -30,21 +49,14 @@ args = [
 ]
 
 # Selectors for finding the download button, in order of preference
-[selenium.selectors]
-button_text = "Download all"
-wait_timeout = 3
-elements = [
-    { using = "xpath", value = "//div[@role='button'][contains(text(), 'Download all')]" },
-    { using = "css selector", value = "div.h-sb-Ic.h-R-d[role='button']" },
-    { using = "xpath", value = "//div[@role='button'][@aria-hidden='false'][@aria-disabled='false'][contains(text(), 'Download all')]" },
-    { using = "xpath", value = "//*[@id='drive_main_page']//div[@role='button'][contains(text(), 'Download all')]" }
-]
+[selenium.selector]
+using = "xpath"
+value = "//div[@role='button'][contains(text(), 'Download all')]"
 
 # Google Drive configuration
 [google_drive]
 url_prefix = "https://drive.google.com/drive/folders/"
 path_to_key = ".env/key.json"
-env_key = "SAP_RUN_SETTING"
 scopes = [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive.file",
@@ -53,7 +65,7 @@ scopes = [
 
 # Data processing configuration
 [data_processing]
-# Words that indicate files should be excluded from processing
+
 forbidden_words_in_datafile_paths = [
     "public", 
     "Public", 
@@ -62,7 +74,6 @@ forbidden_words_in_datafile_paths = [
     "DataTableInfo"
 ]
 
-# Columns that should be converted to numeric type
 cols_to_make_numeric = [
     "alpha_out", 
     "alpha_in", 
@@ -72,7 +83,6 @@ cols_to_make_numeric = [
     "tmax_t_in"
 ]
 
-# Expected column names in Implexx data files
 implexx_colnames = [
     "ts", 
     "rn", 
@@ -172,19 +182,19 @@ implexx_colnames = [
 [externals]
     [externals.deployments]
     id = "1mFr-Y5TmiqUqZFoxtfd68nqoNgtceU-xBcRmnrw6hfo"
-    download_via = "api"
+    download_via = "google_drive_api"
     local_path = "data/deployments.csv"
     formatter = "format_deployments"
 
     [externals.sensors]
     id = "10xYreHihXAF8LRmgjzAV45WLQOK4GcChkOKCK7YQ1nI"
-    download_via = "api"
+    download_via = "google_drive_api"
     local_path = "data/sensors.csv"
     formatter = "format_sensors"
 
     [externals.dst_transitions]
     id = "13X7l7a7vGK2J5YwTX-4zjf8KpPsGSD8XWdXbDfU8BXk"
-    download_via = "api"
+    download_via = "google_drive_api"
     local_path = "data/dst_transitions.csv"
     formatter = "format_dst"
 

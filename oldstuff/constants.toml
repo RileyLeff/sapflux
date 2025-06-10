@@ -1,0 +1,202 @@
+# Time-related constants
+[time]
+# Format strings for parsing timestamps in data files
+possible_timestamp_formats = [
+    "%Y-%m-%d %H:%M:%S",  # Example: 2021-06-06 08:30:00
+    "%m/%d/%y %H:%M"      # Example: 2021/06/06 08:30:00
+]
+early_bound_timestamp = 2020-06-06T00:00:00Z
+measurement_interval_in_seconds = 1800
+
+[network]
+current = "gw"  # or "default" - makes it easy to switch
+
+[network.default]
+dns_servers = ["8.8.8.8", "8.8.4.4"]
+network_mode = "bridge"
+
+[network.gw]
+dns_servers = [
+    "128.164.141.231",
+    "128.164.141.232",
+    "161.253.152.241",
+    "161.253.152.242"
+]
+network_mode = "bridge"
+
+# Selenium configuration
+[selenium]
+port = 4445  # Default port 4444 is often in use for other stuff on MacOS
+container_name = "rileyleff/riley-selenium-3.x"
+startup_wait_time_sec = 5  # Time to wait for container to be ready
+local_download_dir = "data"
+
+# Chrome-specific settings
+[selenium.chrome_capabilities]
+[selenium.chrome_capabilities.chromeOptions.prefs]
+"download.default_directory" = "/downloads"
+"download.prompt_for_download" = false
+"download.directory_upgrade" = true
+"safebrowsing.enabled" = true
+
+[selenium.chrome_capabilities.chromeOptions]
+args = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu"
+]
+
+# Selectors for finding the download button, in order of preference
+[selenium.selector]
+using = "xpath"
+value = "//div[@role='button'][contains(text(), 'Download all')]"
+
+# Google Drive configuration
+[google_drive]
+url_prefix = "https://drive.google.com/drive/folders/"
+path_to_key = ".env/key.json"
+scopes = [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.metadata.readonly"
+]
+
+# Data processing configuration
+[data_processing]
+
+forbidden_words_in_datafile_paths = [
+    "public", 
+    "Public", 
+    "status", 
+    "Status", 
+    "DataTableInfo"
+]
+
+cols_to_make_numeric = [
+    "alpha_out", 
+    "alpha_in", 
+    "beta_out", 
+    "beta_in", 
+    "tmax_t_out", 
+    "tmax_t_in"
+]
+
+implexx_colnames = [
+    "ts", 
+    "rn", 
+    "batt_v", 
+    "id", 
+    "sdi", 
+    "sftot_wack", 
+    "vh_o_wack", 
+    "vh_in_wack", 
+    "alpha_out", 
+    "alpha_in", 
+    "beta_out", 
+    "beta_in", 
+    "tmax_t_out", 
+    "tmax_t_in"
+]
+
+[parameters]
+    [parameters.wnd_diam]
+    name = "wound diameter"
+    def = "diameter of drilled-out hole for probe"
+    unit = "cm"
+    value = 0.2
+
+    [parameters.sw_gw]
+    name = "sapwood green/fresh/wet weight"
+    def = "wet weight of a sapwood core"
+    unit = "kg"
+    value = 0.001
+
+    [parameters.sw_dw]
+    name = "sapwood dry weight"
+    def = "dry weight of a sapwood core"
+    unit = "kg"
+    value = 0.005 
+
+    [parameters.k]
+    name = "k"
+    def = "The rate of diffusion of heat in the wood and sap matrix as calculated from Vandegehuchte & Steppe (2012). "
+    unit = "cm^2/s"
+    value = 0.002409611
+
+    [parameters.hpd]
+    name = "heat pulse duration"
+    def = "how long the heater is doing its thing"
+    unit = "sec"
+    value = 3
+
+    [parameters.woundcorr]
+    name = "b"
+    def = "some stupid empirical magic number that someone made up and we're all stuck with now"
+    unit = "???"
+    value = 1.8905
+
+    [parameters.t]
+    name = "time since heat pulse emission"
+    def = "see name"
+    unit = "seconds"
+    value = 60
+
+    [parameters.sph]
+    name = "seconds per hour"
+    def = "see name. rate quantity. super exciting."
+    unit = "seconds/hour"
+    value = 3600
+
+    [parameters.pd]
+    name = "wood density"
+    def = "basic density of dry wood"
+    unit = "kg/m3"
+    value = 500
+
+    [parameters.cd]
+    name = "wood matrix specific heat capacity"
+    def = ""
+    unit = "J/kg/°C at 20 °C"
+    value = 1000
+
+    [parameters.mc]
+    name = "gravimetric water content of sapwood"
+    def = ""
+    unit = "kg/kg"
+    value = 1
+
+    [parameters.cw]
+    name = "specific heat capacity of sap"
+    def = ""
+    unit = "J/kg/°C at 20 °C"
+    value = 4182
+
+    [parameters.pw]
+    name = "density of water"
+    def = ""
+    unit = "kg/m3"
+    value = 1000
+
+[externals]
+    [externals.deployments]
+    id = "1mFr-Y5TmiqUqZFoxtfd68nqoNgtceU-xBcRmnrw6hfo"
+    download_via = "google_drive_api"
+    local_path = "data/deployments.csv"
+    formatter = "format_deployments"
+
+    [externals.sensors]
+    id = "10xYreHihXAF8LRmgjzAV45WLQOK4GcChkOKCK7YQ1nI"
+    download_via = "google_drive_api"
+    local_path = "data/sensors.csv"
+    formatter = "format_sensors"
+
+    [externals.dst_transitions]
+    id = "13X7l7a7vGK2J5YwTX-4zjf8KpPsGSD8XWdXbDfU8BXk"
+    download_via = "google_drive_api"
+    local_path = "data/dst_transitions.csv"
+    formatter = "format_dst"
+
+    [externals.raw]
+    id = "147L5_KrDVFfFyIScO1jkWNXgJeGPqDbz?usp=drive_link"
+    download_via = "selenium"
+    local_path = "data/raw"

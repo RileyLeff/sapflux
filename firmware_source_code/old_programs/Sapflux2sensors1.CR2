@@ -1,0 +1,120 @@
+'CR200/CR200X Series
+'Created by Short Cut (4.3)
+
+'Declare Variables and Units
+Dim N
+Dim N_2
+Public BattV
+Public SDI12(9)
+Public SDI12_2(9)
+Public id
+Public SDI0
+Public SDI1
+
+Alias SDI12(1)=SapFlwTot0
+Alias SDI12(2)=VhOuter0
+Alias SDI12(3)=VhInner0
+Alias SDI12(4)=AlphaOut0
+Alias SDI12(5)=AlphaIn0
+Alias SDI12(6)=BetaOut0
+Alias SDI12(7)=BetaIn0
+Alias SDI12(8)=tMaxTout0
+Alias SDI12(9)=tMaxTin0
+Alias SDI12_2(1)=SapFlwTot1
+Alias SDI12_2(2)=VhOut1
+Alias SDI12_2(3)=VhIn1
+Alias SDI12_2(4)=AlphaOut1
+Alias SDI12_2(5)=AlphaIn1
+Alias SDI12_2(6)=BetaOut1
+Alias SDI12_2(7)=BetaIn1
+Alias SDI12_2(8)=tMaxTout1
+Alias SDI12_2(9)=tMaxTin1
+
+Units BattV=Volts
+Units SapFlwTot0=literPerHour
+Units VhOuter0=heatVelocity
+Units VhInner0=heatVelocity
+Units AlphaOut0=logTRatio
+Units AlphaIn0=logTRatio
+Units BetaOut0=logTRatio
+Units BetaIn0=logTRatio
+Units tMaxTout0=second
+Units tMaxTin0=second
+Units SapFlwTot1=unit
+Units VhOut1=unit
+Units VhIn1=unit
+Units AlphaOut1=unit
+Units AlphaIn1=unit
+Units BetaOut1=unit
+Units BetaIn1=unit
+Units tMaxTout1=unit
+Units tMaxTin1=unit
+
+'Define Data Tables
+DataTable(Table1,True,-1)
+	DataInterval(0,30,Min)
+	Minimum(1,BattV,False,False)
+	Sample(1,id)
+	Sample(1,SDI0)
+	Sample(1,SapFlwTot0)
+	Sample(1,VhOuter0)
+	Sample(1,VhInner0)
+	Sample(1,AlphaOut0)
+	Sample(1,AlphaIn0)
+	Sample(1,BetaOut0)
+	Sample(1,BetaIn0)
+	Sample(1,tMaxTout0)
+	Sample(1,tMaxTin0)
+EndTable
+
+DataTable(Table2,True,-1)
+	DataInterval(0,30,Min)
+	Minimum(1,BattV,False,False)
+	Sample(1,id)
+	Sample(1,SDI1)
+	Sample(1,SapFlwTot1)
+	Sample(1,VhOut1)
+	Sample(1,VhIn1)
+	Sample(1,AlphaOut1)
+	Sample(1,AlphaIn1)
+	Sample(1,BetaOut1)
+	Sample(1,BetaIn1)
+	Sample(1,tMaxTout1)
+	Sample(1,tMaxTin1)
+EndTable
+
+'Main Program
+BeginProg
+	'Main Scan
+	Scan(30,Min)
+		'Default CR200 Series Datalogger Battery Voltage measurement 'BattV'
+		Battery(BattV)
+		'Generic SDI-12 Sensor measurements 'SapFlwTot0', 'VhOuter0', 'VhInner0', 
+		'AlphaOut0', 'AlphaIn0', 'BetaOut0', 'BetaIn0', 'tMaxTout0', and 'tMaxTin0'
+		SDI12Recorder(SDI12(),"0M!",1,0)
+		'Reset all Generic SDI-12 Sensor measurements if NAN is returned to SDI12(1)
+		If SDI12(1)=NAN Then
+			For N=1 To 9
+				SDI12(N)=NAN
+			Next
+		EndIf
+		'Generic SDI-12 Sensor measurements 'SapFlwTot1', 'VhOut1', 'VhIn1', 
+		'AlphaOut1', 'AlphaIn1', 'BetaOut1', 'BetaIn1', 'tMaxTout1', and 'tMaxTin1'
+		SDI12Recorder(SDI12_2(),"1M!",1,0)
+		'Reset all Generic SDI-12 Sensor measurements if NAN is returned to SDI12_2(1)
+		If SDI12_2(1)=NAN Then
+			For N_2=1 To 9
+				SDI12_2(N_2)=NAN
+			Next
+		EndIf
+		'User Entered Calculation
+		id=Status.PakBusAddress(1,1)
+		'User Entered Calculation
+		SDI0=0
+		'User Entered Calculation
+		SDI1=1
+		'Call Data Tables and Store Data
+		CallTable Table1
+		CallTable Table2
+	NextScan
+EndProg
