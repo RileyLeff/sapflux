@@ -352,7 +352,7 @@ A deployment contains all of:
 
 1. A timeframe:
    * Always includes a start time
-   * Optionally includes an end time
+   * Does not include an end time -- if a new deployment with the same logger ID appears, it supersedes the previous deployment and renders it inactive.
    * Times are specified in UTC, NOT local time.
   
 2. A hardware context:
