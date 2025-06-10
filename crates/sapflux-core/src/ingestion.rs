@@ -2,7 +2,7 @@
 
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
-use crate::validation::{LegacySingleSensorValidator, SchemaValidator}; // Import our new tools
+use crate::validation::{LegacySingleSensorValidator, CR300MultiSensorValidator, SchemaValidator}; // Import our new tools
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 
@@ -13,8 +13,8 @@ fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
     // The order matters if a file could potentially match multiple schemas.
     let validators: Vec<Box<dyn SchemaValidator>> = vec![
         Box::new(LegacySingleSensorValidator),
-        // Add other validators here:
-        // Box::new(CR300MultiSensorValidator),
+        Box::new(CR300MultiSensorValidator)
+        // Add other validators here
     ];
 
     for validator in validators {
