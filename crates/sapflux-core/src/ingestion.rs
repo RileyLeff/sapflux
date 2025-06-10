@@ -2,63 +2,54 @@
 
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
+use crate::validation::{CR200LegacyValidator, SchemaValidator}; // Import our new tools
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 
-/// Detects the schema of a file based on its header content.
-/// A real implementation would be more robust, but this is a great start.
-fn detect_schema(file_content: &[u8]) -> Result<FileSchema> {
-    // Use the csv crate to read from the in-memory byte slice.
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(false)
-        .from_reader(file_content);
+/// Attempts to validate the file against a series of known schemas.
+/// Returns the first schema that successfully validates.
+fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
+    // Create a list of all validators to try.
+    // The order matters if a file could potentially match multiple schemas.
+    let validators: Vec<Box<dyn SchemaValidator>> = vec![
+        Box::new(CR200LegacyValidator),
+        // Add other validators here:
+        // Box::new(CR300MultiSensorValidator),
+    ];
 
-    // Read the second line (the headers).
-    let headers = reader.records().nth(1).ok_or_else(|| {
-        PipelineError::Processing("File has less than two lines.".to_string())
-    })??;
-
-    // Check for a tell-tale sign of the multi-sensor format.
-    let has_multi_sensor_col = headers.iter().any(|h| h.contains("S1_"));
-    if has_multi_sensor_col {
-        Ok(FileSchema::CR300MultiSensor)
-    } else {
-        Ok(FileSchema::CRLegacySingleSensor)
+    for validator in validators {
+        if validator.validate(file_content).is_ok() {
+            // As soon as one validator passes, we've found our schema.
+            return Ok(validator.schema());
+        }
     }
+
+    // If no validators passed, the file is not of a known valid format.
+    Err(PipelineError::Processing(
+        "File did not match any known valid schema.".to_string(),
+    ))
 }
 
+
 /// Ingests a single file's content into the database.
-///
-/// This function is idempotent: if a file with the same content (hash)
-/// already exists, it will do nothing and return success.
-///
-/// # Arguments
-/// * `db_pool`: A connection pool to the database.
-/// * `file_content`: The raw bytes of the file to ingest.
-///
-/// # Returns
-/// The database `id` of the ingested (or pre-existing) file.
 pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
-    // 1. Calculate the SHA-256 hash of the file content.
     let hash = Sha256::digest(file_content);
     let hash_hex = format!("{:x}", hash);
 
-    // 2. Check if this hash already exists in the database.
     let existing_id: Option<i64> = sqlx::query_scalar("SELECT id FROM raw_files WHERE file_hash = $1")
         .bind(&hash_hex)
         .fetch_optional(db_pool)
         .await?;
 
     if let Some(id) = existing_id {
-        println!("  -> File with hash {} already exists with id {}. Skipping.", &hash_hex[..8], id);
+        println!("  -> File with hash {}... already exists with id {}. Skipping.", &hash_hex[..8], id);
         return Ok(id);
     }
 
-    // 3. If it's a new file, detect its schema.
-    let schema = detect_schema(file_content)?;
-    println!("  -> New file detected. Schema: {:?}", schema);
+    // Use our new, powerful validation function.
+    let schema = validate_and_identify_schema(file_content)?;
+    println!("  -> New file validated. Schema: {:?}", schema);
 
-    // 4. Insert the new file record into the database.
     let new_id: i64 = sqlx::query_scalar(
         "INSERT INTO raw_files (file_hash, file_content, detected_schema_name)
          VALUES ($1, $2, $3)
@@ -66,7 +57,7 @@ pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
     )
     .bind(&hash_hex)
     .bind(file_content)
-    .bind(&schema) // Our custom type impl allows sqlx to handle this.
+    .bind(&schema)
     .fetch_one(db_pool)
     .await?;
 
