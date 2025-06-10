@@ -1,1 +1,5 @@
 /target
+.env
+.DS_Store
+.ds_store
+.Ds_Store

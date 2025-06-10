@@ -1,0 +1,19 @@
+[package]
+name = "sapflux-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Inherit versions from the workspace
+polars = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+csv = { workspace = true }
+glob = { workspace = true }
+sha2 = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }

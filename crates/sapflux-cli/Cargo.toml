@@ -1,0 +1,15 @@
+[package]
+name = "sapflux-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Depend on our core library
+sapflux-core = { path = "../sapflux-core" }
+
+# Inherit shared dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+glob = { workspace = true }
