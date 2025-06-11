@@ -53,6 +53,10 @@ pub fn process_legacy_format(
                 .gt_eq(lit(start_date))
                 .and(col("timestamp_naive").lt_eq(lit(end_date))),
         )
+        // Cast record_number to Int64
+        .with_column(
+            col("record_number").cast(DataType::Int64).alias("record_number")
+        )
         // Add all the missing columns as NULLs
         .with_columns(&[
             lit(NULL).cast(DataType::Float64).alias("ptemp_c"),

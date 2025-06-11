@@ -4,29 +4,39 @@ use polars::prelude::*;
 use std::io::Cursor;
 use std::sync::Arc;
 use super::schema::get_full_schema_columns;
-
 /// Processor for the new, wide, multi-sensor format (new CR300).
 pub fn process_multi_sensor_format(
     content: &[u8],
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
-    // First, read just the headers from the second row
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(false)
-        .flexible(true)
-        .from_reader(content);
+    // Try a different approach - use CsvReadOptions with flexible schema
+    let cursor = Cursor::new(content);
     
-    // Skip first row and get headers from second row
-    reader.records().next();
-    let headers: Vec<String> = reader.records()
-        .next()
-        .ok_or_else(|| PipelineError::Processing("No header row found".to_string()))??
+    // First pass: read with very flexible settings to get the header
+    let header_df = CsvReadOptions::default()
+        .with_has_header(false)
+        .with_skip_rows(1)  // Skip first row
+        .with_n_rows(Some(1))  // Read only the header row
+        .with_ignore_errors(true)
+        .with_infer_schema_length(Some(0))  // Don't infer types
+        .into_reader_with_file_handle(cursor)
+        .finish()?;
+    
+    let headers: Vec<String> = header_df
+        .get_columns()
         .iter()
-        .map(|s| s.to_string())
+        .enumerate()
+        .map(|(i, col)| {
+            col.get(0)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| format!("column_{}", i))
+        })
         .collect();
     
-    // Read the actual data
+    println!("      -> Found {} columns: {:?}", headers.len(), &headers[0..5.min(headers.len())]);
+    
+    // Second pass: read the actual data
     let cursor = Cursor::new(content);
     let df = CsvReadOptions::default()
         .with_has_header(false)
@@ -34,9 +44,7 @@ pub fn process_multi_sensor_format(
         .with_ignore_errors(true)
         .with_n_threads(Some(1))
         .with_infer_schema_length(Some(100))
-        .with_columns(Some(Arc::new(
-            (0..headers.len()).map(|i| format!("column_{}", i).into()).collect()
-        )))
+        .with_columns(Some(Arc::new(headers.clone().into_iter().map(PlSmallStr::from).collect())))
         .into_reader_with_file_handle(cursor)
         .finish()?;
     
@@ -51,7 +59,11 @@ pub fn process_multi_sensor_format(
         .filter_map(|h| {
             if h.starts_with("S") && h.contains("_") {
                 let prefix = h.split('_').next()?;
-                Some(prefix.to_string())
+                if prefix.chars().skip(1).all(|c| c.is_numeric()) {  // Ensure it's S followed by digits
+                    Some(prefix.to_string())
+                } else {
+                    None
+                }
             } else {
                 None
             }
@@ -59,6 +71,8 @@ pub fn process_multi_sensor_format(
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect();
+    
+    println!("      -> Found {} sensors: {:?}", sensor_prefixes.len(), sensor_prefixes);
     
     // Parse timestamp before processing
     let df = df.lazy()
@@ -91,12 +105,20 @@ pub fn process_multi_sensor_format(
         // Extract the SDI address from the prefix (e.g., "S0" -> "0")
         let sdi_address = sensor_prefix.trim_start_matches('S');
         
-        // Create expressions to rename sensor-specific columns
+        // Create expressions to select and rename columns
         let mut select_exprs: Vec<Expr> = vec![
             col("TIMESTAMP").alias("timestamp_naive"),
-            col("RECORD").alias("record_number"),
-            col("Batt_volt").alias("batt_volt"),
-            col("PTemp_C").alias("ptemp_c"),
+            when(col("RECORD").is_not_null())
+                .then(col("RECORD"))
+                .otherwise(lit(NULL))
+                .cast(DataType::Int64)
+                .alias("record_number"),
+            col("Batt_volt").cast(DataType::Float64).alias("batt_volt"),
+            when(col("PTemp_C").is_not_null())
+                .then(col("PTemp_C"))
+                .otherwise(lit(NULL))
+                .cast(DataType::Float64)
+                .alias("ptemp_c"),
             lit(sdi_address).alias("sdi_address"),
         ];
         
@@ -127,7 +149,13 @@ pub fn process_multi_sensor_format(
         for (old_name, new_name) in &column_mapping {
             let full_column_name = format!("{}_{}", sensor_prefix, old_name);
             if headers.contains(&full_column_name) {
-                select_exprs.push(col(&full_column_name).alias(new_name));
+                select_exprs.push(
+                    when(col(&full_column_name).eq(lit(-99.0)))
+                        .then(lit(NULL))
+                        .otherwise(col(&full_column_name))
+                        .cast(DataType::Float64)
+                        .alias(new_name)
+                );
             } else {
                 select_exprs.push(lit(NULL).cast(DataType::Float64).alias(new_name));
             }
@@ -135,6 +163,7 @@ pub fn process_multi_sensor_format(
         
         let sensor_df = df.clone().lazy()
             .select(&select_exprs)
+            .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
             .select(&get_full_schema_columns());
             
         sensor_dfs.push(sensor_df);
