@@ -3,7 +3,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sapflux_core::{
-    db,
+    // --- FIX #1: Removed unused `db` import ---
     metadata,
     types::{
         CoastalMonitoringAttributes, DeploymentAttributes, NewDeployment, SdiAddress,
@@ -32,20 +32,25 @@ pub enum DeploymentCommands {
         #[arg(long)]
         species: String,
 
-        // Coastal Monitoring Specific Args
-        #[arg(long, requires = "coastal_group")]
+        // --- FIX #2: Corrected argument grouping logic ---
+
+        // The presence of `--site-name` now requires both `--zone-name` and `--plot-name`
+        // This is the correct logic for Coastal Monitoring deployments.
+        #[arg(long, requires_all = ["zone_name", "plot_name"])]
         site_name: Option<String>,
-        #[arg(long, group = "coastal_group")]
+        #[arg(long)]
         zone_name: Option<String>,
-        #[arg(long, group = "coastal_group")]
+        #[arg(long)]
         plot_name: Option<String>,
 
-        // Stemflow Specific Args
-        #[arg(long, group = "stemflow_group")]
+        // The presence of `--health-status` now requires `--collar-present`.
+        // This is the correct logic for Stemflow deployments.
+        #[arg(long, requires_all = ["collar_present"])]
         health_status: Option<String>,
-        #[arg(long, action = clap::ArgAction::Set, group = "stemflow_group")]
+        #[arg(long, action = clap::ArgAction::Set)]
         collar_present: Option<bool>,
-        #[arg(long, group = "stemflow_group")]
+        // robyn_label remains fully optional
+        #[arg(long)]
         robyn_label: Option<String>,
     },
     List,
@@ -79,14 +84,9 @@ pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPoo
         } => {
             println!("Attempting to create a new deployment...");
 
-            // --- THIS IS THE REAL IMPLEMENTATION ---
-            // 1. Look up the project by name to get its database ID.
             let project = metadata::get_project_by_name(pool, &project_name).await?;
-            
-            // 2. Look up the sensor by its string ID to get its database ID.
             let sensor = metadata::get_sensor_by_id_string(pool, &sensor_id).await?;
 
-            // 3. Construct the project-specific attributes.
             let attributes = match project_name.as_str() {
                 "Coastal Monitoring" => {
                     DeploymentAttributes::CoastalMonitoring(CoastalMonitoringAttributes {
@@ -108,7 +108,6 @@ pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPoo
                 _ => return Err(anyhow::anyhow!("Unknown project type for attribute construction.")),
             };
 
-            // 4. Assemble the final NewDeployment struct.
             let new_deployment_data = NewDeployment {
                 start_time_utc,
                 datalogger_id,
@@ -119,7 +118,6 @@ pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPoo
                 attributes,
             };
 
-            // 5. Call the core library function.
             metadata::create_deployment(pool, &new_deployment_data).await?;
         }
         DeploymentCommands::List => {
