@@ -6,17 +6,22 @@ use polars::prelude::*;
 use std::io::Cursor;
 use super::schema::get_full_schema_columns;
 
-/// Processor for the old, single-sensor-per-file formats (CR200, old CR300).
 pub fn process_legacy_format(
     content: &[u8],
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
     let cursor = Cursor::new(content);
+
+    // FIX #1: Use .into() for PlSmallStr and wrap in ParserOptions
+    let null_values = NullValues::AllColumns(vec!["-99".into(), "-99.0".into()]);
+    let parser_options = CsvParseOptions::default().with_null_values(Some(null_values));
+
     let mut lf = CsvReadOptions::default()
         .with_has_header(false)
         .with_skip_rows(4)
         .with_ignore_errors(true)
+        .with_parse_options(parser_options) // FIX #2: Use the correct builder method
         .into_reader_with_file_handle(cursor)
         .finish()?
         .lazy();
@@ -71,17 +76,6 @@ pub fn process_legacy_format(
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_o"),
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_i"),
         ])
-        // --- FIX IS HERE ---
-        // Be explicit about the type of the NULL literal to avoid type inference issues.
-        .with_columns(
-            ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"]
-            .map(|name| {
-                when(col(name).eq(lit(-99.0)))
-                    .then(lit(NULL).cast(DataType::Float64)) // Explicitly cast NULL
-                    .otherwise(col(name))
-                    .alias(name)
-            })
-        )
         .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
         .select(&get_full_schema_columns());
         
