@@ -3,8 +3,6 @@
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
 use chrono::{NaiveDate, NaiveDateTime, Utc};
-// FIX: Add MeltArgs and PivotArgs
-use polars::lazy::frame::{MeltArgs, PivotArgs};
 use polars::prelude::*;
 use sqlx::PgPool;
 use std::io::Cursor;
@@ -94,12 +92,13 @@ fn process_legacy_format(
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
     let cursor = Cursor::new(content);
-    let mut df = CsvReadOptions::default()
+    let mut lf = CsvReadOptions::default()
         .with_has_header(false)
         .with_skip_rows(4)
         .with_ignore_errors(true)
         .into_reader_with_file_handle(cursor)
-        .finish()?;
+        .finish()?
+        .lazy();
 
     let legacy_cols = &[
         "timestamp_naive", "record_number", "batt_volt", "logger_id",
@@ -107,13 +106,13 @@ fn process_legacy_format(
         "alpha_out", "alpha_in", "beta_out", "beta_in",
         "tmax_tout", "tmax_tinn",
     ];
-    
-    // FIX: Get current names from the eager DataFrame, then rename.
-    let current_cols = df.get_column_names();
-    let new_names: Vec<&str> = legacy_cols.iter().take(current_cols.len()).copied().collect();
-    df.set_column_names(&new_names)?;
-    
-    let lf = df.lazy();
+
+    // FIX: `.collect_schema()` returns a `Result<Arc<Schema>>`.
+    let old_names: Vec<String> = lf.collect_schema()?.iter_names().map(|s| s.to_string()).collect();
+    let new_names: Vec<&str> = legacy_cols.iter().take(old_names.len()).copied().collect();
+
+    // FIX: `.rename` requires a third boolean argument `strict`.
+    lf = lf.rename(&old_names, new_names, false);
 
     let lf = lf
         .filter(
@@ -154,7 +153,6 @@ fn process_multi_sensor_format(
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
-    // FIX: Use .has_headers() for the csv crate ReaderBuilder.
     let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(content);
     let headers: Vec<String> = reader.records().nth(1).unwrap()?.iter().map(|s| s.to_string()).collect();
     
@@ -166,24 +164,20 @@ fn process_multi_sensor_format(
         .into_reader_with_file_handle(cursor)
         .finish()?;
     
-    // FIX: Use .set_column_names() for an eager DataFrame.
-    df.set_column_names(&headers)?;
-
+    df.set_column_names(headers.iter().map(|s| s.as_str()))?;
+    
     let id_vars = &["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C"];
     let value_vars: Vec<String> = headers.iter().filter(|h| !id_vars.contains(&h.as_str())).cloned().collect();
 
-    let lf = df.lazy()
+    let melted_df = df.lazy()
         .filter(
             col("TIMESTAMP")
                 .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
                 .gt_eq(lit(start_date))
                 .and(col("TIMESTAMP").lt_eq(lit(end_date))),
         )
-        .melt(MeltArgs {
-            id_vars: id_vars.iter().map(|s| s.to_string()).collect(),
-            value_vars,
-            ..Default::default()
-        })
+        // Perform the unpivot/melt operation
+        .melt(id_vars, value_vars)?
         .with_columns(&[
             col("variable")
                 .str()
@@ -194,13 +188,15 @@ fn process_multi_sensor_format(
                 .extract(lit(r"^S\d+_(.*)$"), 1)
                 .alias("measurement_type"),
         ])
-        .pivot(PivotAgg {
-            values: vec!["value".to_string()],
-            index: vec![ "TIMESTAMP".to_string(), "RECORD".to_string(), "Batt_volt".to_string(), "PTemp_C".to_string(), "sdi_address".to_string() ],
-            columns: vec!["measurement_type".to_string()],
-            agg_expr: Some(col("value").first()),
-            sort_columns: false,
-        })
+        .collect()?;
+
+    // FIX: The pivot operation must be done on a GroupBy object created from an eager DataFrame.
+    let pivoted_df = melted_df
+        .group_by(["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address"])?
+        .pivot(col("measurement_type"), col("value"))
+        .first()?;
+
+    let lf = pivoted_df.lazy()
         .select(&[
             col("TIMESTAMP").alias("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
             col("sdi_address"),
