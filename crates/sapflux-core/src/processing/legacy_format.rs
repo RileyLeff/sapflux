@@ -79,8 +79,8 @@ pub fn process_legacy_format(
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_o"),
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_i"),
         ])
-        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
-        .select(&get_full_schema_columns());
+        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false));
+        //.select(&get_full_schema_columns());
         
     Ok(lf)
 }

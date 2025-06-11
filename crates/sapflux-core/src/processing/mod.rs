@@ -7,33 +7,39 @@ use polars::prelude::*;
 use sqlx::PgPool;
 use std::collections::HashMap;
 
+// --- Module Declarations ---
 mod schema;
 mod legacy_format;
 mod multi_sensor_format;
 
+// --- Imports from our modules ---
 use legacy_format::process_legacy_format;
 use multi_sensor_format::process_multi_sensor_format;
+use schema::get_full_schema_columns; // Import the schema function
 
+// --- Struct Definitions ---
+
+// This struct holds the raw data fetched from the DB for processing.
 struct RawFileRecord {
     file_hash: String,
     file_content: Vec<u8>,
     detected_schema_name: FileSchema,
 }
 
+// This struct holds the manual correction rules fetched from the DB.
 #[derive(sqlx::FromRow, Debug)]
 struct ManualFix {
     file_hash: String,
     action: String,
     value: serde_json::Value,
-    // --- FIX IS HERE (1/2) ---
-    // Add the description field to the struct. It's an Option
-    // because the database schema allows it to be NULL.
     description: Option<String>,
 }
 
+
+// --- Main Pipeline Orchestrator ---
+
 pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     println!("   -> Fetching manual corrections from the database...");
-    // The query is now correct because the struct matches it.
     let fixes_vec = sqlx::query_as!(ManualFix, "SELECT file_hash, action, value, description FROM manual_fixes")
         .fetch_all(pool)
         .await?;
@@ -60,15 +66,22 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
         }
     }
 
-    if lazyframes.is_empty() { return Err(PipelineError::Processing("No valid files could be parsed.".to_string())); }
+    if lazyframes.is_empty() { 
+        return Err(PipelineError::Processing("No valid files could be parsed.".to_string())); 
+    }
 
     println!("\n   -> Concatenating all files into a single dataset...");
+    // Every LazyFrame in the vec now has the exact same schema, making this concat safe.
     let unified_lf = concat(&lazyframes, UnionArgs::default())?;
 
     println!("✅ Unified LazyFrame created successfully.");
     Ok(unified_lf)
 }
 
+
+// --- Helper Functions ---
+
+/// Fetches all raw file records from the database.
 async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     sqlx::query_as!(
         RawFileRecord,
@@ -85,10 +98,13 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     .map_err(PipelineError::from)
 }
 
+/// Dispatches a file to the correct parser, applies any one-off fixes,
+/// and enforces the final, unified schema.
 fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFix>) -> Result<LazyFrame> {
     let start_date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
+    // Step 1: Parse the file based on its detected schema. The output will have a variable schema.
     let mut lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
@@ -98,9 +114,8 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
         }
     };
 
+    // Step 2: Apply any manual corrections needed for this specific file.
     if let Some(fix) = fixes.get(&record.file_hash) {
-        // --- FIX IS HERE (2/2) ---
-        // Improve the log message to include the human-readable description.
         let description = fix.description.as_deref().unwrap_or("No description.");
         println!("\n      -> Applying fix to hash {}: {} ({})", &record.file_hash[..8], fix.action, description);
         
@@ -110,7 +125,7 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
                     format!("Invalid 'value' for SET_LOGGER_ID on hash {}: not an integer.", record.file_hash)
                 ))?;
                 
-                  lf.drop(["logger_id"])
+                lf.drop(["logger_id"])
                   .with_column(lit(new_id).cast(DataType::Int64).alias("logger_id"))
             },
             _ => {
@@ -120,5 +135,12 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
         };
     }
 
-    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
+    // Step 3: Enforce the final, unified schema.
+    // This adds the file_hash and selects all columns in the correct order,
+    // casting them to the correct final types. This is the single point of truth.
+    let final_lf = lf
+        .with_column(lit(record.file_hash.clone()).alias("file_hash"))
+        .select(&get_full_schema_columns());
+
+    Ok(final_lf)
 }

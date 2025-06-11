@@ -105,8 +105,8 @@ pub fn process_multi_sensor_format(
                 col("timestamp_naive").is_not_null()
                 .and(col("timestamp_naive").gt_eq(lit(start_date)))
                 .and(col("timestamp_naive").lt_eq(lit(end_date))),
-            )
-            .select(&get_full_schema_columns());
+            );
+            //.select(&get_full_schema_columns());
 
         sensor_lazyframes.push(sensor_lf);
     }
