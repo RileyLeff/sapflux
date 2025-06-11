@@ -9,7 +9,7 @@
 project_name = "Coastal Monitoring"
 datalogger_id = 301
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "560"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -18,7 +18,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 301
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "562"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -27,7 +27,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 302
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "2431"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -36,7 +36,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 302
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "501"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -45,7 +45,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 302
 sdi_address = "1"
-start_time_utc = 2022-06-11T12:00:00Z
+start_time_utc = "2022-06-11T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "2431"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -54,7 +54,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 302
 sdi_address = "1"
-start_time_utc = 2024-07-10T01:00:00Z
+start_time_utc = "2024-07-10T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "501"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -63,7 +63,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 303
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "85"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "pintae" }
@@ -72,7 +72,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 303
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "95"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "pintae" }
@@ -81,7 +81,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 303
 sdi_address = "1"
-start_time_utc = 2022-06-11T12:00:00Z
+start_time_utc = "2022-06-11T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "85"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "pintae" }
@@ -90,7 +90,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 303
 sdi_address = "1"
-start_time_utc = 2022-10-25T12:00:00Z
+start_time_utc = "2022-10-25T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "2"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "nyssyl" }
@@ -99,7 +99,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 303
 sdi_address = "0"
-start_time_utc = 2022-10-25T12:00:00Z
+start_time_utc = "2022-10-25T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "1"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "nyssyl" }
@@ -108,7 +108,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 304
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "891"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "pintae" }
@@ -117,7 +117,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 304
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "892"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "pintae" }
@@ -126,7 +126,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 304
 sdi_address = "0"
-start_time_utc = 2024-07-10T01:00:00Z
+start_time_utc = "2024-07-10T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "892"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "pintae" }
@@ -135,7 +135,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "7", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "831"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -144,7 +144,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "830"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -153,7 +153,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "1"
-start_time_utc = 2022-06-11T12:00:00Z
+start_time_utc = "2022-06-11T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "831"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -162,7 +162,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "1"
-start_time_utc = 2022-11-10T16:30:00Z
+start_time_utc = "2022-11-10T16:30:00Z"
 sensor_id = "implexx_old"
 tree_id = "8"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "nyssyl" }
@@ -171,7 +171,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "0"
-start_time_utc = 2022-11-10T16:30:00Z
+start_time_utc = "2022-11-10T16:30:00Z"
 sensor_id = "implexx_old"
 tree_id = "7"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "nyssyl" }
@@ -180,7 +180,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "0"
-start_time_utc = 2024-01-01T01:00:00Z
+start_time_utc = "2024-01-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "831"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -189,7 +189,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 305
 sdi_address = "1"
-start_time_utc = 2024-01-01T01:00:00Z
+start_time_utc = "2024-01-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "830"
 attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -198,7 +198,7 @@ attributes = { site_name = "brnv", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 306
 sdi_address = "0"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "147"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -207,7 +207,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 306
 sdi_address = "1"
-start_time_utc = 2021-01-30T00:00:00Z
+start_time_utc = "2021-01-30T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "149"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -216,7 +216,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 306
 sdi_address = "1"
-start_time_utc = 2022-06-11T12:00:00Z
+start_time_utc = "2022-06-11T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "147"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -225,7 +225,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 306
 sdi_address = "1"
-start_time_utc = 2022-12-10T12:00:00Z
+start_time_utc = "2022-12-10T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "4"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "nyssyl" }
@@ -234,7 +234,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 306
 sdi_address = "0"
-start_time_utc = 2022-12-10T12:00:00Z
+start_time_utc = "2022-12-10T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "3"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "nyssyl" }
@@ -243,7 +243,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 310
 sdi_address = "0"
-start_time_utc = 2024-06-01T01:00:00Z
+start_time_utc = "2024-06-01T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "85"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "pintae" }
@@ -252,7 +252,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 310
 sdi_address = "1"
-start_time_utc = 2024-06-01T01:00:00Z
+start_time_utc = "2024-06-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "95"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "pintae" }
@@ -261,7 +261,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "6", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 311
 sdi_address = "0"
-start_time_utc = 2024-06-01T01:00:00Z
+start_time_utc = "2024-06-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5491"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -270,7 +270,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 311
 sdi_address = "1"
-start_time_utc = 2024-06-01T01:00:00Z
+start_time_utc = "2024-06-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5495"
 attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -279,7 +279,7 @@ attributes = { site_name = "brnv", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 401
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "127"
 attributes = { site_name = "monb", zone_name = "H", plot_name = "0", species = "pintae" }
@@ -288,7 +288,7 @@ attributes = { site_name = "monb", zone_name = "H", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 401
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "129"
 attributes = { site_name = "monb", zone_name = "H", plot_name = "0", species = "pintae" }
@@ -297,7 +297,7 @@ attributes = { site_name = "monb", zone_name = "H", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 402
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "145"
 attributes = { site_name = "monb", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -306,7 +306,7 @@ attributes = { site_name = "monb", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 402
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "143"
 attributes = { site_name = "monb", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -315,7 +315,7 @@ attributes = { site_name = "monb", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 403
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "134"
 attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "pintae" }
@@ -324,7 +324,7 @@ attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 403
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "135"
 attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "pintae" }
@@ -333,7 +333,7 @@ attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 403
 sdi_address = "1"
-start_time_utc = 2024-07-10T01:00:00Z
+start_time_utc = "2024-07-10T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "134"
 attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "pintae" }
@@ -342,7 +342,7 @@ attributes = { site_name = "monb", zone_name = "H", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 404
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "140"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -351,7 +351,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 404
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "139"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -360,7 +360,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 405
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "120"
 attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "pintae" }
@@ -369,7 +369,7 @@ attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 405
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "119"
 attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "pintae" }
@@ -378,7 +378,7 @@ attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 405
 sdi_address = "0"
-start_time_utc = 2024-01-01T01:00:00Z
+start_time_utc = "2024-01-01T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "120"
 attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "pintae" }
@@ -387,7 +387,7 @@ attributes = { site_name = "monb", zone_name = "L", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 406
 sdi_address = "0"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "122"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "pintae" }
@@ -396,7 +396,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 406
 sdi_address = "1"
-start_time_utc = 2021-05-26T00:00:00Z
+start_time_utc = "2021-05-26T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "121"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "pintae" }
@@ -405,7 +405,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 410
 sdi_address = "0"
-start_time_utc = 2024-05-01T01:00:00Z
+start_time_utc = "2024-05-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "140"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -414,7 +414,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 410
 sdi_address = "1"
-start_time_utc = 2024-05-01T01:00:00Z
+start_time_utc = "2024-05-01T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "139"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -423,7 +423,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 411
 sdi_address = "0"
-start_time_utc = 2024-06-19T01:00:00Z
+start_time_utc = "2024-06-19T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "122"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "pintae" }
@@ -432,7 +432,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 411
 sdi_address = "1"
-start_time_utc = 2024-06-19T01:00:00Z
+start_time_utc = "2024-06-19T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "121"
 attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "pintae" }
@@ -441,7 +441,7 @@ attributes = { site_name = "monb", zone_name = "M", plot_name = "0", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 501
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5402"
 attributes = { site_name = "milf", zone_name = "H", plot_name = "1", species = "pintae" }
@@ -450,7 +450,7 @@ attributes = { site_name = "milf", zone_name = "H", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 501
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5498"
 attributes = { site_name = "milf", zone_name = "H", plot_name = "1", species = "pintae" }
@@ -459,7 +459,7 @@ attributes = { site_name = "milf", zone_name = "H", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 502
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5491"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -468,7 +468,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 502
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5495"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "2", species = "pintae" }
@@ -477,7 +477,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 503
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5500"
 attributes = { site_name = "milf", zone_name = "H", plot_name = "2", species = "pintae" }
@@ -486,7 +486,7 @@ attributes = { site_name = "milf", zone_name = "H", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 503
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5401"
 attributes = { site_name = "milf", zone_name = "H", plot_name = "2", species = "pintae" }
@@ -495,7 +495,7 @@ attributes = { site_name = "milf", zone_name = "H", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 504
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5494"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -504,7 +504,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 504
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5496"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -513,7 +513,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 505
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5493"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -522,7 +522,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 505
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5492"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -531,7 +531,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 506
 sdi_address = "0"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5497"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -540,7 +540,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 506
 sdi_address = "1"
-start_time_utc = 2021-12-17T00:00:00Z
+start_time_utc = "2021-12-17T00:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5403"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "2", species = "pintae" }
@@ -549,7 +549,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "2", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 510
 sdi_address = "0"
-start_time_utc = 2024-06-16T01:00:00Z
+start_time_utc = "2024-06-16T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5493"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -558,7 +558,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 510
 sdi_address = "1"
-start_time_utc = 2024-06-16T01:00:00Z
+start_time_utc = "2024-06-16T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5492"
 attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "pintae" }
@@ -567,7 +567,7 @@ attributes = { site_name = "milf", zone_name = "M", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 511
 sdi_address = "1"
-start_time_utc = 2024-06-16T01:00:00Z
+start_time_utc = "2024-06-16T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5494"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -576,7 +576,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 511
 sdi_address = "0"
-start_time_utc = 2024-06-16T01:00:00Z
+start_time_utc = "2024-06-16T01:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "5496"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -585,7 +585,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 511
 sdi_address = "0"
-start_time_utc = 2024-08-01T01:00:00Z
+start_time_utc = "2024-08-01T01:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5496"
 attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "pintae" }
@@ -594,7 +594,7 @@ attributes = { site_name = "milf", zone_name = "L", plot_name = "1", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 601
 sdi_address = "0"
-start_time_utc = 2022-06-06T12:00:00Z
+start_time_utc = "2022-06-06T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "9"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "nyssyl" }
@@ -603,7 +603,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 601
 sdi_address = "1"
-start_time_utc = 2022-06-06T12:00:00Z
+start_time_utc = "2022-06-06T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "10"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "nyssyl" }
@@ -612,7 +612,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 601
 sdi_address = "1"
-start_time_utc = 2024-01-01T12:00:00Z
+start_time_utc = "2024-01-01T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "560"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -621,7 +621,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 601
 sdi_address = "0"
-start_time_utc = 2024-01-01T12:00:00Z
+start_time_utc = "2024-01-01T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "562"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -630,7 +630,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 701
 sdi_address = "1"
-start_time_utc = 2024-09-01T12:00:00Z
+start_time_utc = "2024-09-01T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "560"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -639,7 +639,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Coastal Monitoring"
 datalogger_id = 701
 sdi_address = "0"
-start_time_utc = 2024-09-01T12:00:00Z
+start_time_utc = "2024-09-01T12:00:00Z"
 sensor_id = "implexx_old"
 tree_id = "562"
 attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "pintae" }
@@ -653,7 +653,7 @@ attributes = { site_name = "brnv", zone_name = "H", plot_name = "5", species = "
 project_name = "Stemflow Experiment"
 datalogger_id = 423
 sdi_address = "2"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5270"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "D4", collar_present = true, health_status = "moribund" }
@@ -662,7 +662,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "D4", colla
 project_name = "Stemflow Experiment"
 datalogger_id = 423
 sdi_address = "0"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "153"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "healthy" }
@@ -671,7 +671,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 423
 sdi_address = "1"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5382"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "H1", collar_present = true, health_status = "healthy" }
@@ -680,7 +680,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "H1", colla
 project_name = "Stemflow Experiment"
 datalogger_id = 420
 sdi_address = "0"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "778"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "healthy" }
@@ -689,7 +689,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 420
 sdi_address = "1"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5275"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "moribund" }
@@ -698,7 +698,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 422
 sdi_address = "0"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5277"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "H3", collar_present = true, health_status = "healthy" }
@@ -707,7 +707,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "H3", colla
 project_name = "Stemflow Experiment"
 datalogger_id = 422
 sdi_address = "1"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5278"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "moribund" }
@@ -716,7 +716,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 421
 sdi_address = "1"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5279"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "H5", collar_present = true, health_status = "healthy" }
@@ -725,7 +725,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "H5", colla
 project_name = "Stemflow Experiment"
 datalogger_id = 421
 sdi_address = "0"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5276"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "healthy" }
@@ -734,7 +734,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 424
 sdi_address = "1"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5280"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_present = false, health_status = "moribund" }
@@ -743,7 +743,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "", collar_
 project_name = "Stemflow Experiment"
 datalogger_id = 424
 sdi_address = "2"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5281"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "M4", collar_present = true, health_status = "moribund" }
@@ -752,7 +752,7 @@ attributes = { site_name = "monb", species = "liqsty", robyn_label = "M4", colla
 project_name = "Stemflow Experiment"
 datalogger_id = 424
 sdi_address = "0"
-start_time_utc = 2025-05-20T06:00:00Z
+start_time_utc = "2025-05-20T06:00:00Z"
 sensor_id = "implexx_new"
 tree_id = "5282"
 attributes = { site_name = "monb", species = "liqsty", robyn_label = "M3", collar_present = true, health_status = "moribund" }
