@@ -22,6 +22,13 @@ struct RawFileRecord {
     detected_schema_name: FileSchema,
 }
 
+#[derive(sqlx::FromRow)]
+struct ManualFix {
+    file_hash: String,
+    action: String,
+    value: serde_json::Value,
+}
+
 /// **The Orchestrator**: The main public function for the processing pipeline.
 /// It fetches all raw files, dispatches them to the appropriate parser,
 /// and concatenates the results into a single, unified LazyFrame.

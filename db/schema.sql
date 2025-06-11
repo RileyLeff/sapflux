@@ -84,3 +84,19 @@ CREATE INDEX IF NOT EXISTS idx_deployments_project_id ON deployments(project_id)
 CREATE INDEX IF NOT EXISTS idx_deployments_sensor_id ON deployments(sensor_id);
 CREATE INDEX IF NOT EXISTS idx_deployments_datalogger_id ON deployments(datalogger_id);
 CREATE INDEX IF NOT EXISTS idx_deployments_time_range ON deployments(start_time_utc, end_time_utc);
+
+
+-- ====================================================================
+-- MANUAL CORRECTIONS TABLE
+-- ====================================================================
+
+-- Stores explicit, one-off corrections for specific raw data files,
+-- identified by their immutable SHA-256 hash.
+CREATE TABLE IF NOT EXISTS manual_fixes (
+    id SERIAL PRIMARY KEY,
+    file_hash TEXT NOT NULL UNIQUE,
+    action TEXT NOT NULL,
+    value JSONB NOT NULL,
+    description TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_manual_fixes_file_hash ON manual_fixes(file_hash);

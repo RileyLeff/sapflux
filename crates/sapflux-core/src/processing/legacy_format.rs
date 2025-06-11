@@ -13,15 +13,15 @@ pub fn process_legacy_format(
 ) -> Result<LazyFrame> {
     let cursor = Cursor::new(content);
 
-    // FIX #1: Use .into() for PlSmallStr and wrap in ParserOptions
     let null_values = NullValues::AllColumns(vec!["-99".into(), "-99.0".into()]);
-    let parser_options = CsvParseOptions::default().with_null_values(Some(null_values));
+    // Your correction was right: CsvParseOptions
+    let parse_options = CsvParseOptions::default().with_null_values(Some(null_values));
 
     let mut lf = CsvReadOptions::default()
         .with_has_header(false)
         .with_skip_rows(4)
         .with_ignore_errors(true)
-        .with_parse_options(parser_options) // FIX #2: Use the correct builder method
+        .with_parse_options(parse_options) // Your correction was right: with_parse_options
         .into_reader_with_file_handle(cursor)
         .finish()?
         .lazy();
@@ -39,6 +39,9 @@ pub fn process_legacy_format(
     lf = lf.rename(old_names, new_names, false);
 
     let lf = lf
+        // --- THE FINAL FIX IS HERE ---
+        // Explicitly cast the sdi_address column to String immediately after it's created.
+        .with_column(col("sdi_address").cast(DataType::String))
         .with_column(
             col("timestamp_naive")
                 .str()

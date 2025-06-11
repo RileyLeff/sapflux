@@ -47,6 +47,9 @@ enum Commands {
 
         #[arg(long, default_value = "initial_metadata/deployments.toml")]
         deployments_file: PathBuf,
+
+        #[arg(long, default_value = "initial_metadata/fixes.toml")] // <-- Add this
+        fixes_file: PathBuf,
     },
     Process {
     #[arg(short, long, default_value = "output.parquet")]
@@ -111,7 +114,8 @@ async fn main() -> Result<()> {
             sensors_file, 
             parameters_file, 
             dst_file, 
-            deployments_file 
+            deployments_file,
+            fixes_file
         } => {
             // Delegate all seeding logic to the new handler
             handle_seed_command(
@@ -120,7 +124,8 @@ async fn main() -> Result<()> {
                 &sensors_file,
                 &parameters_file,
                 &dst_file,
-                &deployments_file
+                &deployments_file,
+                &fixes_file
             ).await?;
         }
         Commands::Process { output } => {

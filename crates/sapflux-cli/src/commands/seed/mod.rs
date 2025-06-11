@@ -7,6 +7,7 @@ mod sensors;
 mod parameters;
 mod dst_transitions;
 mod deployments;
+mod fixes;
 
 use sqlx::PgPool;
 use std::path::Path;
@@ -21,6 +22,7 @@ pub async fn handle_seed_command(
     parameters_path: &Path,
     dst_path: &Path,
     deployments_path: &Path,
+    fixes_path: &Path,
 ) -> Result<()> {
     println!("🌱 Starting database seeding...");
     let mut tx = pool.begin().await.map_err(|e| anyhow::anyhow!("Failed to begin transaction: {}", e))?;
@@ -35,6 +37,7 @@ pub async fn handle_seed_command(
         let sensor_map = sensors::seed(&mut tx, sensors_path).await?;
         parameters::seed(&mut tx, parameters_path).await?;
         deployments::seed(&mut tx, deployments_path, &project_map, &sensor_map).await?;
+        fixes::seed(&mut tx, fixes_path).await?;
         
         // This weird Ok(()) is needed to satisfy the type checker for the closure.
         Ok::<(), anyhow::Error>(()) 
