@@ -1,3 +1,5 @@
+// crates/sapflux-core/processing/legacy_format.rs
+
 use crate::error::Result;
 use chrono::NaiveDateTime;
 use polars::prelude::*;
@@ -31,7 +33,6 @@ pub fn process_legacy_format(
     
     lf = lf.rename(old_names, new_names, false);
 
-    // Parse timestamp and filter
     let lf = lf
         .with_column(
             col("timestamp_naive")
@@ -53,11 +54,6 @@ pub fn process_legacy_format(
                 .gt_eq(lit(start_date))
                 .and(col("timestamp_naive").lt_eq(lit(end_date))),
         )
-        // Cast record_number to Int64
-        .with_column(
-            col("record_number").cast(DataType::Int64).alias("record_number")
-        )
-        // Add all the missing columns as NULLs
         .with_columns(&[
             lit(NULL).cast(DataType::Float64).alias("ptemp_c"),
             lit(NULL).cast(DataType::Float64).alias("tp_ds_out"),
@@ -75,12 +71,13 @@ pub fn process_legacy_format(
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_o"),
             lit(NULL).cast(DataType::Float64).alias("tmax_tus_i"),
         ])
-        // Replace -99.0 with NULL for existing columns
+        // --- FIX IS HERE ---
+        // Be explicit about the type of the NULL literal to avoid type inference issues.
         .with_columns(
             ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"]
             .map(|name| {
                 when(col(name).eq(lit(-99.0)))
-                    .then(lit(NULL))
+                    .then(lit(NULL).cast(DataType::Float64)) // Explicitly cast NULL
                     .otherwise(col(name))
                     .alias(name)
             })

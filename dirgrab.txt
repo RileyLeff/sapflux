@@ -54,216 +54,12 @@ DIRECTORY STRUCTURE
   - schema.sql
 - docker-compose.yml
 - extract_files.py
-- extracted_11a8720f.dat
-- extracted_518c5771.dat
-- extracted_7e2fb6ab.dat
-- extracted_a61122b3.dat
 - gemini_plan.md
 - inspect_parquet.py
-- scripts
-  - seed_database.py
 
 ---
 FILE CONTENTS
 ---
-
---- FILE: crates/sapflux-core/Cargo.toml ---
-[package]
-name = "sapflux-core"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-# Inherit versions from the workspace
-polars = { workspace = true }
-sqlx = { workspace = true }
-tokio = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
-csv = { workspace = true }
-glob = { workspace = true }
-sha2 = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
-dotenvy = { workspace = true }
-serde_json = { workspace = true }
-
---- FILE: inspect_parquet.py ---
-#!/usr/bin/env python3
-# /// script
-# dependencies = [
-#   "polars",
-#   "pyarrow"
-# ]
-# ///
-
-"""
-A command-line utility to inspect a Parquet file and display its
-high-level statistics using the Polars library.
-
-Provides information on shape, schema, null counts, and descriptive
-statistics for numeric columns.
-"""
-
-import sys
-import argparse
-import polars as pl
-
-def inspect_parquet_file(file_path: str) -> int:
-    """
-    Reads a Parquet file and prints a statistical summary.
-
-    Args:
-        file_path: The path to the Parquet file to inspect.
-
-    Returns:
-        0 on success, 1 on failure.
-    """
-    try:
-        print(f"--- Inspecting Parquet File: '{file_path}' ---")
-        
-        # Read the Parquet file into a Polars DataFrame
-        df = pl.read_parquet(file_path)
-
-        # 1. Shape of the DataFrame
-        print(f"\n📊 Shape: {df.shape[0]} rows, {df.shape[1]} columns")
-
-        # 2. Schema (Column names and data types)
-        print("\n📜 Schema:")
-        # The schema object prints nicely by default
-        print(df.schema)
-
-        # 3. Head (first 5 rows)
-        print("\nHEAD (First 5 Rows):")
-        print(df.head())
-        
-        # 4. Tail (last 5 rows)
-        print("\nTAIL (Last 5 Rows):")
-        print(df.tail())
-
-        # 5. Null Value Counts
-        print("\n🗑️ Null Value Counts:")
-        null_counts = df.null_count()
-        # Only print the table if there are actually nulls to report
-        if null_counts.sum(axis=1)[0] > 0:
-            print(null_counts)
-        else:
-            print("   -> No null values found in any column. ✨")
-
-        # 6. Descriptive Statistics for all numeric columns
-        print("\n🔢 Descriptive Statistics (for numeric columns):")
-        # .describe() returns a DataFrame, which is easy to read
-        print(df.describe())
-
-    except FileNotFoundError:
-        print(f"\n❌ Error: File not found at '{file_path}'", file=sys.stderr)
-        return 1
-    except Exception as e:
-        print(f"\n❌ An unexpected error occurred while processing the file: {e}", file=sys.stderr)
-        return 1
-        
-    print("\n--- Inspection Complete ---")
-    return 0
-
-def main():
-    """Parses command-line arguments and runs the inspection."""
-    parser = argparse.ArgumentParser(
-        description="Inspect a Parquet file and display high-level statistics.",
-        epilog="Example: uv run inspect_parquet.py output.parquet"
-    )
-    parser.add_argument(
-        "file_path",
-        help="The path to the .parquet file to inspect."
-    )
-    args = parser.parse_args()
-
-    sys.exit(inspect_parquet_file(args.file_path))
-
-
-if __name__ == "__main__":
-    main()
-
---- FILE: crates/sapflux-cli/src/commands/seed/types.rs ---
-// crates/sapflux-cli/src/commands/seed/types.rs
-
-use serde::Deserialize;
-use chrono::{DateTime, Utc, NaiveDateTime};
-use std::collections::HashMap;
-
-// --- Projects ---
-#[derive(Debug, Deserialize)]
-pub struct ProjectsFile {
-    #[serde(rename = "project")]
-    pub projects: Vec<ProjectSeed>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ProjectSeed {
-    pub name: String,
-    pub description: Option<String>,
-}
-
-// --- Sensors ---
-#[derive(Debug, Deserialize)]
-pub struct SensorsFile {
-    #[serde(rename = "sensor")]
-    pub sensors: Vec<SensorSeed>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SensorSeed {
-    pub id: String,
-    pub downstream_probe_distance_cm: f64,
-    pub upstream_probe_distance_cm: f64,
-    pub thermistor_depth_1_mm: i32,
-    pub thermistor_depth_2_mm: i32,
-}
-
-// --- Parameters ---
-#[derive(Debug, Deserialize)]
-pub struct ParametersFile {
-    pub parameters: HashMap<String, ParameterValueSeed>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ParameterValueSeed {
-    pub value: f64,
-    pub unit: Option<String>,
-    pub description: Option<String>,
-}
-
-
-// --- DST Transitions ---
-#[derive(Debug, Deserialize)]
-pub struct DstTransitionsFile {
-    #[serde(rename = "transitions")]
-    pub transitions: Vec<DstTransitionSeed>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DstTransitionSeed {
-    pub action: String,
-    pub ts_local: NaiveDateTime,
-}
-
-// --- Deployments ---
-#[derive(Debug, Deserialize)]
-pub struct DeploymentsFile {
-    #[serde(rename = "deployment")]
-    pub deployments: Vec<DeploymentSeed>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DeploymentSeed {
-    pub project_name: String,
-    pub datalogger_id: i32,
-    pub sdi_address: String,
-    pub start_time_utc: DateTime<Utc>,
-    pub sensor_id: String,
-    pub tree_id: String,
-    pub attributes: toml::Value,
-}
 
 --- FILE: crates/sapflux-cli/src/main.rs ---
 // crates/sapflux-cli/src/main.rs
@@ -417,670 +213,312 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
---- FILE: crates/sapflux-core/src/validation.rs ---
-// In crates/sapflux-core/src/validation.rs
+--- FILE: db/schema.sql ---
+-- db/schema.sql
+
+-- A simple table to define the schemas our system can recognize.
+CREATE TABLE IF NOT EXISTS file_schemas (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- The main table for storing our immutable, raw data.
+CREATE TABLE IF NOT EXISTS raw_files (
+    id BIGSERIAL PRIMARY KEY,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    file_hash TEXT NOT NULL UNIQUE,
+    file_content BYTEA NOT NULL,
+    detected_schema_name TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_raw_files_file_hash ON raw_files(file_hash);
+
+-- Table to store Daylight Saving Time transition rules.
+CREATE TABLE IF NOT EXISTS dst_transitions (
+    id SERIAL PRIMARY KEY,
+    transition_action TEXT NOT NULL CHECK (transition_action IN ('start', 'end')),
+    ts_local TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    UNIQUE (transition_action, ts_local)
+);
+CREATE INDEX IF NOT EXISTS idx_dst_transitions_ts ON dst_transitions(ts_local);
+
+-- ====================================================================
+-- METADATA TABLES
+-- ====================================================================
+
+-- Stores high-level project information.
+CREATE TABLE IF NOT EXISTS projects (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Stores hardware specifications for different sensor models.
+CREATE TABLE IF NOT EXISTS sensors (
+    id SERIAL PRIMARY KEY,
+    sensor_id TEXT NOT NULL UNIQUE,
+    downstream_probe_distance_cm NUMERIC NOT NULL,
+    upstream_probe_distance_cm NUMERIC NOT NULL,
+    thermistor_depth_1_mm INTEGER NOT NULL,
+    thermistor_depth_2_mm INTEGER NOT NULL
+);
+
+-- A simple key-value store for global calculation parameters.
+CREATE TABLE IF NOT EXISTS parameters (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    value NUMERIC NOT NULL,
+    unit TEXT,
+    description TEXT
+);
+
+-- The central table linking raw data to its full context.
+CREATE TABLE IF NOT EXISTS deployments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    start_time_utc TIMESTAMPTZ NOT NULL,
+    end_time_utc TIMESTAMPTZ, -- NULL means the deployment is currently active.
+    datalogger_id INTEGER NOT NULL,
+    sdi_address TEXT NOT NULL,
+    tree_id TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    sensor_id INTEGER NOT NULL REFERENCES sensors(id),
+    attributes JSONB
+);
+
+-- ====================================================================
+-- INDEXES
+-- ====================================================================
+
+-- Ensures a given datalogger/SDI address combo can only be active in ONE deployment at a time.
+-- This is the standard SQL way to create a unique constraint on an expression.
+-- The `COALESCE` trick treats all NULL end times as a single, unique value ('infinity').
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deployments_unique_active_sensor
+ON deployments (datalogger_id, sdi_address, (COALESCE(end_time_utc, 'infinity'::timestamptz)));
+
+-- Indexes to speed up common queries on the deployments table.
+CREATE INDEX IF NOT EXISTS idx_deployments_project_id ON deployments(project_id);
+CREATE INDEX IF NOT EXISTS idx_deployments_sensor_id ON deployments(sensor_id);
+CREATE INDEX IF NOT EXISTS idx_deployments_datalogger_id ON deployments(datalogger_id);
+CREATE INDEX IF NOT EXISTS idx_deployments_time_range ON deployments(start_time_utc, end_time_utc);
+
+--- FILE: crates/sapflux-cli/src/commands/seed/types.rs ---
+// crates/sapflux-cli/src/commands/seed/types.rs
+
+use serde::Deserialize;
+use chrono::{DateTime, Utc, NaiveDateTime};
+use std::collections::HashMap;
+
+// --- Projects ---
+#[derive(Debug, Deserialize)]
+pub struct ProjectsFile {
+    #[serde(rename = "project")]
+    pub projects: Vec<ProjectSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProjectSeed {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+// --- Sensors ---
+#[derive(Debug, Deserialize)]
+pub struct SensorsFile {
+    #[serde(rename = "sensor")]
+    pub sensors: Vec<SensorSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SensorSeed {
+    pub id: String,
+    pub downstream_probe_distance_cm: f64,
+    pub upstream_probe_distance_cm: f64,
+    pub thermistor_depth_1_mm: i32,
+    pub thermistor_depth_2_mm: i32,
+}
+
+// --- Parameters ---
+#[derive(Debug, Deserialize)]
+pub struct ParametersFile {
+    pub parameters: HashMap<String, ParameterValueSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ParameterValueSeed {
+    pub value: f64,
+    pub unit: Option<String>,
+    pub description: Option<String>,
+}
+
+
+// --- DST Transitions ---
+#[derive(Debug, Deserialize)]
+pub struct DstTransitionsFile {
+    #[serde(rename = "transitions")]
+    pub transitions: Vec<DstTransitionSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DstTransitionSeed {
+    pub action: String,
+    pub ts_local: NaiveDateTime,
+}
+
+// --- Deployments ---
+#[derive(Debug, Deserialize)]
+pub struct DeploymentsFile {
+    #[serde(rename = "deployment")]
+    pub deployments: Vec<DeploymentSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeploymentSeed {
+    pub project_name: String,
+    pub datalogger_id: i32,
+    pub sdi_address: String,
+    pub start_time_utc: DateTime<Utc>,
+    pub sensor_id: String,
+    pub tree_id: String,
+    pub attributes: toml::Value,
+}
+
+--- FILE: crates/sapflux-core/src/ingestion.rs ---
+// crates/sapflux-core/src/ingestion.rs
 
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
-use csv::StringRecord;
-
-pub trait SchemaValidator {
-    fn schema(&self) -> FileSchema;
-    fn validate(&self, file_content: &[u8]) -> Result<()>;
-}
-
-// --- Validator for BOTH CR200 and CR300 Legacy Single-Sensor Formats ---
-// RENAMED: from CR200LegacyValidator to LegacySingleSensorValidator
-pub struct LegacySingleSensorValidator;
-
-impl SchemaValidator for LegacySingleSensorValidator {
-    fn schema(&self) -> FileSchema {
-        FileSchema::CRLegacySingleSensor
-    }
-
-    fn validate(&self, file_content: &[u8]) -> Result<()> {
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .flexible(true)
-            .from_reader(file_content);
-
-        let mut records = reader.records();
-
-        let header_rec = records.next().ok_or(PipelineError::Processing(
-            "LegacySingleSensor: File is empty".to_string(),
-        ))??;
-        Self::validate_toa5_header(&header_rec)?; // Note: self becomes Self
-
-        let column_rec = records.next().ok_or(PipelineError::Processing(
-            "LegacySingleSensor: Missing header row".to_string(),
-        ))??;
-        let sdi_col_index = Self::validate_column_headers(&column_rec)?;
-
-        let junk_rec1 = records.next().ok_or(PipelineError::Processing(
-            "LegacySingleSensor: Missing junk row 3".to_string(),
-        ))??;
-        Self::validate_junk_rows(&junk_rec1)?;
-        
-        records.next().ok_or(PipelineError::Processing(
-            "LegacySingleSensor: Missing junk row 4".to_string(),
-        ))??;
-
-        let data_rec = records.next().ok_or(PipelineError::Processing(
-            "LegacySingleSensor: File has no data rows".to_string(),
-        ))??;
-        Self::validate_data_row(&data_rec, sdi_col_index)?;
-
-        Ok(())
-    }
-}
-
-// Helper methods for the validator
-impl LegacySingleSensorValidator {
-    fn validate_toa5_header(record: &StringRecord) -> Result<()> {
-        if record.get(0) != Some("TOA5") {
-            return Err(PipelineError::Processing("LegacySingleSensor: Row 1 is not a TOA5 header".to_string()));
-        }
-
-        // UPDATED LOGIC: Check for EITHER CR200 or CR300
-        let logger_model = record.get(1).unwrap_or("");
-        if !logger_model.contains("CR200") && !logger_model.contains("CR300") {
-            return Err(PipelineError::Processing(format!(
-               "LegacySingleSensor: Header model '{}' is not a recognized CR200 or CR300 series", logger_model
-           )));
-        }
-        Ok(())
-    }
-
-    // This method is now more generic and doesn't need to change.
-    fn validate_column_headers(record: &StringRecord) -> Result<usize> {
-        let sdi_col_index = record.iter().position(|h| h.starts_with("SDI")).ok_or_else(|| {
-            PipelineError::Processing("LegacySingleSensor: Could not find an SDI column in the header".to_string())
-        })?;
-        
-        let sdi_col_name = record.get(sdi_col_index).unwrap();
-        let sdi_digit_char = sdi_col_name.chars().nth(3).ok_or_else(|| {
-            PipelineError::Processing(format!("LegacySingleSensor: Invalid SDI column name '{}'", sdi_col_name))
-        })?;
-
-        if !sdi_digit_char.is_ascii_digit() {
-            return Err(PipelineError::Processing(format!(
-                "LegacySingleSensor: SDI column '{}' is not followed by a digit", sdi_col_name
-            )));
-        }
-        Ok(sdi_col_index)
-    }
-
-    // No changes needed here
-    fn validate_junk_rows(record: &StringRecord) -> Result<()> {
-        if record.get(0) != Some("TS") {
-            return Err(PipelineError::Processing("LegacySingleSensor: Row 3 does not start with 'TS'".to_string()));
-       }
-       Ok(())
-    }
-
-    // No changes needed here
-    fn validate_data_row(record: &StringRecord, sdi_col_index: usize) -> Result<()> {
-        let sdi_address = record.get(sdi_col_index).ok_or_else(|| {
-            PipelineError::Processing(format!("LegacySingleSensor: Data row missing field at SDI index {}", sdi_col_index))
-        })?;
-
-        if sdi_address.len() != 1 || !sdi_address.chars().next().unwrap().is_ascii_alphanumeric() {
-            return Err(PipelineError::Processing(format!(
-                "LegacySingleSensor: Invalid SDI-12 address '{}' in data row", sdi_address
-            )));
-        }
-        Ok(())
-    }
-}
-pub struct CR300MultiSensorValidator;
-
-impl SchemaValidator for CR300MultiSensorValidator {
-    fn schema(&self) -> FileSchema {
-        FileSchema::CR300MultiSensor
-    }
-
-    fn validate(&self, file_content: &[u8]) -> Result<()> {
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .flexible(true)
-            .from_reader(file_content);
-
-        let mut records = reader.records();
-
-        let header_rec = records.next().ok_or(PipelineError::Processing("CR300Multi: File is empty".to_string()))??;
-        Self::validate_toa5_header(&header_rec)?;
-
-        let column_rec = records.next().ok_or(PipelineError::Processing("CR300Multi: Missing header row".to_string()))??;
-        Self::validate_column_structure(&column_rec)?;
-
-        Ok(())
-    }
-}
-
-impl CR300MultiSensorValidator {
-    fn validate_toa5_header(record: &StringRecord) -> Result<()> {
-        if record.get(0) != Some("TOA5") {
-            return Err(PipelineError::Processing("CR300Multi: Not a TOA5 header".to_string()));
-        }
-        let logger_model = record.get(1).unwrap_or("");
-        if !logger_model.contains("CR300") {
-            return Err(PipelineError::Processing(format!("CR300Multi: Not a CR300 logger model ('{}')", logger_model)));
-        }
-        Ok(())
-    }
-
-    /// This is the core of the new logic, implementing your proposal.
-    fn validate_column_structure(record: &StringRecord) -> Result<()> {
-        // Define the exact set of columns that must appear at the beginning.
-        const PREAMBLE_COLS: &[&str] = &["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C"];
-        
-        // Define the number of data fields we expect for each sensor.
-        // Based on the README, the new format has 20 fields per sensor.
-        const FIELDS_PER_SENSOR: usize = 20;
-
-        let headers: Vec<&str> = record.iter().collect();
-
-        // 1. Check if the preamble exists at the start.
-        if headers.len() < PREAMBLE_COLS.len() || &headers[..PREAMBLE_COLS.len()] != PREAMBLE_COLS {
-            return Err(PipelineError::Processing(
-                "CR300Multi: Header does not start with the expected preamble (TIMESTAMP, RECORD, etc.)".to_string()
-            ));
-        }
-
-        // 2. The rest of the columns must be sensor data.
-        let sensor_cols = &headers[PREAMBLE_COLS.len()..];
-
-        // 3. The number of sensor columns must be a perfect multiple of FIELDS_PER_SENSOR.
-        if sensor_cols.is_empty() {
-             return Err(PipelineError::Processing(
-                "CR300Multi: Header contains preamble but no sensor columns.".to_string()
-            ));
-        }
-        if sensor_cols.len() % FIELDS_PER_SENSOR != 0 {
-            return Err(PipelineError::Processing(format!(
-                "CR300Multi: Number of sensor columns ({}) is not a multiple of {} per sensor.",
-                sensor_cols.len(), FIELDS_PER_SENSOR
-            )));
-        }
-
-        // 4. (Optional but good) Check that the columns follow the S{i}_ pattern.
-        let num_sensors = sensor_cols.len() / FIELDS_PER_SENSOR;
-        for i in 0..num_sensors {
-            let prefix = format!("S{}_", i);
-            let start_index = i * FIELDS_PER_SENSOR;
-            let first_col_in_block = sensor_cols[start_index];
-            if !first_col_in_block.starts_with(&prefix) {
-                 return Err(PipelineError::Processing(format!(
-                    "CR300Multi: Sensor block {} does not start with the expected prefix '{}'. Found '{}'.",
-                    i, prefix, first_col_in_block
-                )));
-            }
-        }
-
-        Ok(())
-    }
-}
-
---- FILE: docker-compose.yml ---
-# ./docker-compose.yml
-
-services:
-  db:
-    image: postgres:17-alpine
-    restart: always
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=sapflux
-    ports:
-      - '5432:5432'
-    # CORRECTED: This now correctly refers to the named volume defined below.
-    volumes:
-      - postgres_data_vol:/var/lib/postgresql/data
-
-# CORRECTED: The named volume is defined here.
-volumes:
-  postgres_data_vol:
-
---- FILE: crates/sapflux-api/Cargo.toml ---
-[package]
-name = "sapflux-api"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-# Depend on our core library
-sapflux-core = { path = "../sapflux-core" }
-
-# Inherit shared dependencies
-tokio = { workspace = true }
-anyhow = { workspace = true }
-axum = { workspace = true }
-
---- FILE: gemini_plan.md ---
-Of course. Taking stock of progress is a critical part of any successful project. Here is a detailed report on the current state of the `sapflux` project, outlining our accomplishments, architectural decisions, and the clear path forward.
-
----
-
-### **Project Status Report: `sapflux` Data Platform**
-
-**Date:** June 11, 2025
-
-**Overall Goal:** To build a robust, high-performance, and maintainable data platform for ingesting, processing, and serving sap flux data. The platform is designed to be a long-term "golden source" of truth, with a clear separation between raw data, metadata, and scientific processing logic.
-
----
-
-### **I. Executive Summary: Architecture and Philosophy**
-
-We have successfully pivoted from a simple script-based approach to a professional, multi-crate monorepo architecture designed for long-term stability and future expansion. The foundational principle is the **separation of concerns**: the system is divided into a core library, application clients (CLI, API), and a declarative database schema.
-
-**Key Architectural Decisions:**
-
-1.  **Monorepo with Cargo Workspace:** The entire project (backend, CLI, future API, future frontend) lives in a single repository, managed by a Cargo Workspace. This ensures dependency consistency and unified build tooling.
-2.  **Database as the Golden Source:** A PostgreSQL database serves as the single, authoritative source of truth for all data and metadata. This decouples data storage from processing and guarantees data integrity.
-3.  **Library-First Design:** All core business logic resides in a `sapflux-core` library crate. The CLI and future API are thin clients that call this library, ensuring that validation and processing logic is centralized and reusable.
-4.  **Two-Tier Validation Strategy:**
-    *   **Tier 1 (Ingestion Gate):** Raw sensor files are subject to strict *structural* validation upon ingestion to ensure they conform to a known, parsable schema. Invalid files are rejected.
-    *   **Tier 2 (Application Layer):** Metadata (Deployments, Rules) is subject to *business logic* validation within the core library whenever it is created or modified.
-5.  **Data-Driven Configuration:** Critical logic, such as DST transition rules, is stored as queryable data in the database rather than being hardcoded in the application.
-
----
-
-### **II. Accomplishments to Date (What We've Completed)**
-
-We have successfully built the complete foundational infrastructure and the entire "write path" for ingesting data.
-
-**✅ Phase 0: Environment and Project Scaffolding**
-*   **Monorepo Structure:** The full `sapflux/` directory structure with `crates/`, `db/`, `initial_metadata/`, and `scripts/` is in place.
-*   **Cargo Workspace:** The workspace is fully configured with three member crates (`sapflux-core`, `sapflux-cli`, `sapflux-api`) and a centralized dependency manifest.
-*   **Local Database Environment:** A `docker-compose.yml` provides a one-command setup for a local PostgreSQL 17 database.
-*   **Database Schema:** The `db/schema.sql` file defines the initial tables for `raw_files` and `dst_transitions`.
-
-**✅ Phase 1: Core Library Foundation**
-*   **Centralized Error Handling:** A robust `PipelineError` enum has been implemented in `sapflux-core/src/error.rs` using `thiserror`.
-*   **Core Data Types:** Rust structs representing database entities (`Deployment`, `DstTransition`, `SdiAddress`) are defined in `types.rs`, complete with database mapping (`sqlx::FromRow`) and domain-specific validation (the `SdiAddress` newtype).
-*   **Database Connectivity:** The `sapflux-core/src/db.rs` module provides a reliable, async connection pool to the database, configured via a `.env` file.
-
-**✅ Phase 2: Ingestion Pipeline**
-*   **Schema Validation Framework:** A flexible `SchemaValidator` trait has been designed and implemented. We have created two concrete validators:
-    *   `LegacySingleSensorValidator`: Correctly validates and accepts both CR200 and older CR300 single-sensor file formats.
-    *   `CR300MultiSensorValidator`: Correctly validates the generic multi-sensor format for any number of sensors.
-*   **Idempotent Ingestion Logic:** The `sapflux-core/src/ingestion.rs` module can ingest a file's raw byte content. It uses a SHA-256 hash to guarantee that identical files are never inserted twice, making the process robustly idempotent.
-*   **Metadata Seeding:** A PEP 723-compliant Python script (`scripts/seed_database.py`) has been created to populate the `dst_transitions` table from a human-readable `dst_transitions.toml` file, establishing a clear pattern for managing initial metadata.
-*   **Functional CLI:** The `sapflux-cli` application provides a working `ingest` command that successfully uses the core library to scan a directory and populate the database, gracefully handling and reporting files that fail validation.
-
-**Current Status:** All validated raw data files can be successfully and reliably ingested into the PostgreSQL database, creating an immutable, auditable archive of our source data. The foundation is complete and stable.
-
----
-
-### **III. Remaining Work (What We Have Left to Do)**
-
-The remaining work focuses on building the "read path" for processing the data and implementing the management logic for our other metadata entities.
-
-**🔜 Phase 3: Metadata Management**
-*   **Goal:** Fully implement the database schema, seeding, and validation logic for `deployments`, `sensors`, and `parameters`.
-*   **Tasks:**
-    1.  **Finalize Schemas:** Update `db/schema.sql` with the final table designs for `projects`, `sensors`, and `deployments`, including foreign key relationships.
-    2.  **Create Initial Data Files:** Create `deployments.csv`, `sensors.csv`, and `parameters.toml` in the `initial_metadata/` directory.
-    3.  **Expand Seeding Script:** Add functions to `scripts/seed_database.py` to parse these new files and populate their respective tables.
-    4.  **Implement Rust Types:** Add Rust structs to `types.rs` for `Project`, `Sensor`, and the `DeploymentAttributes` enum.
-    5.  **Implement Validation Rules:** Create `rules/deployment_rules.rs` etc. in the core library to house the business logic for validating new or updated deployment records.
-
-**🚀 Phase 4: The Processing Pipeline**
-*   **Goal:** Implement the full data processing logic to transform the raw data from the database into a clean, corrected, and scientifically valuable Parquet file.
-*   **Tasks:**
-    1.  **Implement the "Read Path":** Write the `sapflux-core/src/processing.rs` logic to fetch blobs from the DB and create a master `LazyFrame`.
-    2.  **Schema-Specific Parsing:** Make the `lazyframe_from_blob` function "smart" by using the `detected_schema_name` to apply the correct Polars parsing options (column names, types, etc.) for each file.
-    3.  **Implement DST Correction Algorithm:** This is the most complex single task. Implement the three-pass strategy we designed:
-        *   Pass 1: Use SQL to discover file relationships for each data point.
-        *   Pass 2: Use Polars to assign a unique `chunk_id` to each row.
-        *   Pass 3: Use the `dst_transitions` LUT to calculate and apply the correct timezone offset for each chunk.
-    4.  **Implement Scientific Calculations:** Add the Polars expressions to calculate heat velocity, apply wound correction, and compute final sap flux density.
-    5.  **Implement `process` CLI Command:** Flesh out the `sapflux-cli process` command to orchestrate the pipeline and save the final `LazyFrame`.
-
-**未来 (Future): Application Layer**
-*   **Goal:** Build user-facing applications on top of the core library.
-*   **Tasks:**
-    1.  **Build Axum API:** Create `sapflux-api` with endpoints for CRUD operations on metadata and for triggering/downloading processed datasets.
-    2.  **Build Svelte Frontend:** Create a web interface for non-technical users to upload data and download versioned results.
-    3.  **Deploy to Render.io:** Package the entire system for production deployment.
-
---- FILE: .gitignore ---
-/target
-.env
-.DS_Store
-.ds_store
-.Ds_Store
-/postgres_data/
-busteddata
-
---- FILE: Cargo.toml ---
-# ./crates/Cargo.toml
-
-[workspace]
-members = [
-    "crates/sapflux-core",
-    "crates/sapflux-cli",
-    "crates/sapflux-api",
-]
-resolver = "2" 
-
-[workspace.dependencies]
-polars = { version = "0.48.1", features = ["lazy", "strings", "temporal", "parquet", "json", "pivot", "regex"] }
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "derive", "json", "uuid"] }
-tokio = { version = "1.0", features = ["full"] }
-anyhow = "1.0"
-thiserror = "2.0.12"
-serde = { version = "1.0", features = ["derive", "rc"] }
-csv = "1.3"
-glob = "0.3"
-sha2 = "0.10"
-clap = { version = "4.0", features = ["derive"]}
-axum = { version = "0.8.4"}
-uuid = { version = "1.0", features = ["v4", "serde"] } # don't take my uuid i'm using this one 
-chrono = { version = "0.4.41" }
-dotenvy = "0.15"
-futures = { version = "0.3" }
-serde_json = { version = "1.0.140" }
-comfy-table = "7.1.0"
-toml = "0.8"
-
---- FILE: crates/sapflux-cli/src/commands/deployment.rs ---
-// crates/sapflux-cli/src/commands/deployment.rs
-
-use anyhow::Result;
-use chrono::{DateTime, Utc};
-use sapflux_core::{
-    metadata,
-    types::{
-        CoastalMonitoringAttributes, DeploymentAttributes, NewDeployment, SdiAddress,
-        StemflowAttributes,
-    },
-};
+use crate::validation::{LegacySingleSensorValidator, CR300MultiSensorValidator, SchemaValidator}; // Import our new tools
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
-use uuid::Uuid;
-use comfy_table::{
-    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Table,
-};
 
-#[derive(clap::Subcommand, Debug)]
-pub enum DeploymentCommands {
-    /// Create a new deployment, automatically superseding any previous active deployment.
-    Create {
-        #[arg(long)]
-        project_name: String,
-        #[arg(long)]
-        datalogger_id: i32,
-        #[arg(long)]
-        sdi_address: String,
-        #[arg(long)]
-        tree_id: String,
-        #[arg(long)]
-        sensor_id: String,
-        #[arg(long)]
-        start_time_utc: DateTime<Utc>,
-        #[arg(long)]
-        species: String,
+/// Attempts to validate the file against a series of known schemas.
+/// Returns the first schema that successfully validates.
+fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
+    // Create a list of all validators to try.
+    // The order matters if a file could potentially match multiple schemas.
+    let validators: Vec<Box<dyn SchemaValidator>> = vec![
+        Box::new(LegacySingleSensorValidator),
+        Box::new(CR300MultiSensorValidator)
+        // Add other validators here=
+    ];
 
-        // --- FIX #2: Corrected argument grouping logic ---
-
-        // The presence of `--site-name` now requires both `--zone-name` and `--plot-name`
-        // This is the correct logic for Coastal Monitoring deployments.
-        #[arg(long, requires_all = ["zone_name", "plot_name"])]
-        site_name: Option<String>,
-        #[arg(long)]
-        zone_name: Option<String>,
-        #[arg(long)]
-        plot_name: Option<String>,
-
-        // The presence of `--health-status` now requires `--collar-present`.
-        // This is the correct logic for Stemflow deployments.
-        #[arg(long, requires_all = ["collar_present"])]
-        health_status: Option<String>,
-        #[arg(long, action = clap::ArgAction::Set)]
-        collar_present: Option<bool>,
-        // robyn_label remains fully optional
-        #[arg(long)]
-        robyn_label: Option<String>,
-    },
-    List,
-    Delete {
-        #[arg(long)]
-        id: Uuid,
-    },
-    Update {
-        #[arg(long)]
-        id: Uuid,
-    },
-}
-
-/// The main handler for all `sapflux deployment` commands.
-pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPool) -> Result<()> {
-    match command {
-        DeploymentCommands::Create {
-            project_name,
-            datalogger_id,
-            sdi_address,
-            tree_id,
-            sensor_id,
-            start_time_utc,
-            species,
-            site_name,
-            zone_name,
-            plot_name,
-            health_status,
-            collar_present,
-            robyn_label,
-        } => {
-            println!("Attempting to create a new deployment...");
-
-            let project = metadata::get_project_by_name(pool, &project_name).await?;
-            let sensor = metadata::get_sensor_by_id_string(pool, &sensor_id).await?;
-
-            let attributes = match project_name.as_str() {
-                "Coastal Monitoring" => {
-                    DeploymentAttributes::CoastalMonitoring(CoastalMonitoringAttributes {
-                        site_name: site_name.ok_or_else(|| anyhow::anyhow!("--site-name is required for Coastal Monitoring"))?,
-                        zone_name: zone_name.ok_or_else(|| anyhow::anyhow!("--zone-name is required for Coastal Monitoring"))?,
-                        plot_name: plot_name.ok_or_else(|| anyhow::anyhow!("--plot-name is required for Coastal Monitoring"))?,
-                        species,
-                    })
-                }
-                "Stemflow Experiment" => {
-                    DeploymentAttributes::Stemflow(StemflowAttributes {
-                        site_name: site_name.ok_or_else(|| anyhow::anyhow!("--site-name is required for Stemflow Experiment"))?,
-                        species,
-                        health_status: health_status.ok_or_else(|| anyhow::anyhow!("--health-status is required for Stemflow Experiment"))?,
-                        collar_present: collar_present.ok_or_else(|| anyhow::anyhow!("--collar-present is required for Stemflow Experiment"))?,
-                        robyn_label,
-                    })
-                }
-                _ => return Err(anyhow::anyhow!("Unknown project type for attribute construction.")),
-            };
-
-            let new_deployment_data = NewDeployment {
-                start_time_utc,
-                datalogger_id,
-                sdi_address: SdiAddress::new(&sdi_address)?,
-                tree_id,
-                project_id: project.id,
-                sensor_id: sensor.id,
-                attributes,
-            };
-
-            metadata::create_deployment(pool, &new_deployment_data).await?;
-        }
-        DeploymentCommands::List => {
-                        println!("Fetching all deployments...");
-            
-            // --- THIS IS THE NEW LOGIC ---
-            let deployments = metadata::get_all_deployments(pool).await?;
-
-            if deployments.is_empty() {
-                println!("No deployments found in the database.");
-                return Ok(());
-            }
-
-            let mut table = Table::new();
-            table
-                .load_preset(UTF8_FULL)
-                .apply_modifier(UTF8_ROUND_CORNERS)
-                .set_header(vec![
-                    "ID",
-                    "Project",
-                    "Logger ID",
-                    "SDI",
-                    "Tree ID",
-                    "Sensor",
-                    "Start Time (UTC)",
-                    "End Time (UTC)",
-                ]);
-
-            for dep in deployments {
-                let end_time_str = dep.end_time_utc.map_or("Active".to_string(), |t| t.to_string());
-                table.add_row(vec![
-                    Cell::new(dep.id.to_string()),
-                    Cell::new(dep.project_name),
-                    Cell::new(dep.datalogger_id),
-                    Cell::new(dep.sdi_address),
-                    Cell::new(dep.tree_id),
-                    Cell::new(dep.sensor_id),
-                    Cell::new(dep.start_time_utc.to_string()),
-                    Cell::new(end_time_str),
-                ]);
-            }
-
-            println!("{table}");
-        }
-        DeploymentCommands::Delete { id } => {
-            println!("Logic for deleting deployment with ID {} will go here.", id);
-        }
-        DeploymentCommands::Update { id } => {
-            println!("Logic for updating deployment with ID {} will go here.", id);
+    for validator in validators {
+        if validator.validate(file_content).is_ok() {
+            // As soon as one validator passes, we've found our schema.
+            return Ok(validator.schema());
         }
     }
-    Ok(())
+
+    // If no validators passed, the file is not of a known valid format.
+    Err(PipelineError::Processing(
+        "File did not match any known valid schema.".to_string(),
+    ))
 }
 
---- FILE: crates/sapflux-core/src/metadata/deployments.rs ---
-// crates/sapflux-core/src/metadata/deployments.rs
+
+/// Ingests a single file's content into the database.
+pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
+    let hash = Sha256::digest(file_content);
+    let hash_hex = format!("{:x}", hash);
+
+    let existing_id: Option<i64> = sqlx::query_scalar("SELECT id FROM raw_files WHERE file_hash = $1")
+        .bind(&hash_hex)
+        .fetch_optional(db_pool)
+        .await?;
+
+    if let Some(id) = existing_id {
+        println!("  -> File with hash {}... already exists with id {}. Skipping.", &hash_hex[..8], id);
+        return Ok(id);
+    }
+
+    // Use our new, powerful validation function.
+    let schema = validate_and_identify_schema(file_content)?;
+    println!("  -> New file validated. Schema: {:?}", schema);
+
+    let new_id: i64 = sqlx::query_scalar(
+        "INSERT INTO raw_files (file_hash, file_content, detected_schema_name)
+         VALUES ($1, $2, $3)
+         RETURNING id"
+    )
+    .bind(&hash_hex)
+    .bind(file_content)
+    .bind(&schema)
+    .fetch_one(db_pool)
+    .await?;
+
+    println!("  -> Successfully ingested as new file with id {}.", new_id);
+    Ok(new_id)
+}
+
+--- FILE: crates/sapflux-cli/src/commands/seed/sensors.rs ---
+// crates/sapflux-cli/src/commands/seed/sensors.rs
+
+use crate::commands::seed::types::SensorsFile;
+use anyhow::{Context, Result};
+use sqlx::{Postgres, Transaction};
+use std::collections::HashMap;
+use std::path::Path;
+
+pub async fn seed(
+    tx: &mut Transaction<'_, Postgres>,
+    path: &Path,
+) -> Result<HashMap<String, i32>> {
+    println!("   -> Seeding sensors from '{}'...", path.display());
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read sensors file at '{}'", path.display()))?;
+    let data: SensorsFile = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse sensors TOML from '{}'", path.display()))?;
+
+    let mut sensor_map = HashMap::new();
+
+    sqlx::query("TRUNCATE TABLE sensors RESTART IDENTITY CASCADE")
+        .execute(&mut **tx)
+        .await?;
+
+    for sensor in data.sensors {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO sensors (sensor_id, downstream_probe_distance_cm, upstream_probe_distance_cm, thermistor_depth_1_mm, thermistor_depth_2_mm)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        )
+        .bind(&sensor.id)
+        .bind(sensor.downstream_probe_distance_cm)
+        .bind(sensor.upstream_probe_distance_cm)
+        .bind(sensor.thermistor_depth_1_mm)
+        .bind(sensor.thermistor_depth_2_mm)
+        .fetch_one(&mut **tx)
+        .await?;
+        sensor_map.insert(sensor.id, id);
+    }
+
+    println!("      -> Seeded {} sensors.", sensor_map.len());
+    Ok(sensor_map)
+}
+
+--- FILE: crates/sapflux-core/src/metadata/parameters.rs ---
+// crates/sapflux-core/src/metadata/parameters.rs
 
 use crate::error::{PipelineError, Result};
-use crate::types::{NewDeployment, DeploymentDetails}; 
-use sqlx::{PgPool, Transaction, Postgres}; // Import Transaction and Postgres
-use uuid::Uuid;
-use serde_json;
+use crate::types::Parameter;
+use sqlx::PgPool;
 
-/// Creates a new deployment within a self-contained transaction.
-/// This is a convenience wrapper around `create_deployment_in_transaction`.
-pub async fn create_deployment(pool: &PgPool, data: &NewDeployment) -> Result<Uuid> {
-    let mut tx = pool.begin().await?;
-    let new_id = create_deployment_in_transaction(&mut tx, data).await?;
-    tx.commit().await?;
-    Ok(new_id)
-}
-
-/// Creates a new deployment within an existing transaction.
-/// This function contains the core logic: it finds and "closes out" the previous
-/// active deployment for the same sensor before inserting the new one.
-pub async fn create_deployment_in_transaction(
-    tx: &mut Transaction<'_, Postgres>, 
-    data: &NewDeployment
-) -> Result<Uuid> {
-    let previous_active_deployment_id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM deployments
-         WHERE datalogger_id = $1 AND sdi_address = $2 AND end_time_utc IS NULL"
-    )
-    .bind(data.datalogger_id)
-    .bind(data.sdi_address.as_str())
-    .fetch_optional(&mut **tx) // Use the transaction here
-    .await?;
-
-    if let Some(id) = previous_active_deployment_id {
-        // Important: Check that we are not trying to create a deployment before the one we are closing.
-        // This can happen if the seed file is not perfectly ordered.
-        let previous_start_time: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("SELECT start_time_utc FROM deployments WHERE id = $1")
-            .bind(id)
-            .fetch_one(&mut **tx)
-            .await?;
-        
-        if data.start_time_utc <= previous_start_time {
-            return Err(PipelineError::Validation(format!(
-                "Validation failed for logger {}-{}: New deployment start time ({}) must be after the previous deployment's start time ({}).",
-                data.datalogger_id, data.sdi_address.as_str(), data.start_time_utc, previous_start_time
-            )));
-        }
-
-        let updated_rows = sqlx::query(
-            "UPDATE deployments SET end_time_utc = $1 WHERE id = $2"
-        )
-        .bind(data.start_time_utc)
-        .bind(id)
-        .execute(&mut **tx) // Use the transaction here
-        .await?
-        .rows_affected();
-
-        if updated_rows != 1 {
-            return Err(PipelineError::Validation(
-                "Failed to update previous deployment. Transaction rolled back.".to_string()
-            ));
-        }
-    }
-    
-    let new_id: Uuid = sqlx::query_scalar(
-        "INSERT INTO deployments (
-            start_time_utc,
-            datalogger_id,
-            sdi_address,
-            tree_id,
-            project_id,
-            sensor_id,
-            attributes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id"
-    )
-    .bind(data.start_time_utc)
-    .bind(data.datalogger_id)
-    .bind(data.sdi_address.as_str())
-    .bind(&data.tree_id)
-    .bind(data.project_id)
-    .bind(data.sensor_id)
-    .bind(serde_json::to_value(&data.attributes)?) 
-    .fetch_one(&mut **tx) // Use the transaction here
-    .await?;
-
-    Ok(new_id)
-}
-
-
-/// Fetches a detailed list of all deployments, joined with project and sensor info.
-pub async fn get_all_deployments(pool: &PgPool) -> Result<Vec<DeploymentDetails>> {
-    let deployments = sqlx::query_as!(
-        DeploymentDetails,
+pub async fn get_parameter_by_name(pool: &PgPool, name: &str) -> Result<Parameter> {
+    sqlx::query_as!(
+        Parameter,
+        // We apply the same `!` fix here for the NUMERIC `value` column.
         r#"
         SELECT
-            d.id,
-            p.name as "project_name!",
-            d.datalogger_id,
-            d.sdi_address,
-            d.tree_id,
-            s.sensor_id,
-            d.start_time_utc,
-            d.end_time_utc
-        FROM
-            deployments d
-        JOIN
-            projects p ON d.project_id = p.id
-        JOIN
-            sensors s ON d.sensor_id = s.id
-        ORDER BY
-            d.datalogger_id, d.sdi_address, d.start_time_utc DESC
-        "#
+            id,
+            name,
+            value::double precision AS "value!",
+            unit,
+            description
+        FROM parameters WHERE name = $1
+        "#,
+        name
     )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(deployments)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| PipelineError::Validation(format!("Parameter with name '{}' not found.", name)))
 }
 
 --- FILE: crates/sapflux-core/src/metadata/sensors.rs ---
@@ -1111,44 +549,261 @@ pub async fn get_sensor_by_id_string(pool: &PgPool, id_string: &str) -> Result<S
     .ok_or_else(|| PipelineError::Validation(format!("Sensor with id '{}' not found.", id_string)))
 }
 
---- FILE: crates/sapflux-cli/src/commands/seed/projects.rs ---
-// crates/sapflux-cli/src/commands/seed/projects.rs
+--- FILE: crates/sapflux-cli/src/commands/seed/mod.rs ---
+// crates/sapflux-cli/src/commands/seed/mod.rs
 
-use crate::commands::seed::types::ProjectsFile;
-use anyhow::{Context, Result};
-use sqlx::{Postgres, Transaction};
-use std::collections::HashMap;
+// Declare the submodules within the 'seed' module
+mod types;
+mod projects;
+mod sensors;
+mod parameters;
+mod dst_transitions;
+mod deployments;
+
+use sqlx::PgPool;
 use std::path::Path;
+use anyhow::Result;
 
-pub async fn seed(
-    tx: &mut Transaction<'_, Postgres>,
-    path: &Path,
-) -> Result<HashMap<String, i32>> {
-    println!("   -> Seeding projects from '{}'...", path.display());
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read projects file at '{}'", path.display()))?;
-    let data: ProjectsFile = toml::from_str(&content)
-        .with_context(|| format!("Failed to parse projects TOML from '{}'", path.display()))?;
-    
-    let mut project_map = HashMap::new();
+/// The main handler for the `seed` command.
+/// Orchestrates the entire seeding process within a single transaction.
+pub async fn handle_seed_command(
+    pool: &PgPool,
+    projects_path: &Path,
+    sensors_path: &Path,
+    parameters_path: &Path,
+    dst_path: &Path,
+    deployments_path: &Path,
+) -> Result<()> {
+    println!("🌱 Starting database seeding...");
+    let mut tx = pool.begin().await.map_err(|e| anyhow::anyhow!("Failed to begin transaction: {}", e))?;
+    println!("   -> Transaction started.");
 
-    sqlx::query("TRUNCATE TABLE projects RESTART IDENTITY CASCADE")
-        .execute(&mut **tx)
-        .await?;
-
-    for project in data.projects {
-        let id: i32 = sqlx::query_scalar(
-            "INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING id",
-        )
-        .bind(&project.name)
-        .bind(project.description)
-        .fetch_one(&mut **tx)
-        .await?;
-        project_map.insert(project.name, id);
+    // The order of execution is critical to respect foreign key constraints.
+    // Each function takes the transaction and the path to its data file.
+    // The functions for projects and sensors return lookup maps for use in deployments.
+    match (async {
+        dst_transitions::seed(&mut tx, dst_path).await?;
+        let project_map = projects::seed(&mut tx, projects_path).await?;
+        let sensor_map = sensors::seed(&mut tx, sensors_path).await?;
+        parameters::seed(&mut tx, parameters_path).await?;
+        deployments::seed(&mut tx, deployments_path, &project_map, &sensor_map).await?;
+        
+        // This weird Ok(()) is needed to satisfy the type checker for the closure.
+        Ok::<(), anyhow::Error>(()) 
+    }).await {
+        Ok(_) => {
+            // If all seeders succeeded, commit the transaction.
+            tx.commit().await.map_err(|e| anyhow::anyhow!("Failed to commit transaction: {}", e))?;
+            println!("\n✅ Database seeding completed successfully.");
+        },
+        Err(e) => {
+            // If any seeder failed, roll back the transaction.
+            eprintln!("\n❌ Error during seeding: {}. Rolling back all changes.", e);
+            tx.rollback().await.map_err(|e| anyhow::anyhow!("Failed to rollback transaction: {}", e))?;
+            // Propagate the original error to exit the CLI with a non-zero status.
+            return Err(e);
+        }
     }
 
-    println!("      -> Seeded {} projects.", project_map.len());
-    Ok(project_map)
+    Ok(())
+}
+
+--- FILE: inspect_parquet.py ---
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "polars",
+#   "pyarrow"
+# ]
+# ///
+
+"""
+A command-line utility to inspect a Parquet file and display its
+high-level statistics using the Polars library.
+
+Provides information on shape, schema, null counts, and descriptive
+statistics for numeric columns.
+"""
+
+import sys
+import argparse
+import polars as pl
+
+def inspect_parquet_file(file_path: str) -> int:
+    """
+    Reads a Parquet file and prints a statistical summary.
+
+    Args:
+        file_path: The path to the Parquet file to inspect.
+
+    Returns:
+        0 on success, 1 on failure.
+    """
+    try:
+        print(f"--- Inspecting Parquet File: '{file_path}' ---")
+        
+        # Read the Parquet file into a Polars DataFrame
+        df = pl.read_parquet(file_path)
+
+        # 1. Shape of the DataFrame
+        print(f"\n📊 Shape: {df.shape[0]} rows, {df.shape[1]} columns")
+
+        # 2. Schema (Column names and data types)
+        print("\n📜 Schema:")
+        # The schema object prints nicely by default
+        print(df.schema)
+
+        # 3. Head (first 5 rows)
+        print("\nHEAD (First 5 Rows):")
+        print(df.head())
+        
+        # 4. Tail (last 5 rows)
+        print("\nTAIL (Last 5 Rows):")
+        print(df.tail())
+
+        # 5. Null Value Counts
+        print("\n🗑️ Null Value Counts:")
+        null_counts = df.null_count()
+        # Only print the table if there are actually nulls to report
+        if null_counts.sum(axis=1)[0] > 0:
+            print(null_counts)
+        else:
+            print("   -> No null values found in any column. ✨")
+
+        # 6. Descriptive Statistics for all numeric columns
+        print("\n🔢 Descriptive Statistics (for numeric columns):")
+        # .describe() returns a DataFrame, which is easy to read
+        print(df.describe())
+
+    except FileNotFoundError:
+        print(f"\n❌ Error: File not found at '{file_path}'", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"\n❌ An unexpected error occurred while processing the file: {e}", file=sys.stderr)
+        return 1
+        
+    print("\n--- Inspection Complete ---")
+    return 0
+
+def main():
+    """Parses command-line arguments and runs the inspection."""
+    parser = argparse.ArgumentParser(
+        description="Inspect a Parquet file and display high-level statistics.",
+        epilog="Example: uv run inspect_parquet.py output.parquet"
+    )
+    parser.add_argument(
+        "file_path",
+        help="The path to the .parquet file to inspect."
+    )
+    args = parser.parse_args()
+
+    sys.exit(inspect_parquet_file(args.file_path))
+
+
+if __name__ == "__main__":
+    main()
+
+--- FILE: .gitignore ---
+/target
+.env
+.DS_Store
+.ds_store
+.Ds_Store
+/postgres_data/
+busteddata
+
+--- FILE: crates/sapflux-core/processing/legacy_format.rs ---
+use crate::error::Result;
+use chrono::NaiveDateTime;
+use polars::prelude::*;
+use std::io::Cursor;
+use super::schema::get_full_schema_columns;
+
+/// Processor for the old, single-sensor-per-file formats (CR200, old CR300).
+pub fn process_legacy_format(
+    content: &[u8],
+    start_date: NaiveDateTime,
+    end_date: NaiveDateTime,
+) -> Result<LazyFrame> {
+    let cursor = Cursor::new(content);
+    let mut lf = CsvReadOptions::default()
+        .with_has_header(false)
+        .with_skip_rows(4)
+        .with_ignore_errors(true)
+        .into_reader_with_file_handle(cursor)
+        .finish()?
+        .lazy();
+
+    let legacy_cols = &[
+        "timestamp_naive", "record_number", "batt_volt", "logger_id",
+        "sdi_address", "sap_flow_total", "vh_outer", "vh_inner",
+        "alpha_out", "alpha_in", "beta_out", "beta_in",
+        "tmax_tout", "tmax_tinn",
+    ];
+
+    let old_names: Vec<String> = lf.collect_schema()?.iter_names().map(|s| s.to_string()).collect();
+    let new_names: Vec<&str> = legacy_cols.iter().take(old_names.len()).copied().collect();
+    
+    lf = lf.rename(old_names, new_names, false);
+
+    // Parse timestamp and filter
+    let lf = lf
+        .with_column(
+            col("timestamp_naive")
+                .str()
+                .strptime(
+                    DataType::Datetime(TimeUnit::Milliseconds, None),
+                    StrptimeOptions {
+                        format: Some("%Y-%m-%d %H:%M:%S".into()),
+                        strict: false,
+                        exact: false,
+                        cache: true,
+                    },
+                    lit("raise"),
+                )
+                .alias("timestamp_naive")
+        )
+        .filter(
+            col("timestamp_naive")
+                .gt_eq(lit(start_date))
+                .and(col("timestamp_naive").lt_eq(lit(end_date))),
+        )
+        // Cast record_number to Int64
+        .with_column(
+            col("record_number").cast(DataType::Int64).alias("record_number")
+        )
+        // Add all the missing columns as NULLs
+        .with_columns(&[
+            lit(NULL).cast(DataType::Float64).alias("ptemp_c"),
+            lit(NULL).cast(DataType::Float64).alias("tp_ds_out"),
+            lit(NULL).cast(DataType::Float64).alias("dt_ds_out"),
+            lit(NULL).cast(DataType::Float64).alias("ts_ds_out"),
+            lit(NULL).cast(DataType::Float64).alias("tp_us_out"),
+            lit(NULL).cast(DataType::Float64).alias("dt_us_out"),
+            lit(NULL).cast(DataType::Float64).alias("ts_us_out"),
+            lit(NULL).cast(DataType::Float64).alias("tp_ds_inn"),
+            lit(NULL).cast(DataType::Float64).alias("dt_ds_inn"),
+            lit(NULL).cast(DataType::Float64).alias("ts_ds_inn"),
+            lit(NULL).cast(DataType::Float64).alias("tp_us_inn"),
+            lit(NULL).cast(DataType::Float64).alias("dt_us_inn"),
+            lit(NULL).cast(DataType::Float64).alias("ts_us_inn"),
+            lit(NULL).cast(DataType::Float64).alias("tmax_tus_o"),
+            lit(NULL).cast(DataType::Float64).alias("tmax_tus_i"),
+        ])
+        // Replace -99.0 with NULL for existing columns
+        .with_columns(
+            ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"]
+            .map(|name| {
+                when(col(name).eq(lit(-99.0)))
+                    .then(lit(NULL))
+                    .otherwise(col(name))
+                    .alias(name)
+            })
+        )
+        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
+        .select(&get_full_schema_columns());
+        
+    Ok(lf)
 }
 
 --- FILE: README.md ---
@@ -2099,202 +1754,145 @@ Hosted on Render.io with:
 - Clerk for authentication and user management
 - Persistent disk storage for reliability
 
---- FILE: crates/sapflux-cli/src/commands/seed/mod.rs ---
-// crates/sapflux-cli/src/commands/seed/mod.rs
+--- FILE: crates/sapflux-core/src/error.rs ---
+// crates/sapflux-core/src/error.rs
 
-// Declare the submodules within the 'seed' module
-mod types;
-mod projects;
-mod sensors;
-mod parameters;
-mod dst_transitions;
-mod deployments;
+use thiserror::Error;
 
-use sqlx::PgPool;
-use std::path::Path;
-use anyhow::Result;
+#[derive(Error, Debug)]
+pub enum PipelineError {
+    #[error("Database query failed: {0}")]
+    Sqlx(#[from] sqlx::Error),
 
-/// The main handler for the `seed` command.
-/// Orchestrates the entire seeding process within a single transaction.
-pub async fn handle_seed_command(
-    pool: &PgPool,
-    projects_path: &Path,
-    sensors_path: &Path,
-    parameters_path: &Path,
-    dst_path: &Path,
-    deployments_path: &Path,
-) -> Result<()> {
-    println!("🌱 Starting database seeding...");
-    let mut tx = pool.begin().await.map_err(|e| anyhow::anyhow!("Failed to begin transaction: {}", e))?;
-    println!("   -> Transaction started.");
+    #[error("File I/O error: {0}")]
+    Io(#[from] std::io::Error),
 
-    // The order of execution is critical to respect foreign key constraints.
-    // Each function takes the transaction and the path to its data file.
-    // The functions for projects and sensors return lookup maps for use in deployments.
-    match (async {
-        dst_transitions::seed(&mut tx, dst_path).await?;
-        let project_map = projects::seed(&mut tx, projects_path).await?;
-        let sensor_map = sensors::seed(&mut tx, sensors_path).await?;
-        parameters::seed(&mut tx, parameters_path).await?;
-        deployments::seed(&mut tx, deployments_path, &project_map, &sensor_map).await?;
-        
-        // This weird Ok(()) is needed to satisfy the type checker for the closure.
-        Ok::<(), anyhow::Error>(()) 
-    }).await {
-        Ok(_) => {
-            // If all seeders succeeded, commit the transaction.
-            tx.commit().await.map_err(|e| anyhow::anyhow!("Failed to commit transaction: {}", e))?;
-            println!("\n✅ Database seeding completed successfully.");
-        },
-        Err(e) => {
-            // If any seeder failed, roll back the transaction.
-            eprintln!("\n❌ Error during seeding: {}. Rolling back all changes.", e);
-            tx.rollback().await.map_err(|e| anyhow::anyhow!("Failed to rollback transaction: {}", e))?;
-            // Propagate the original error to exit the CLI with a non-zero status.
-            return Err(e);
-        }
-    }
+    #[error("Environment variable error: {0}")]
+    EnvVar(#[from] std::env::VarError),
 
-    Ok(())
+    #[error("Polars operation failed: {0}")]
+    Polars(#[from] polars::error::PolarsError),
+
+    #[error("CSV parsing error: {0}")]
+    Csv(#[from] csv::Error),
+
+    #[error("Validation failed: {0}")]
+    Validation(String),
+
+    #[error("JSON serialization/deserialization error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("Data processing error: {0}")]
+    Processing(String),
 }
 
---- FILE: crates/sapflux-cli/src/commands/seed/sensors.rs ---
-// crates/sapflux-cli/src/commands/seed/sensors.rs
+pub type Result<T> = std::result::Result<T, PipelineError>;
 
-use crate::commands::seed::types::SensorsFile;
-use anyhow::{Context, Result};
-use sqlx::{Postgres, Transaction};
-use std::collections::HashMap;
-use std::path::Path;
+--- FILE: crates/sapflux-core/src/rules/mod.rs ---
+pub mod dst_rules;
 
-pub async fn seed(
-    tx: &mut Transaction<'_, Postgres>,
-    path: &Path,
-) -> Result<HashMap<String, i32>> {
-    println!("   -> Seeding sensors from '{}'...", path.display());
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read sensors file at '{}'", path.display()))?;
-    let data: SensorsFile = toml::from_str(&content)
-        .with_context(|| format!("Failed to parse sensors TOML from '{}'", path.display()))?;
+--- FILE: extract_files.py ---
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "python-dotenv",
+#   "psycopg2-binary"
+# ]
+# ///
 
-    let mut sensor_map = HashMap::new();
+"""
+A command-line utility to extract raw data files from the sapflux PostgreSQL
+database by providing one or more abbreviated SHA-256 hashes.
 
-    sqlx::query("TRUNCATE TABLE sensors RESTART IDENTITY CASCADE")
-        .execute(&mut **tx)
-        .await?;
+This script connects to the database specified in the .env file, finds the
+full hash corresponding to each abbreviated hash, retrieves the raw file
+content (BYTEA), and saves it to a local file.
+"""
 
-    for sensor in data.sensors {
-        let id: i32 = sqlx::query_scalar(
-            "INSERT INTO sensors (sensor_id, downstream_probe_distance_cm, upstream_probe_distance_cm, thermistor_depth_1_mm, thermistor_depth_2_mm)
-             VALUES ($1, $2, $3, $4, $5) RETURNING id",
-        )
-        .bind(&sensor.id)
-        .bind(sensor.downstream_probe_distance_cm)
-        .bind(sensor.upstream_probe_distance_cm)
-        .bind(sensor.thermistor_depth_1_mm)
-        .bind(sensor.thermistor_depth_2_mm)
-        .fetch_one(&mut **tx)
-        .await?;
-        sensor_map.insert(sensor.id, id);
-    }
+import os
+import sys
+import argparse
+import psycopg2
+from dotenv import load_dotenv
 
-    println!("      -> Seeded {} sensors.", sensor_map.len());
-    Ok(sensor_map)
-}
+def extract_files(db_url, abbreviated_hashes):
+    """Connects to the DB and extracts files for the given hashes."""
+    conn = None
+    try:
+        print(" -> Connecting to the database...")
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        print("✅ Connection successful.\n")
 
---- FILE: crates/sapflux-core/processing/mod.rs ---
-use crate::error::{PipelineError, Result};
-use crate::types::FileSchema;
-use chrono::{NaiveDate, Utc};
-use polars::prelude::*;
-use sqlx::PgPool;
+        for abbr_hash in abbreviated_hashes:
+            print(f"🔍 Searching for hash starting with: {abbr_hash}...")
 
-mod schema;
-mod legacy_format;
-mod multi_sensor_format;
+            # Use a parameterized query to prevent SQL injection.
+            # The LIKE operator with '%' is perfect for finding the full hash.
+            query = "SELECT file_hash, file_content FROM raw_files WHERE file_hash LIKE %s;"
+            
+            # psycopg2 needs the argument as a tuple, even if there's only one.
+            cur.execute(query, (f"{abbr_hash}%",))
+            
+            result = cur.fetchone()
 
-use schema::get_full_schema_columns;
-use legacy_format::process_legacy_format;
-use multi_sensor_format::process_multi_sensor_format;
+            if result:
+                full_hash, file_content = result
+                # The filename will be descriptive, e.g., "extracted_7e2fb6ab.dat"
+                output_filename = f"extracted_{abbr_hash}.dat"
+                
+                print(f"   -> Found full hash: {full_hash[:16]}...")
+                
+                # IMPORTANT: Open the file in binary write mode ('wb').
+                with open(output_filename, 'wb') as f:
+                    # psycopg2 returns BYTEA as a memoryview/bytes object, which is exactly what we need.
+                    # No hex decoding is necessary when using a library.
+                    f.write(file_content)
+                
+                print(f"   -> ✅ File saved to: '{output_filename}'")
+            else:
+                print(f"   -> ⚠️  Warning: No file found for hash starting with '{abbr_hash}'.")
+            
+            print("-" * 20)
 
-/// Internal struct to hold data fetched from the database.
-struct RawFileRecord {
-    file_hash: String,
-    file_content: Vec<u8>,
-    detected_schema_name: FileSchema,
-}
+    except psycopg2.OperationalError as e:
+        print(f"\n❌ Database connection error: {e}", file=sys.stderr)
+        print("   Is the Docker container running? Is DATABASE_URL correct in your .env file?", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"\n❌ An unexpected error occurred: {e}", file=sys.stderr)
+        return 1
+    finally:
+        if conn:
+            conn.close()
+            print("\nDatabase connection closed.")
+    return 0
 
-/// **The Orchestrator**: The main public function.
-pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
-    println!("   -> Fetching all raw files from the database...");
-    let raw_files = fetch_all_raw_files(pool).await?;
-    println!("      -> Found {} files to process.", raw_files.len());
-
-    let mut lazyframes: Vec<LazyFrame> = Vec::with_capacity(raw_files.len());
-
-    println!("   -> Parsing, cleaning, and unifying files...");
-    for (i, record) in raw_files.iter().enumerate() {
-        print!("\r      -> Processing file {}/{}...", i + 1, raw_files.len());
-        match parse_and_clean_file(record) {
-            Ok(lf) => lazyframes.push(lf),
-            Err(e) => eprintln!(
-                "\n      -> WARNING: Could not parse file with hash {}. Reason: {}",
-                &record.file_hash[..8],
-                e
-            ),
-        }
-    }
-
-    if lazyframes.is_empty() {
-        return Err(PipelineError::Processing(
-            "No valid raw files could be parsed.".to_string(),
-        ));
-    }
-
-    println!("\n   -> Concatenating all files into a single dataset...");
-    let unified_lf = concat(&lazyframes, UnionArgs::default())?;
-
-    println!("✅ Unified LazyFrame created successfully.");
-    Ok(unified_lf)
-}
-
-/// **The Fetcher**: Fetches all raw file records from the database.
-async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
-    sqlx::query_as!(
-        RawFileRecord,
-        r#"
-        SELECT
-            file_hash,
-            file_content,
-            detected_schema_name as "detected_schema_name!: FileSchema"
-        FROM raw_files
-        "#
+def main():
+    """Parses command-line arguments and runs the extraction process."""
+    parser = argparse.ArgumentParser(
+        description="Extract raw data files from the sapflux database.",
+        epilog="Example: uv run extract_files.py 7e2fb6ab 518c5771"
     )
-    .fetch_all(pool)
-    .await
-    .map_err(PipelineError::from)
-}
+    parser.add_argument(
+        "abbreviated_hashes",
+        nargs='+',
+        help="One or more abbreviated SHA-256 hashes to extract."
+    )
+    args = parser.parse_args()
 
-/// **The Parser & Cleaner**: Dispatches to the correct format-specific processor.
-fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
-    let start_date =
-        NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
-    let end_date = Utc::now().naive_utc();
+    load_dotenv()
+    db_url = os.getenv("DATABASE_URL")
 
-    let lf = match record.detected_schema_name {
-        FileSchema::CRLegacySingleSensor => {
-            process_legacy_format(&record.file_content, start_date, end_date)?
-        }
-        FileSchema::CR300MultiSensor => {
-            process_multi_sensor_format(&record.file_content, start_date, end_date)?
-        }
-    };
+    if not db_url:
+        print("❌ Error: DATABASE_URL not found. Please ensure it is set in your .env file.", file=sys.stderr)
+        sys.exit(1)
 
-    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
-}
+    sys.exit(extract_files(db_url, args.abbreviated_hashes))
 
-// Re-export the inspect function if you add it
-// pub use multi_sensor_format::inspect_file_by_hash;
+
+if __name__ == "__main__":
+    main()
 
 --- FILE: crates/sapflux-core/src/processing.rs ---
 // crates/sapflux-core/src/processing.rs
@@ -2561,609 +2159,72 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 polars = { workspace = true }
 
---- FILE: crates/sapflux-core/src/rules/mod.rs ---
-pub mod dst_rules;
-
---- FILE: db/schema.sql ---
--- db/schema.sql
-
--- A simple table to define the schemas our system can recognize.
-CREATE TABLE IF NOT EXISTS file_schemas (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT
-);
-
--- The main table for storing our immutable, raw data.
-CREATE TABLE IF NOT EXISTS raw_files (
-    id BIGSERIAL PRIMARY KEY,
-    ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    file_hash TEXT NOT NULL UNIQUE,
-    file_content BYTEA NOT NULL,
-    detected_schema_name TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_raw_files_file_hash ON raw_files(file_hash);
-
--- Table to store Daylight Saving Time transition rules.
-CREATE TABLE IF NOT EXISTS dst_transitions (
-    id SERIAL PRIMARY KEY,
-    transition_action TEXT NOT NULL CHECK (transition_action IN ('start', 'end')),
-    ts_local TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    UNIQUE (transition_action, ts_local)
-);
-CREATE INDEX IF NOT EXISTS idx_dst_transitions_ts ON dst_transitions(ts_local);
-
--- ====================================================================
--- METADATA TABLES
--- ====================================================================
-
--- Stores high-level project information.
-CREATE TABLE IF NOT EXISTS projects (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT
-);
-
--- Stores hardware specifications for different sensor models.
-CREATE TABLE IF NOT EXISTS sensors (
-    id SERIAL PRIMARY KEY,
-    sensor_id TEXT NOT NULL UNIQUE,
-    downstream_probe_distance_cm NUMERIC NOT NULL,
-    upstream_probe_distance_cm NUMERIC NOT NULL,
-    thermistor_depth_1_mm INTEGER NOT NULL,
-    thermistor_depth_2_mm INTEGER NOT NULL
-);
-
--- A simple key-value store for global calculation parameters.
-CREATE TABLE IF NOT EXISTS parameters (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    value NUMERIC NOT NULL,
-    unit TEXT,
-    description TEXT
-);
-
--- The central table linking raw data to its full context.
-CREATE TABLE IF NOT EXISTS deployments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    start_time_utc TIMESTAMPTZ NOT NULL,
-    end_time_utc TIMESTAMPTZ, -- NULL means the deployment is currently active.
-    datalogger_id INTEGER NOT NULL,
-    sdi_address TEXT NOT NULL,
-    tree_id TEXT NOT NULL,
-    project_id INTEGER NOT NULL REFERENCES projects(id),
-    sensor_id INTEGER NOT NULL REFERENCES sensors(id),
-    attributes JSONB
-);
-
--- ====================================================================
--- INDEXES
--- ====================================================================
-
--- Ensures a given datalogger/SDI address combo can only be active in ONE deployment at a time.
--- This is the standard SQL way to create a unique constraint on an expression.
--- The `COALESCE` trick treats all NULL end times as a single, unique value ('infinity').
-CREATE UNIQUE INDEX IF NOT EXISTS idx_deployments_unique_active_sensor
-ON deployments (datalogger_id, sdi_address, (COALESCE(end_time_utc, 'infinity'::timestamptz)));
-
--- Indexes to speed up common queries on the deployments table.
-CREATE INDEX IF NOT EXISTS idx_deployments_project_id ON deployments(project_id);
-CREATE INDEX IF NOT EXISTS idx_deployments_sensor_id ON deployments(sensor_id);
-CREATE INDEX IF NOT EXISTS idx_deployments_datalogger_id ON deployments(datalogger_id);
-CREATE INDEX IF NOT EXISTS idx_deployments_time_range ON deployments(start_time_utc, end_time_utc);
-
---- FILE: crates/sapflux-core/src/error.rs ---
-// crates/sapflux-core/src/error.rs
-
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum PipelineError {
-    #[error("Database query failed: {0}")]
-    Sqlx(#[from] sqlx::Error),
-
-    #[error("File I/O error: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error("Environment variable error: {0}")]
-    EnvVar(#[from] std::env::VarError),
-
-    #[error("Polars operation failed: {0}")]
-    Polars(#[from] polars::error::PolarsError),
-
-    #[error("CSV parsing error: {0}")]
-    Csv(#[from] csv::Error),
-
-    #[error("Validation failed: {0}")]
-    Validation(String),
-
-    #[error("JSON serialization/deserialization error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    #[error("Data processing error: {0}")]
-    Processing(String),
-}
-
-pub type Result<T> = std::result::Result<T, PipelineError>;
-
---- FILE: crates/sapflux-cli/src/commands/seed/dst_transitions.rs ---
-// crates/sapflux-cli/src/commands/seed/dst_transitions.rs
-
-use crate::commands::seed::types::DstTransitionsFile;
-use anyhow::{Context, Result};
-use sqlx::{Postgres, Transaction};
-use std::path::Path;
-
-pub async fn seed(tx: &mut Transaction<'_, Postgres>, path: &Path) -> Result<()> {
-    println!("   -> Seeding DST transitions from '{}'...", path.display());
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read DST transitions file at '{}'", path.display()))?;
-    let data: DstTransitionsFile = toml::from_str(&content)
-        .with_context(|| format!("Failed to parse DST transitions TOML from '{}'", path.display()))?;
-
-    sqlx::query("TRUNCATE TABLE dst_transitions RESTART IDENTITY CASCADE")
-        .execute(&mut **tx)
-        .await?;
-    
-    let mut count = 0;
-    for transition in data.transitions {
-        sqlx::query(
-            "INSERT INTO dst_transitions (transition_action, ts_local) VALUES ($1, $2)",
-        )
-        .bind(transition.action)
-        .bind(transition.ts_local)
-        .execute(&mut **tx)
-        .await?;
-        count += 1;
-    }
-    
-    println!("      -> Seeded {} DST transitions.", count);
-    Ok(())
-}
-
 --- FILE: crates/sapflux-api/src/main.rs ---
 fn main() {
     println!("Hello, world!");
 }
 
---- FILE: crates/sapflux-core/src/metadata/parameters.rs ---
-// crates/sapflux-core/src/metadata/parameters.rs
+--- FILE: crates/sapflux-core/Cargo.toml ---
+[package]
+name = "sapflux-core"
+version = "0.1.0"
+edition = "2021"
 
-use crate::error::{PipelineError, Result};
-use crate::types::Parameter;
-use sqlx::PgPool;
+[dependencies]
+# Inherit versions from the workspace
+polars = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+csv = { workspace = true }
+glob = { workspace = true }
+sha2 = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+serde_json = { workspace = true }
 
-pub async fn get_parameter_by_name(pool: &PgPool, name: &str) -> Result<Parameter> {
-    sqlx::query_as!(
-        Parameter,
-        // We apply the same `!` fix here for the NUMERIC `value` column.
-        r#"
-        SELECT
-            id,
-            name,
-            value::double precision AS "value!",
-            unit,
-            description
-        FROM parameters WHERE name = $1
-        "#,
-        name
-    )
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| PipelineError::Validation(format!("Parameter with name '{}' not found.", name)))
-}
+--- FILE: crates/sapflux-cli/src/commands/seed/projects.rs ---
+// crates/sapflux-cli/src/commands/seed/projects.rs
 
---- FILE: crates/sapflux-core/src/metadata/projects.rs ---
-// crates/sapflux-core/src/metadata/projects.rs
-
-use crate::error::{PipelineError, Result};
-use crate::types::Project;
-use sqlx::PgPool;
-
-pub async fn get_project_by_name(pool: &PgPool, name: &str) -> Result<Project> {
-    sqlx::query_as!(
-        Project,
-        "SELECT id, name, description FROM projects WHERE name = $1",
-        name
-    )
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| PipelineError::Validation(format!("Project with name '{}' not found.", name)))
-}
-
---- FILE: crates/sapflux-cli/src/commands/mod.rs ---
-pub mod deployment;
-pub mod seed;
-
---- FILE: crates/sapflux-core/processing/multi_sensor_format.rs ---
-use crate::error::{PipelineError, Result};
-use chrono::NaiveDateTime;
-use polars::prelude::*;
-use std::io::Cursor;
-use std::sync::Arc;
-use super::schema::get_full_schema_columns;
-
-/// Processor for the new, wide, multi-sensor format (new CR300).
-pub fn process_multi_sensor_format(
-    content: &[u8],
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
-) -> Result<LazyFrame> {
-    // Parse the CSV manually to handle the irregular structure
-    let content_str = std::str::from_utf8(content)
-        .map_err(|e| PipelineError::Processing(format!("Invalid UTF-8: {}", e)))?;
-    
-    let lines: Vec<&str> = content_str.lines().collect();
-    if lines.len() < 5 {
-        return Err(PipelineError::Processing("File has fewer than 5 lines".to_string()));
-    }
-    
-    // Get headers from the second line
-    let headers: Vec<String> = lines[1]
-        .split(',')
-        .map(|s| s.trim_matches('"').to_string())
-        .collect();
-    
-    println!("      -> Found {} columns in multi-sensor file", headers.len());
-    
-    // Create a new CSV content starting from line 5 (skip the metadata rows)
-    let data_lines = lines[4..].join("\n");
-    let data_bytes = data_lines.as_bytes();
-    
-    // Now read the data with the correct number of columns
-    let cursor = Cursor::new(data_bytes);
-    let df = CsvReadOptions::default()
-        .with_has_header(false)
-        .with_ignore_errors(true)
-        .with_n_threads(Some(1))
-        .with_infer_schema_length(Some(100))
-        .with_columns(Some(Arc::new(
-            headers.iter().map(|s| PlSmallStr::from(s.as_str())).collect()
-        )))
-        .into_reader_with_file_handle(cursor)
-        .finish()?;
-    
-    // The data doesn't have headers, so we need to rename columns
-    let temp_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
-    let df = df.lazy()
-        .rename(temp_names, headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), false)
-        .collect()?;
-    
-    // Find all sensor prefixes (S0_, S1_, S2_, etc.)
-    let sensor_prefixes: Vec<String> = headers.iter()
-        .filter_map(|h| {
-            if h.starts_with("S") && h.contains("_") {
-                let prefix = h.split('_').next()?;
-                if prefix.chars().skip(1).all(|c| c.is_numeric()) {
-                    Some(prefix.to_string())
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        })
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    
-    println!("      -> Found {} sensors: {:?}", sensor_prefixes.len(), sensor_prefixes);
-    
-    // Parse timestamp before processing
-    let df = df.lazy()
-        .with_column(
-            col("TIMESTAMP")
-                .str()
-                .strptime(
-                    DataType::Datetime(TimeUnit::Milliseconds, None),
-                    StrptimeOptions {
-                        format: Some("%Y-%m-%d %H:%M:%S".into()),
-                        strict: false,
-                        exact: false,
-                        cache: true,
-                    },
-                    lit("raise"),
-                )
-                .alias("TIMESTAMP")
-        )
-        .filter(
-            col("TIMESTAMP")
-                .gt_eq(lit(start_date))
-                .and(col("TIMESTAMP").lt_eq(lit(end_date))),
-        )
-        .collect()?;
-    
-    // Process each sensor separately and collect results
-    let mut sensor_dfs = Vec::new();
-    
-    for sensor_prefix in sensor_prefixes {
-        // Extract the SDI address from the prefix (e.g., "S0" -> "0")
-        let sdi_address = sensor_prefix.trim_start_matches('S');
-        
-        // Create expressions to select and rename columns
-        let mut select_exprs: Vec<Expr> = vec![
-            col("TIMESTAMP").alias("timestamp_naive"),
-            col("RECORD").cast(DataType::Int64).alias("record_number"),
-            col("Batt_volt").cast(DataType::Float64).alias("batt_volt"),
-            when(col("PTemp_C").is_not_null())
-                .then(col("PTemp_C"))
-                .otherwise(lit(NULL))
-                .cast(DataType::Float64)
-                .alias("ptemp_c"),
-            lit(sdi_address).alias("sdi_address"),
-        ];
-        
-        // Map sensor columns to standard names
-        let column_mapping = [
-            ("AlpOut", "alpha_out"),
-            ("AlpInn", "alpha_in"),
-            ("BetOut", "beta_out"),
-            ("BetInn", "beta_in"),
-            ("tMxTout", "tmax_tout"),
-            ("tMxTinn", "tmax_tinn"),
-            ("TpDsOut", "tp_ds_out"),
-            ("dTDsOut", "dt_ds_out"),
-            ("TsDsOut", "ts_ds_out"),
-            ("TpUsOut", "tp_us_out"),
-            ("dTUsOut", "dt_us_out"),
-            ("TsUsOut", "ts_us_out"),
-            ("TpDsInn", "tp_ds_inn"),
-            ("dTDsInn", "dt_ds_inn"),
-            ("TsDsInn", "ts_ds_inn"),
-            ("TpUsInn", "tp_us_inn"),
-            ("dTUsInn", "dt_us_inn"),
-            ("TsUsInn", "ts_us_inn"),
-            ("tMxTUsO", "tmax_tus_o"),
-            ("tMxTUsI", "tmax_tus_i"),
-        ];
-        
-        for (old_name, new_name) in &column_mapping {
-            let full_column_name = format!("{}_{}", sensor_prefix, old_name);
-            if headers.contains(&full_column_name) {
-                select_exprs.push(
-                    when(col(&full_column_name).eq(lit(-99.0)))
-                        .then(lit(NULL))
-                        .otherwise(col(&full_column_name))
-                        .cast(DataType::Float64)
-                        .alias(new_name)
-                );
-            } else {
-                select_exprs.push(lit(NULL).cast(DataType::Float64).alias(new_name));
-            }
-        }
-        
-        let sensor_df = df.clone().lazy()
-            .select(&select_exprs)
-            .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
-            .select(&get_full_schema_columns());
-            
-        sensor_dfs.push(sensor_df);
-    }
-    
-    // Concatenate all sensor dataframes
-    if sensor_dfs.is_empty() {
-        return Err(PipelineError::Processing("No sensor data found".to_string()));
-    }
-    
-    let unified_lf = concat(&sensor_dfs, UnionArgs::default())?;
-    
-    Ok(unified_lf)
-}
-
---- FILE: crates/sapflux-core/src/rules/dst_rules.rs ---
-// crates/sapflux-core/src/dst_rules.rs
-use crate::error::{PipelineError, Result};
-use crate::types::DstTransition;
-use chrono::NaiveDateTime;
-use sqlx::PgPool;
-
-pub async fn create_dst_rule(
-    pool: &PgPool,
-    action: &str,
-    ts_local: NaiveDateTime,
-) -> Result<DstTransition> {
-    if action != "start" && action != "end" {
-        return Err(PipelineError::Processing("Validation failed: action must be 'start' or 'end'".to_string()));
-    }
-
-    let new_rule = sqlx::query_as(
-        "INSERT INTO dst_transitions (transition_action, ts_local) VALUES ($1, $2) RETURNING *",
-    )
-    .bind(action)
-    .bind(ts_local)
-    .fetch_one(pool)
-    .await?;
-
-    Ok(new_rule)
-}
-
---- FILE: crates/sapflux-core/src/metadata/mod.rs ---
-pub mod deployments;
-pub mod projects; 
-pub mod sensors;
-pub mod parameters;
-
-pub use deployments::{create_deployment, get_all_deployments};
-pub use parameters::get_parameter_by_name;
-pub use projects::get_project_by_name;
-pub use sensors::get_sensor_by_id_string;
-
---- FILE: crates/sapflux-core/processing/schema.rs ---
-use polars::prelude::*;
-
-/// Define the full schema that includes all columns from the new format
-pub fn get_full_schema_columns() -> Vec<Expr> {
-    vec![
-        col("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
-        col("record_number").cast(DataType::Int64),
-        col("batt_volt").cast(DataType::Float64),
-        col("ptemp_c").cast(DataType::Float64),
-        col("sdi_address").cast(DataType::String),
-        col("alpha_out").cast(DataType::Float64),
-        col("alpha_in").cast(DataType::Float64),
-        col("beta_out").cast(DataType::Float64),
-        col("beta_in").cast(DataType::Float64),
-        col("tmax_tout").cast(DataType::Float64),
-        col("tmax_tinn").cast(DataType::Float64),
-        col("tp_ds_out").cast(DataType::Float64),
-        col("dt_ds_out").cast(DataType::Float64),
-        col("ts_ds_out").cast(DataType::Float64),
-        col("tp_us_out").cast(DataType::Float64),
-        col("dt_us_out").cast(DataType::Float64),
-        col("ts_us_out").cast(DataType::Float64),
-        col("tp_ds_inn").cast(DataType::Float64),
-        col("dt_ds_inn").cast(DataType::Float64),
-        col("ts_ds_inn").cast(DataType::Float64),
-        col("tp_us_inn").cast(DataType::Float64),
-        col("dt_us_inn").cast(DataType::Float64),
-        col("ts_us_inn").cast(DataType::Float64),
-        col("tmax_tus_o").cast(DataType::Float64),
-        col("tmax_tus_i").cast(DataType::Float64),
-    ]
-}
-
---- FILE: extract_files.py ---
-#!/usr/bin/env python3
-# /// script
-# dependencies = [
-#   "python-dotenv",
-#   "psycopg2-binary"
-# ]
-# ///
-
-"""
-A command-line utility to extract raw data files from the sapflux PostgreSQL
-database by providing one or more abbreviated SHA-256 hashes.
-
-This script connects to the database specified in the .env file, finds the
-full hash corresponding to each abbreviated hash, retrieves the raw file
-content (BYTEA), and saves it to a local file.
-"""
-
-import os
-import sys
-import argparse
-import psycopg2
-from dotenv import load_dotenv
-
-def extract_files(db_url, abbreviated_hashes):
-    """Connects to the DB and extracts files for the given hashes."""
-    conn = None
-    try:
-        print(" -> Connecting to the database...")
-        conn = psycopg2.connect(db_url)
-        cur = conn.cursor()
-        print("✅ Connection successful.\n")
-
-        for abbr_hash in abbreviated_hashes:
-            print(f"🔍 Searching for hash starting with: {abbr_hash}...")
-
-            # Use a parameterized query to prevent SQL injection.
-            # The LIKE operator with '%' is perfect for finding the full hash.
-            query = "SELECT file_hash, file_content FROM raw_files WHERE file_hash LIKE %s;"
-            
-            # psycopg2 needs the argument as a tuple, even if there's only one.
-            cur.execute(query, (f"{abbr_hash}%",))
-            
-            result = cur.fetchone()
-
-            if result:
-                full_hash, file_content = result
-                # The filename will be descriptive, e.g., "extracted_7e2fb6ab.dat"
-                output_filename = f"extracted_{abbr_hash}.dat"
-                
-                print(f"   -> Found full hash: {full_hash[:16]}...")
-                
-                # IMPORTANT: Open the file in binary write mode ('wb').
-                with open(output_filename, 'wb') as f:
-                    # psycopg2 returns BYTEA as a memoryview/bytes object, which is exactly what we need.
-                    # No hex decoding is necessary when using a library.
-                    f.write(file_content)
-                
-                print(f"   -> ✅ File saved to: '{output_filename}'")
-            else:
-                print(f"   -> ⚠️  Warning: No file found for hash starting with '{abbr_hash}'.")
-            
-            print("-" * 20)
-
-    except psycopg2.OperationalError as e:
-        print(f"\n❌ Database connection error: {e}", file=sys.stderr)
-        print("   Is the Docker container running? Is DATABASE_URL correct in your .env file?", file=sys.stderr)
-        return 1
-    except Exception as e:
-        print(f"\n❌ An unexpected error occurred: {e}", file=sys.stderr)
-        return 1
-    finally:
-        if conn:
-            conn.close()
-            print("\nDatabase connection closed.")
-    return 0
-
-def main():
-    """Parses command-line arguments and runs the extraction process."""
-    parser = argparse.ArgumentParser(
-        description="Extract raw data files from the sapflux database.",
-        epilog="Example: uv run extract_files.py 7e2fb6ab 518c5771"
-    )
-    parser.add_argument(
-        "abbreviated_hashes",
-        nargs='+',
-        help="One or more abbreviated SHA-256 hashes to extract."
-    )
-    args = parser.parse_args()
-
-    load_dotenv()
-    db_url = os.getenv("DATABASE_URL")
-
-    if not db_url:
-        print("❌ Error: DATABASE_URL not found. Please ensure it is set in your .env file.", file=sys.stderr)
-        sys.exit(1)
-
-    sys.exit(extract_files(db_url, args.abbreviated_hashes))
-
-
-if __name__ == "__main__":
-    main()
-
---- FILE: crates/sapflux-cli/src/commands/seed/parameters.rs ---
-// crates/sapflux-cli/src/commands/seed/parameters.rs
-
-use crate::commands::seed::types::ParametersFile;
+use crate::commands::seed::types::ProjectsFile;
 use anyhow::{Context, Result};
 use sqlx::{Postgres, Transaction};
+use std::collections::HashMap;
 use std::path::Path;
 
-pub async fn seed(tx: &mut Transaction<'_, Postgres>, path: &Path) -> Result<()> {
-    println!("   -> Seeding parameters from '{}'...", path.display());
+pub async fn seed(
+    tx: &mut Transaction<'_, Postgres>,
+    path: &Path,
+) -> Result<HashMap<String, i32>> {
+    println!("   -> Seeding projects from '{}'...", path.display());
     let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read parameters file at '{}'", path.display()))?;
-    let data: ParametersFile = toml::from_str(&content)
-        .with_context(|| format!("Failed to parse parameters TOML from '{}'", path.display()))?;
+        .with_context(|| format!("Failed to read projects file at '{}'", path.display()))?;
+    let data: ProjectsFile = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse projects TOML from '{}'", path.display()))?;
     
-    sqlx::query("TRUNCATE TABLE parameters RESTART IDENTITY CASCADE")
+    let mut project_map = HashMap::new();
+
+    sqlx::query("TRUNCATE TABLE projects RESTART IDENTITY CASCADE")
         .execute(&mut **tx)
         .await?;
 
-    let mut count = 0;
-    for (name, params) in data.parameters {
-        sqlx::query(
-            "INSERT INTO parameters (name, value, unit, description) VALUES ($1, $2, $3, $4)",
+    for project in data.projects {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING id",
         )
-        .bind(name)
-        .bind(params.value)
-        .bind(params.unit)
-        .bind(params.description)
-        .execute(&mut **tx)
+        .bind(&project.name)
+        .bind(project.description)
+        .fetch_one(&mut **tx)
         .await?;
-        count += 1;
+        project_map.insert(project.name, id);
     }
 
-    println!("      -> Seeded {} parameters.", count);
-    Ok(())
+    println!("      -> Seeded {} projects.", project_map.len());
+    Ok(project_map)
 }
-
---- FILE: crates/.gitignore ---
-/target/
 
 --- FILE: crates/sapflux-core/src/lib.rs ---
 pub mod error;
@@ -3174,168 +2235,6 @@ pub mod validation;
 pub mod rules;
 pub mod metadata;
 pub mod processing;
-
---- FILE: crates/sapflux-core/processing/legacy_format.rs ---
-use crate::error::Result;
-use chrono::NaiveDateTime;
-use polars::prelude::*;
-use std::io::Cursor;
-use super::schema::get_full_schema_columns;
-
-/// Processor for the old, single-sensor-per-file formats (CR200, old CR300).
-pub fn process_legacy_format(
-    content: &[u8],
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
-) -> Result<LazyFrame> {
-    let cursor = Cursor::new(content);
-    let mut lf = CsvReadOptions::default()
-        .with_has_header(false)
-        .with_skip_rows(4)
-        .with_ignore_errors(true)
-        .into_reader_with_file_handle(cursor)
-        .finish()?
-        .lazy();
-
-    let legacy_cols = &[
-        "timestamp_naive", "record_number", "batt_volt", "logger_id",
-        "sdi_address", "sap_flow_total", "vh_outer", "vh_inner",
-        "alpha_out", "alpha_in", "beta_out", "beta_in",
-        "tmax_tout", "tmax_tinn",
-    ];
-
-    let old_names: Vec<String> = lf.collect_schema()?.iter_names().map(|s| s.to_string()).collect();
-    let new_names: Vec<&str> = legacy_cols.iter().take(old_names.len()).copied().collect();
-    
-    lf = lf.rename(old_names, new_names, false);
-
-    // Parse timestamp and filter
-    let lf = lf
-        .with_column(
-            col("timestamp_naive")
-                .str()
-                .strptime(
-                    DataType::Datetime(TimeUnit::Milliseconds, None),
-                    StrptimeOptions {
-                        format: Some("%Y-%m-%d %H:%M:%S".into()),
-                        strict: false,
-                        exact: false,
-                        cache: true,
-                    },
-                    lit("raise"),
-                )
-                .alias("timestamp_naive")
-        )
-        .filter(
-            col("timestamp_naive")
-                .gt_eq(lit(start_date))
-                .and(col("timestamp_naive").lt_eq(lit(end_date))),
-        )
-        // Cast record_number to Int64
-        .with_column(
-            col("record_number").cast(DataType::Int64).alias("record_number")
-        )
-        // Add all the missing columns as NULLs
-        .with_columns(&[
-            lit(NULL).cast(DataType::Float64).alias("ptemp_c"),
-            lit(NULL).cast(DataType::Float64).alias("tp_ds_out"),
-            lit(NULL).cast(DataType::Float64).alias("dt_ds_out"),
-            lit(NULL).cast(DataType::Float64).alias("ts_ds_out"),
-            lit(NULL).cast(DataType::Float64).alias("tp_us_out"),
-            lit(NULL).cast(DataType::Float64).alias("dt_us_out"),
-            lit(NULL).cast(DataType::Float64).alias("ts_us_out"),
-            lit(NULL).cast(DataType::Float64).alias("tp_ds_inn"),
-            lit(NULL).cast(DataType::Float64).alias("dt_ds_inn"),
-            lit(NULL).cast(DataType::Float64).alias("ts_ds_inn"),
-            lit(NULL).cast(DataType::Float64).alias("tp_us_inn"),
-            lit(NULL).cast(DataType::Float64).alias("dt_us_inn"),
-            lit(NULL).cast(DataType::Float64).alias("ts_us_inn"),
-            lit(NULL).cast(DataType::Float64).alias("tmax_tus_o"),
-            lit(NULL).cast(DataType::Float64).alias("tmax_tus_i"),
-        ])
-        // Replace -99.0 with NULL for existing columns
-        .with_columns(
-            ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"]
-            .map(|name| {
-                when(col(name).eq(lit(-99.0)))
-                    .then(lit(NULL))
-                    .otherwise(col(name))
-                    .alias(name)
-            })
-        )
-        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
-        .select(&get_full_schema_columns());
-        
-    Ok(lf)
-}
-
---- FILE: crates/sapflux-core/src/ingestion.rs ---
-// crates/sapflux-core/src/ingestion.rs
-
-use crate::error::{PipelineError, Result};
-use crate::types::FileSchema;
-use crate::validation::{LegacySingleSensorValidator, CR300MultiSensorValidator, SchemaValidator}; // Import our new tools
-use sha2::{Digest, Sha256};
-use sqlx::PgPool;
-
-/// Attempts to validate the file against a series of known schemas.
-/// Returns the first schema that successfully validates.
-fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
-    // Create a list of all validators to try.
-    // The order matters if a file could potentially match multiple schemas.
-    let validators: Vec<Box<dyn SchemaValidator>> = vec![
-        Box::new(LegacySingleSensorValidator),
-        Box::new(CR300MultiSensorValidator)
-        // Add other validators here=
-    ];
-
-    for validator in validators {
-        if validator.validate(file_content).is_ok() {
-            // As soon as one validator passes, we've found our schema.
-            return Ok(validator.schema());
-        }
-    }
-
-    // If no validators passed, the file is not of a known valid format.
-    Err(PipelineError::Processing(
-        "File did not match any known valid schema.".to_string(),
-    ))
-}
-
-
-/// Ingests a single file's content into the database.
-pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
-    let hash = Sha256::digest(file_content);
-    let hash_hex = format!("{:x}", hash);
-
-    let existing_id: Option<i64> = sqlx::query_scalar("SELECT id FROM raw_files WHERE file_hash = $1")
-        .bind(&hash_hex)
-        .fetch_optional(db_pool)
-        .await?;
-
-    if let Some(id) = existing_id {
-        println!("  -> File with hash {}... already exists with id {}. Skipping.", &hash_hex[..8], id);
-        return Ok(id);
-    }
-
-    // Use our new, powerful validation function.
-    let schema = validate_and_identify_schema(file_content)?;
-    println!("  -> New file validated. Schema: {:?}", schema);
-
-    let new_id: i64 = sqlx::query_scalar(
-        "INSERT INTO raw_files (file_hash, file_content, detected_schema_name)
-         VALUES ($1, $2, $3)
-         RETURNING id"
-    )
-    .bind(&hash_hex)
-    .bind(file_content)
-    .bind(&schema)
-    .fetch_one(db_pool)
-    .await?;
-
-    println!("  -> Successfully ingested as new file with id {}.", new_id);
-    Ok(new_id)
-}
 
 --- FILE: crates/sapflux-core/src/types.rs ---
 // crates/sapflux-core/src/types.rs
@@ -3535,6 +2434,829 @@ impl SdiAddress {
     }
 }
 
+--- FILE: crates/sapflux-core/processing/schema.rs ---
+use polars::prelude::*;
+
+/// Define the full schema that includes all columns from the new format
+pub fn get_full_schema_columns() -> Vec<Expr> {
+    vec![
+        col("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
+        col("record_number").cast(DataType::Int64),
+        col("batt_volt").cast(DataType::Float64),
+        col("ptemp_c").cast(DataType::Float64),
+        col("sdi_address").cast(DataType::String),
+        col("alpha_out").cast(DataType::Float64),
+        col("alpha_in").cast(DataType::Float64),
+        col("beta_out").cast(DataType::Float64),
+        col("beta_in").cast(DataType::Float64),
+        col("tmax_tout").cast(DataType::Float64),
+        col("tmax_tinn").cast(DataType::Float64),
+        col("tp_ds_out").cast(DataType::Float64),
+        col("dt_ds_out").cast(DataType::Float64),
+        col("ts_ds_out").cast(DataType::Float64),
+        col("tp_us_out").cast(DataType::Float64),
+        col("dt_us_out").cast(DataType::Float64),
+        col("ts_us_out").cast(DataType::Float64),
+        col("tp_ds_inn").cast(DataType::Float64),
+        col("dt_ds_inn").cast(DataType::Float64),
+        col("ts_ds_inn").cast(DataType::Float64),
+        col("tp_us_inn").cast(DataType::Float64),
+        col("dt_us_inn").cast(DataType::Float64),
+        col("ts_us_inn").cast(DataType::Float64),
+        col("tmax_tus_o").cast(DataType::Float64),
+        col("tmax_tus_i").cast(DataType::Float64),
+    ]
+}
+
+--- FILE: crates/sapflux-cli/src/commands/deployment.rs ---
+// crates/sapflux-cli/src/commands/deployment.rs
+
+use anyhow::Result;
+use chrono::{DateTime, Utc};
+use sapflux_core::{
+    metadata,
+    types::{
+        CoastalMonitoringAttributes, DeploymentAttributes, NewDeployment, SdiAddress,
+        StemflowAttributes,
+    },
+};
+use sqlx::PgPool;
+use uuid::Uuid;
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Table,
+};
+
+#[derive(clap::Subcommand, Debug)]
+pub enum DeploymentCommands {
+    /// Create a new deployment, automatically superseding any previous active deployment.
+    Create {
+        #[arg(long)]
+        project_name: String,
+        #[arg(long)]
+        datalogger_id: i32,
+        #[arg(long)]
+        sdi_address: String,
+        #[arg(long)]
+        tree_id: String,
+        #[arg(long)]
+        sensor_id: String,
+        #[arg(long)]
+        start_time_utc: DateTime<Utc>,
+        #[arg(long)]
+        species: String,
+
+        // --- FIX #2: Corrected argument grouping logic ---
+
+        // The presence of `--site-name` now requires both `--zone-name` and `--plot-name`
+        // This is the correct logic for Coastal Monitoring deployments.
+        #[arg(long, requires_all = ["zone_name", "plot_name"])]
+        site_name: Option<String>,
+        #[arg(long)]
+        zone_name: Option<String>,
+        #[arg(long)]
+        plot_name: Option<String>,
+
+        // The presence of `--health-status` now requires `--collar-present`.
+        // This is the correct logic for Stemflow deployments.
+        #[arg(long, requires_all = ["collar_present"])]
+        health_status: Option<String>,
+        #[arg(long, action = clap::ArgAction::Set)]
+        collar_present: Option<bool>,
+        // robyn_label remains fully optional
+        #[arg(long)]
+        robyn_label: Option<String>,
+    },
+    List,
+    Delete {
+        #[arg(long)]
+        id: Uuid,
+    },
+    Update {
+        #[arg(long)]
+        id: Uuid,
+    },
+}
+
+/// The main handler for all `sapflux deployment` commands.
+pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPool) -> Result<()> {
+    match command {
+        DeploymentCommands::Create {
+            project_name,
+            datalogger_id,
+            sdi_address,
+            tree_id,
+            sensor_id,
+            start_time_utc,
+            species,
+            site_name,
+            zone_name,
+            plot_name,
+            health_status,
+            collar_present,
+            robyn_label,
+        } => {
+            println!("Attempting to create a new deployment...");
+
+            let project = metadata::get_project_by_name(pool, &project_name).await?;
+            let sensor = metadata::get_sensor_by_id_string(pool, &sensor_id).await?;
+
+            let attributes = match project_name.as_str() {
+                "Coastal Monitoring" => {
+                    DeploymentAttributes::CoastalMonitoring(CoastalMonitoringAttributes {
+                        site_name: site_name.ok_or_else(|| anyhow::anyhow!("--site-name is required for Coastal Monitoring"))?,
+                        zone_name: zone_name.ok_or_else(|| anyhow::anyhow!("--zone-name is required for Coastal Monitoring"))?,
+                        plot_name: plot_name.ok_or_else(|| anyhow::anyhow!("--plot-name is required for Coastal Monitoring"))?,
+                        species,
+                    })
+                }
+                "Stemflow Experiment" => {
+                    DeploymentAttributes::Stemflow(StemflowAttributes {
+                        site_name: site_name.ok_or_else(|| anyhow::anyhow!("--site-name is required for Stemflow Experiment"))?,
+                        species,
+                        health_status: health_status.ok_or_else(|| anyhow::anyhow!("--health-status is required for Stemflow Experiment"))?,
+                        collar_present: collar_present.ok_or_else(|| anyhow::anyhow!("--collar-present is required for Stemflow Experiment"))?,
+                        robyn_label,
+                    })
+                }
+                _ => return Err(anyhow::anyhow!("Unknown project type for attribute construction.")),
+            };
+
+            let new_deployment_data = NewDeployment {
+                start_time_utc,
+                datalogger_id,
+                sdi_address: SdiAddress::new(&sdi_address)?,
+                tree_id,
+                project_id: project.id,
+                sensor_id: sensor.id,
+                attributes,
+            };
+
+            metadata::create_deployment(pool, &new_deployment_data).await?;
+        }
+        DeploymentCommands::List => {
+                        println!("Fetching all deployments...");
+            
+            // --- THIS IS THE NEW LOGIC ---
+            let deployments = metadata::get_all_deployments(pool).await?;
+
+            if deployments.is_empty() {
+                println!("No deployments found in the database.");
+                return Ok(());
+            }
+
+            let mut table = Table::new();
+            table
+                .load_preset(UTF8_FULL)
+                .apply_modifier(UTF8_ROUND_CORNERS)
+                .set_header(vec![
+                    "ID",
+                    "Project",
+                    "Logger ID",
+                    "SDI",
+                    "Tree ID",
+                    "Sensor",
+                    "Start Time (UTC)",
+                    "End Time (UTC)",
+                ]);
+
+            for dep in deployments {
+                let end_time_str = dep.end_time_utc.map_or("Active".to_string(), |t| t.to_string());
+                table.add_row(vec![
+                    Cell::new(dep.id.to_string()),
+                    Cell::new(dep.project_name),
+                    Cell::new(dep.datalogger_id),
+                    Cell::new(dep.sdi_address),
+                    Cell::new(dep.tree_id),
+                    Cell::new(dep.sensor_id),
+                    Cell::new(dep.start_time_utc.to_string()),
+                    Cell::new(end_time_str),
+                ]);
+            }
+
+            println!("{table}");
+        }
+        DeploymentCommands::Delete { id } => {
+            println!("Logic for deleting deployment with ID {} will go here.", id);
+        }
+        DeploymentCommands::Update { id } => {
+            println!("Logic for updating deployment with ID {} will go here.", id);
+        }
+    }
+    Ok(())
+}
+
+--- FILE: crates/sapflux-core/src/metadata/deployments.rs ---
+// crates/sapflux-core/src/metadata/deployments.rs
+
+use crate::error::{PipelineError, Result};
+use crate::types::{NewDeployment, DeploymentDetails}; 
+use sqlx::{PgPool, Transaction, Postgres}; // Import Transaction and Postgres
+use uuid::Uuid;
+use serde_json;
+
+/// Creates a new deployment within a self-contained transaction.
+/// This is a convenience wrapper around `create_deployment_in_transaction`.
+pub async fn create_deployment(pool: &PgPool, data: &NewDeployment) -> Result<Uuid> {
+    let mut tx = pool.begin().await?;
+    let new_id = create_deployment_in_transaction(&mut tx, data).await?;
+    tx.commit().await?;
+    Ok(new_id)
+}
+
+/// Creates a new deployment within an existing transaction.
+/// This function contains the core logic: it finds and "closes out" the previous
+/// active deployment for the same sensor before inserting the new one.
+pub async fn create_deployment_in_transaction(
+    tx: &mut Transaction<'_, Postgres>, 
+    data: &NewDeployment
+) -> Result<Uuid> {
+    let previous_active_deployment_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM deployments
+         WHERE datalogger_id = $1 AND sdi_address = $2 AND end_time_utc IS NULL"
+    )
+    .bind(data.datalogger_id)
+    .bind(data.sdi_address.as_str())
+    .fetch_optional(&mut **tx) // Use the transaction here
+    .await?;
+
+    if let Some(id) = previous_active_deployment_id {
+        // Important: Check that we are not trying to create a deployment before the one we are closing.
+        // This can happen if the seed file is not perfectly ordered.
+        let previous_start_time: chrono::DateTime<chrono::Utc> = sqlx::query_scalar("SELECT start_time_utc FROM deployments WHERE id = $1")
+            .bind(id)
+            .fetch_one(&mut **tx)
+            .await?;
+        
+        if data.start_time_utc <= previous_start_time {
+            return Err(PipelineError::Validation(format!(
+                "Validation failed for logger {}-{}: New deployment start time ({}) must be after the previous deployment's start time ({}).",
+                data.datalogger_id, data.sdi_address.as_str(), data.start_time_utc, previous_start_time
+            )));
+        }
+
+        let updated_rows = sqlx::query(
+            "UPDATE deployments SET end_time_utc = $1 WHERE id = $2"
+        )
+        .bind(data.start_time_utc)
+        .bind(id)
+        .execute(&mut **tx) // Use the transaction here
+        .await?
+        .rows_affected();
+
+        if updated_rows != 1 {
+            return Err(PipelineError::Validation(
+                "Failed to update previous deployment. Transaction rolled back.".to_string()
+            ));
+        }
+    }
+    
+    let new_id: Uuid = sqlx::query_scalar(
+        "INSERT INTO deployments (
+            start_time_utc,
+            datalogger_id,
+            sdi_address,
+            tree_id,
+            project_id,
+            sensor_id,
+            attributes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id"
+    )
+    .bind(data.start_time_utc)
+    .bind(data.datalogger_id)
+    .bind(data.sdi_address.as_str())
+    .bind(&data.tree_id)
+    .bind(data.project_id)
+    .bind(data.sensor_id)
+    .bind(serde_json::to_value(&data.attributes)?) 
+    .fetch_one(&mut **tx) // Use the transaction here
+    .await?;
+
+    Ok(new_id)
+}
+
+
+/// Fetches a detailed list of all deployments, joined with project and sensor info.
+pub async fn get_all_deployments(pool: &PgPool) -> Result<Vec<DeploymentDetails>> {
+    let deployments = sqlx::query_as!(
+        DeploymentDetails,
+        r#"
+        SELECT
+            d.id,
+            p.name as "project_name!",
+            d.datalogger_id,
+            d.sdi_address,
+            d.tree_id,
+            s.sensor_id,
+            d.start_time_utc,
+            d.end_time_utc
+        FROM
+            deployments d
+        JOIN
+            projects p ON d.project_id = p.id
+        JOIN
+            sensors s ON d.sensor_id = s.id
+        ORDER BY
+            d.datalogger_id, d.sdi_address, d.start_time_utc DESC
+        "#
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(deployments)
+}
+
+--- FILE: crates/sapflux-core/src/metadata/projects.rs ---
+// crates/sapflux-core/src/metadata/projects.rs
+
+use crate::error::{PipelineError, Result};
+use crate::types::Project;
+use sqlx::PgPool;
+
+pub async fn get_project_by_name(pool: &PgPool, name: &str) -> Result<Project> {
+    sqlx::query_as!(
+        Project,
+        "SELECT id, name, description FROM projects WHERE name = $1",
+        name
+    )
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| PipelineError::Validation(format!("Project with name '{}' not found.", name)))
+}
+
+--- FILE: docker-compose.yml ---
+# ./docker-compose.yml
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=sapflux
+    ports:
+      - '5432:5432'
+    # CORRECTED: This now correctly refers to the named volume defined below.
+    volumes:
+      - postgres_data_vol:/var/lib/postgresql/data
+
+# CORRECTED: The named volume is defined here.
+volumes:
+  postgres_data_vol:
+
+--- FILE: crates/sapflux-api/Cargo.toml ---
+[package]
+name = "sapflux-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Depend on our core library
+sapflux-core = { path = "../sapflux-core" }
+
+# Inherit shared dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+
+--- FILE: Cargo.toml ---
+# ./crates/Cargo.toml
+
+[workspace]
+members = [
+    "crates/sapflux-core",
+    "crates/sapflux-cli",
+    "crates/sapflux-api",
+]
+resolver = "2" 
+
+[workspace.dependencies]
+polars = { version = "0.48.1", features = ["lazy", "strings", "temporal", "parquet", "json", "pivot", "regex"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "derive", "json", "uuid"] }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+thiserror = "2.0.12"
+serde = { version = "1.0", features = ["derive", "rc"] }
+csv = "1.3"
+glob = "0.3"
+sha2 = "0.10"
+clap = { version = "4.0", features = ["derive"]}
+axum = { version = "0.8.4"}
+uuid = { version = "1.0", features = ["v4", "serde"] } # don't take my uuid i'm using this one 
+chrono = { version = "0.4.41" }
+dotenvy = "0.15"
+futures = { version = "0.3" }
+serde_json = { version = "1.0.140" }
+comfy-table = "7.1.0"
+toml = "0.8"
+
+--- FILE: crates/.gitignore ---
+/target/
+
+--- FILE: crates/sapflux-cli/src/commands/seed/parameters.rs ---
+// crates/sapflux-cli/src/commands/seed/parameters.rs
+
+use crate::commands::seed::types::ParametersFile;
+use anyhow::{Context, Result};
+use sqlx::{Postgres, Transaction};
+use std::path::Path;
+
+pub async fn seed(tx: &mut Transaction<'_, Postgres>, path: &Path) -> Result<()> {
+    println!("   -> Seeding parameters from '{}'...", path.display());
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read parameters file at '{}'", path.display()))?;
+    let data: ParametersFile = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse parameters TOML from '{}'", path.display()))?;
+    
+    sqlx::query("TRUNCATE TABLE parameters RESTART IDENTITY CASCADE")
+        .execute(&mut **tx)
+        .await?;
+
+    let mut count = 0;
+    for (name, params) in data.parameters {
+        sqlx::query(
+            "INSERT INTO parameters (name, value, unit, description) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(name)
+        .bind(params.value)
+        .bind(params.unit)
+        .bind(params.description)
+        .execute(&mut **tx)
+        .await?;
+        count += 1;
+    }
+
+    println!("      -> Seeded {} parameters.", count);
+    Ok(())
+}
+
+--- FILE: crates/sapflux-core/src/metadata/mod.rs ---
+pub mod deployments;
+pub mod projects; 
+pub mod sensors;
+pub mod parameters;
+
+pub use deployments::{create_deployment, get_all_deployments};
+pub use parameters::get_parameter_by_name;
+pub use projects::get_project_by_name;
+pub use sensors::get_sensor_by_id_string;
+
+--- FILE: crates/sapflux-core/src/validation.rs ---
+// In crates/sapflux-core/src/validation.rs
+
+use crate::error::{PipelineError, Result};
+use crate::types::FileSchema;
+use csv::StringRecord;
+
+pub trait SchemaValidator {
+    fn schema(&self) -> FileSchema;
+    fn validate(&self, file_content: &[u8]) -> Result<()>;
+}
+
+// --- Validator for BOTH CR200 and CR300 Legacy Single-Sensor Formats ---
+// RENAMED: from CR200LegacyValidator to LegacySingleSensorValidator
+pub struct LegacySingleSensorValidator;
+
+impl SchemaValidator for LegacySingleSensorValidator {
+    fn schema(&self) -> FileSchema {
+        FileSchema::CRLegacySingleSensor
+    }
+
+    fn validate(&self, file_content: &[u8]) -> Result<()> {
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)
+            .from_reader(file_content);
+
+        let mut records = reader.records();
+
+        let header_rec = records.next().ok_or(PipelineError::Processing(
+            "LegacySingleSensor: File is empty".to_string(),
+        ))??;
+        Self::validate_toa5_header(&header_rec)?; // Note: self becomes Self
+
+        let column_rec = records.next().ok_or(PipelineError::Processing(
+            "LegacySingleSensor: Missing header row".to_string(),
+        ))??;
+        let sdi_col_index = Self::validate_column_headers(&column_rec)?;
+
+        let junk_rec1 = records.next().ok_or(PipelineError::Processing(
+            "LegacySingleSensor: Missing junk row 3".to_string(),
+        ))??;
+        Self::validate_junk_rows(&junk_rec1)?;
+        
+        records.next().ok_or(PipelineError::Processing(
+            "LegacySingleSensor: Missing junk row 4".to_string(),
+        ))??;
+
+        let data_rec = records.next().ok_or(PipelineError::Processing(
+            "LegacySingleSensor: File has no data rows".to_string(),
+        ))??;
+        Self::validate_data_row(&data_rec, sdi_col_index)?;
+
+        Ok(())
+    }
+}
+
+// Helper methods for the validator
+impl LegacySingleSensorValidator {
+    fn validate_toa5_header(record: &StringRecord) -> Result<()> {
+        if record.get(0) != Some("TOA5") {
+            return Err(PipelineError::Processing("LegacySingleSensor: Row 1 is not a TOA5 header".to_string()));
+        }
+
+        // UPDATED LOGIC: Check for EITHER CR200 or CR300
+        let logger_model = record.get(1).unwrap_or("");
+        if !logger_model.contains("CR200") && !logger_model.contains("CR300") {
+            return Err(PipelineError::Processing(format!(
+               "LegacySingleSensor: Header model '{}' is not a recognized CR200 or CR300 series", logger_model
+           )));
+        }
+        Ok(())
+    }
+
+    // This method is now more generic and doesn't need to change.
+    fn validate_column_headers(record: &StringRecord) -> Result<usize> {
+        let sdi_col_index = record.iter().position(|h| h.starts_with("SDI")).ok_or_else(|| {
+            PipelineError::Processing("LegacySingleSensor: Could not find an SDI column in the header".to_string())
+        })?;
+        
+        let sdi_col_name = record.get(sdi_col_index).unwrap();
+        let sdi_digit_char = sdi_col_name.chars().nth(3).ok_or_else(|| {
+            PipelineError::Processing(format!("LegacySingleSensor: Invalid SDI column name '{}'", sdi_col_name))
+        })?;
+
+        if !sdi_digit_char.is_ascii_digit() {
+            return Err(PipelineError::Processing(format!(
+                "LegacySingleSensor: SDI column '{}' is not followed by a digit", sdi_col_name
+            )));
+        }
+        Ok(sdi_col_index)
+    }
+
+    // No changes needed here
+    fn validate_junk_rows(record: &StringRecord) -> Result<()> {
+        if record.get(0) != Some("TS") {
+            return Err(PipelineError::Processing("LegacySingleSensor: Row 3 does not start with 'TS'".to_string()));
+       }
+       Ok(())
+    }
+
+    // No changes needed here
+    fn validate_data_row(record: &StringRecord, sdi_col_index: usize) -> Result<()> {
+        let sdi_address = record.get(sdi_col_index).ok_or_else(|| {
+            PipelineError::Processing(format!("LegacySingleSensor: Data row missing field at SDI index {}", sdi_col_index))
+        })?;
+
+        if sdi_address.len() != 1 || !sdi_address.chars().next().unwrap().is_ascii_alphanumeric() {
+            return Err(PipelineError::Processing(format!(
+                "LegacySingleSensor: Invalid SDI-12 address '{}' in data row", sdi_address
+            )));
+        }
+        Ok(())
+    }
+}
+pub struct CR300MultiSensorValidator;
+
+impl SchemaValidator for CR300MultiSensorValidator {
+    fn schema(&self) -> FileSchema {
+        FileSchema::CR300MultiSensor
+    }
+
+    fn validate(&self, file_content: &[u8]) -> Result<()> {
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)
+            .from_reader(file_content);
+
+        let mut records = reader.records();
+
+        let header_rec = records.next().ok_or(PipelineError::Processing("CR300Multi: File is empty".to_string()))??;
+        Self::validate_toa5_header(&header_rec)?;
+
+        let column_rec = records.next().ok_or(PipelineError::Processing("CR300Multi: Missing header row".to_string()))??;
+        Self::validate_column_structure(&column_rec)?;
+
+        Ok(())
+    }
+}
+
+impl CR300MultiSensorValidator {
+    fn validate_toa5_header(record: &StringRecord) -> Result<()> {
+        if record.get(0) != Some("TOA5") {
+            return Err(PipelineError::Processing("CR300Multi: Not a TOA5 header".to_string()));
+        }
+        let logger_model = record.get(1).unwrap_or("");
+        if !logger_model.contains("CR300") {
+            return Err(PipelineError::Processing(format!("CR300Multi: Not a CR300 logger model ('{}')", logger_model)));
+        }
+        Ok(())
+    }
+
+    /// This is the core of the new logic, implementing your proposal.
+    fn validate_column_structure(record: &StringRecord) -> Result<()> {
+        // Define the exact set of columns that must appear at the beginning.
+        const PREAMBLE_COLS: &[&str] = &["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C"];
+        
+        // Define the number of data fields we expect for each sensor.
+        // Based on the README, the new format has 20 fields per sensor.
+        const FIELDS_PER_SENSOR: usize = 20;
+
+        let headers: Vec<&str> = record.iter().collect();
+
+        // 1. Check if the preamble exists at the start.
+        if headers.len() < PREAMBLE_COLS.len() || &headers[..PREAMBLE_COLS.len()] != PREAMBLE_COLS {
+            return Err(PipelineError::Processing(
+                "CR300Multi: Header does not start with the expected preamble (TIMESTAMP, RECORD, etc.)".to_string()
+            ));
+        }
+
+        // 2. The rest of the columns must be sensor data.
+        let sensor_cols = &headers[PREAMBLE_COLS.len()..];
+
+        // 3. The number of sensor columns must be a perfect multiple of FIELDS_PER_SENSOR.
+        if sensor_cols.is_empty() {
+             return Err(PipelineError::Processing(
+                "CR300Multi: Header contains preamble but no sensor columns.".to_string()
+            ));
+        }
+        if sensor_cols.len() % FIELDS_PER_SENSOR != 0 {
+            return Err(PipelineError::Processing(format!(
+                "CR300Multi: Number of sensor columns ({}) is not a multiple of {} per sensor.",
+                sensor_cols.len(), FIELDS_PER_SENSOR
+            )));
+        }
+
+        // 4. (Optional but good) Check that the columns follow the S{i}_ pattern.
+        let num_sensors = sensor_cols.len() / FIELDS_PER_SENSOR;
+        for i in 0..num_sensors {
+            let prefix = format!("S{}_", i);
+            let start_index = i * FIELDS_PER_SENSOR;
+            let first_col_in_block = sensor_cols[start_index];
+            if !first_col_in_block.starts_with(&prefix) {
+                 return Err(PipelineError::Processing(format!(
+                    "CR300Multi: Sensor block {} does not start with the expected prefix '{}'. Found '{}'.",
+                    i, prefix, first_col_in_block
+                )));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+--- FILE: crates/sapflux-core/src/rules/dst_rules.rs ---
+// crates/sapflux-core/src/dst_rules.rs
+use crate::error::{PipelineError, Result};
+use crate::types::DstTransition;
+use chrono::NaiveDateTime;
+use sqlx::PgPool;
+
+pub async fn create_dst_rule(
+    pool: &PgPool,
+    action: &str,
+    ts_local: NaiveDateTime,
+) -> Result<DstTransition> {
+    if action != "start" && action != "end" {
+        return Err(PipelineError::Processing("Validation failed: action must be 'start' or 'end'".to_string()));
+    }
+
+    let new_rule = sqlx::query_as(
+        "INSERT INTO dst_transitions (transition_action, ts_local) VALUES ($1, $2) RETURNING *",
+    )
+    .bind(action)
+    .bind(ts_local)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(new_rule)
+}
+
+--- FILE: crates/sapflux-cli/src/commands/mod.rs ---
+pub mod deployment;
+pub mod seed;
+
+--- FILE: crates/sapflux-core/src/db.rs ---
+// crates/sapflux-core/src/db.rs
+
+use crate::error::Result;
+use sqlx::PgPool;
+
+/// Establishes a connection pool to the PostgreSQL database.
+///
+/// Reads the `DATABASE_URL` environment variable to configure the connection.
+///
+/// # Panics
+/// Panics if the `DATABASE_URL` is not set.
+pub async fn connect() -> Result<PgPool> {
+    // Read the database connection URL from the environment.
+    let db_url = std::env::var("DATABASE_URL")?;
+
+    // Create a connection pool.
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5) // Set a reasonable maximum number of connections.
+        .connect(&db_url)
+        .await?; // The `?` operator here will convert any sqlx::Error into our PipelineError.
+
+    println!("✅ Database connection pool established.");
+    Ok(pool)
+}
+
+--- FILE: crates/sapflux-core/processing/mod.rs ---
+use crate::error::{PipelineError, Result};
+use crate::types::FileSchema;
+use chrono::{NaiveDate, Utc};
+use polars::prelude::*;
+use sqlx::PgPool;
+
+mod schema;
+mod legacy_format;
+mod multi_sensor_format;
+
+use schema::get_full_schema_columns;
+use legacy_format::process_legacy_format;
+use multi_sensor_format::process_multi_sensor_format;
+
+/// Internal struct to hold data fetched from the database.
+struct RawFileRecord {
+    file_hash: String,
+    file_content: Vec<u8>,
+    detected_schema_name: FileSchema,
+}
+
+/// **The Orchestrator**: The main public function.
+pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
+    println!("   -> Fetching all raw files from the database...");
+    let raw_files = fetch_all_raw_files(pool).await?;
+    println!("      -> Found {} files to process.", raw_files.len());
+
+    let mut lazyframes: Vec<LazyFrame> = Vec::with_capacity(raw_files.len());
+
+    println!("   -> Parsing, cleaning, and unifying files...");
+    for (i, record) in raw_files.iter().enumerate() {
+        print!("\r      -> Processing file {}/{}...", i + 1, raw_files.len());
+        match parse_and_clean_file(record) {
+            Ok(lf) => lazyframes.push(lf),
+            Err(e) => eprintln!(
+                "\n      -> WARNING: Could not parse file with hash {}. Reason: {}",
+                &record.file_hash[..8],
+                e
+            ),
+        }
+    }
+
+    if lazyframes.is_empty() {
+        return Err(PipelineError::Processing(
+            "No valid raw files could be parsed.".to_string(),
+        ));
+    }
+
+    println!("\n   -> Concatenating all files into a single dataset...");
+    let unified_lf = concat(&lazyframes, UnionArgs::default())?;
+
+    println!("✅ Unified LazyFrame created successfully.");
+    Ok(unified_lf)
+}
+
+/// **The Fetcher**: Fetches all raw file records from the database.
+async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
+    sqlx::query_as!(
+        RawFileRecord,
+        r#"
+        SELECT
+            file_hash,
+            file_content,
+            detected_schema_name as "detected_schema_name!: FileSchema"
+        FROM raw_files
+        "#
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(PipelineError::from)
+}
+
+/// **The Parser & Cleaner**: Dispatches to the correct format-specific processor.
+fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
+    let start_date =
+        NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
+    let end_date = Utc::now().naive_utc();
+
+    let lf = match record.detected_schema_name {
+        FileSchema::CRLegacySingleSensor => {
+            process_legacy_format(&record.file_content, start_date, end_date)?
+        }
+        FileSchema::CR300MultiSensor => {
+            process_multi_sensor_format(&record.file_content, start_date, end_date)?
+        }
+    };
+
+    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
+}
+
+// Re-export the inspect function if you add it
+// pub use multi_sensor_format::inspect_file_by_hash;
+
 --- FILE: crates/sapflux-cli/src/commands/seed/deployments.rs ---
 // crates/sapflux-cli/src/commands/seed/deployments.rs
 
@@ -3614,29 +3336,301 @@ pub async fn seed(
     Ok(())
 }
 
---- FILE: crates/sapflux-core/src/db.rs ---
-// crates/sapflux-core/src/db.rs
+--- FILE: gemini_plan.md ---
+Of course. Taking stock of progress is a critical part of any successful project. Here is a detailed report on the current state of the `sapflux` project, outlining our accomplishments, architectural decisions, and the clear path forward.
 
-use crate::error::Result;
-use sqlx::PgPool;
+---
 
-/// Establishes a connection pool to the PostgreSQL database.
-///
-/// Reads the `DATABASE_URL` environment variable to configure the connection.
-///
-/// # Panics
-/// Panics if the `DATABASE_URL` is not set.
-pub async fn connect() -> Result<PgPool> {
-    // Read the database connection URL from the environment.
-    let db_url = std::env::var("DATABASE_URL")?;
+### **Project Status Report: `sapflux` Data Platform**
 
-    // Create a connection pool.
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5) // Set a reasonable maximum number of connections.
-        .connect(&db_url)
-        .await?; // The `?` operator here will convert any sqlx::Error into our PipelineError.
+**Date:** June 11, 2025
 
-    println!("✅ Database connection pool established.");
-    Ok(pool)
+**Overall Goal:** To build a robust, high-performance, and maintainable data platform for ingesting, processing, and serving sap flux data. The platform is designed to be a long-term "golden source" of truth, with a clear separation between raw data, metadata, and scientific processing logic.
+
+---
+
+### **I. Executive Summary: Architecture and Philosophy**
+
+We have successfully pivoted from a simple script-based approach to a professional, multi-crate monorepo architecture designed for long-term stability and future expansion. The foundational principle is the **separation of concerns**: the system is divided into a core library, application clients (CLI, API), and a declarative database schema.
+
+**Key Architectural Decisions:**
+
+1.  **Monorepo with Cargo Workspace:** The entire project (backend, CLI, future API, future frontend) lives in a single repository, managed by a Cargo Workspace. This ensures dependency consistency and unified build tooling.
+2.  **Database as the Golden Source:** A PostgreSQL database serves as the single, authoritative source of truth for all data and metadata. This decouples data storage from processing and guarantees data integrity.
+3.  **Library-First Design:** All core business logic resides in a `sapflux-core` library crate. The CLI and future API are thin clients that call this library, ensuring that validation and processing logic is centralized and reusable.
+4.  **Two-Tier Validation Strategy:**
+    *   **Tier 1 (Ingestion Gate):** Raw sensor files are subject to strict *structural* validation upon ingestion to ensure they conform to a known, parsable schema. Invalid files are rejected.
+    *   **Tier 2 (Application Layer):** Metadata (Deployments, Rules) is subject to *business logic* validation within the core library whenever it is created or modified.
+5.  **Data-Driven Configuration:** Critical logic, such as DST transition rules, is stored as queryable data in the database rather than being hardcoded in the application.
+
+---
+
+### **II. Accomplishments to Date (What We've Completed)**
+
+We have successfully built the complete foundational infrastructure and the entire "write path" for ingesting data.
+
+**✅ Phase 0: Environment and Project Scaffolding**
+*   **Monorepo Structure:** The full `sapflux/` directory structure with `crates/`, `db/`, `initial_metadata/`, and `scripts/` is in place.
+*   **Cargo Workspace:** The workspace is fully configured with three member crates (`sapflux-core`, `sapflux-cli`, `sapflux-api`) and a centralized dependency manifest.
+*   **Local Database Environment:** A `docker-compose.yml` provides a one-command setup for a local PostgreSQL 17 database.
+*   **Database Schema:** The `db/schema.sql` file defines the initial tables for `raw_files` and `dst_transitions`.
+
+**✅ Phase 1: Core Library Foundation**
+*   **Centralized Error Handling:** A robust `PipelineError` enum has been implemented in `sapflux-core/src/error.rs` using `thiserror`.
+*   **Core Data Types:** Rust structs representing database entities (`Deployment`, `DstTransition`, `SdiAddress`) are defined in `types.rs`, complete with database mapping (`sqlx::FromRow`) and domain-specific validation (the `SdiAddress` newtype).
+*   **Database Connectivity:** The `sapflux-core/src/db.rs` module provides a reliable, async connection pool to the database, configured via a `.env` file.
+
+**✅ Phase 2: Ingestion Pipeline**
+*   **Schema Validation Framework:** A flexible `SchemaValidator` trait has been designed and implemented. We have created two concrete validators:
+    *   `LegacySingleSensorValidator`: Correctly validates and accepts both CR200 and older CR300 single-sensor file formats.
+    *   `CR300MultiSensorValidator`: Correctly validates the generic multi-sensor format for any number of sensors.
+*   **Idempotent Ingestion Logic:** The `sapflux-core/src/ingestion.rs` module can ingest a file's raw byte content. It uses a SHA-256 hash to guarantee that identical files are never inserted twice, making the process robustly idempotent.
+*   **Metadata Seeding:** A PEP 723-compliant Python script (`scripts/seed_database.py`) has been created to populate the `dst_transitions` table from a human-readable `dst_transitions.toml` file, establishing a clear pattern for managing initial metadata.
+*   **Functional CLI:** The `sapflux-cli` application provides a working `ingest` command that successfully uses the core library to scan a directory and populate the database, gracefully handling and reporting files that fail validation.
+
+**Current Status:** All validated raw data files can be successfully and reliably ingested into the PostgreSQL database, creating an immutable, auditable archive of our source data. The foundation is complete and stable.
+
+---
+
+### **III. Remaining Work (What We Have Left to Do)**
+
+The remaining work focuses on building the "read path" for processing the data and implementing the management logic for our other metadata entities.
+
+**🔜 Phase 3: Metadata Management**
+*   **Goal:** Fully implement the database schema, seeding, and validation logic for `deployments`, `sensors`, and `parameters`.
+*   **Tasks:**
+    1.  **Finalize Schemas:** Update `db/schema.sql` with the final table designs for `projects`, `sensors`, and `deployments`, including foreign key relationships.
+    2.  **Create Initial Data Files:** Create `deployments.csv`, `sensors.csv`, and `parameters.toml` in the `initial_metadata/` directory.
+    3.  **Expand Seeding Script:** Add functions to `scripts/seed_database.py` to parse these new files and populate their respective tables.
+    4.  **Implement Rust Types:** Add Rust structs to `types.rs` for `Project`, `Sensor`, and the `DeploymentAttributes` enum.
+    5.  **Implement Validation Rules:** Create `rules/deployment_rules.rs` etc. in the core library to house the business logic for validating new or updated deployment records.
+
+**🚀 Phase 4: The Processing Pipeline**
+*   **Goal:** Implement the full data processing logic to transform the raw data from the database into a clean, corrected, and scientifically valuable Parquet file.
+*   **Tasks:**
+    1.  **Implement the "Read Path":** Write the `sapflux-core/src/processing.rs` logic to fetch blobs from the DB and create a master `LazyFrame`.
+    2.  **Schema-Specific Parsing:** Make the `lazyframe_from_blob` function "smart" by using the `detected_schema_name` to apply the correct Polars parsing options (column names, types, etc.) for each file.
+    3.  **Implement DST Correction Algorithm:** This is the most complex single task. Implement the three-pass strategy we designed:
+        *   Pass 1: Use SQL to discover file relationships for each data point.
+        *   Pass 2: Use Polars to assign a unique `chunk_id` to each row.
+        *   Pass 3: Use the `dst_transitions` LUT to calculate and apply the correct timezone offset for each chunk.
+    4.  **Implement Scientific Calculations:** Add the Polars expressions to calculate heat velocity, apply wound correction, and compute final sap flux density.
+    5.  **Implement `process` CLI Command:** Flesh out the `sapflux-cli process` command to orchestrate the pipeline and save the final `LazyFrame`.
+
+**未来 (Future): Application Layer**
+*   **Goal:** Build user-facing applications on top of the core library.
+*   **Tasks:**
+    1.  **Build Axum API:** Create `sapflux-api` with endpoints for CRUD operations on metadata and for triggering/downloading processed datasets.
+    2.  **Build Svelte Frontend:** Create a web interface for non-technical users to upload data and download versioned results.
+    3.  **Deploy to Render.io:** Package the entire system for production deployment.
+
+--- FILE: crates/sapflux-core/processing/multi_sensor_format.rs ---
+use crate::error::{PipelineError, Result};
+use chrono::NaiveDateTime;
+use polars::prelude::*;
+use std::io::Cursor;
+use std::sync::Arc;
+use super::schema::get_full_schema_columns;
+
+/// Processor for the new, wide, multi-sensor format (new CR300).
+pub fn process_multi_sensor_format(
+    content: &[u8],
+    start_date: NaiveDateTime,
+    end_date: NaiveDateTime,
+) -> Result<LazyFrame> {
+    // Parse the CSV manually to handle the irregular structure
+    let content_str = std::str::from_utf8(content)
+        .map_err(|e| PipelineError::Processing(format!("Invalid UTF-8: {}", e)))?;
+    
+    let lines: Vec<&str> = content_str.lines().collect();
+    if lines.len() < 5 {
+        return Err(PipelineError::Processing("File has fewer than 5 lines".to_string()));
+    }
+    
+    // Get headers from the second line
+    let headers: Vec<String> = lines[1]
+        .split(',')
+        .map(|s| s.trim_matches('"').to_string())
+        .collect();
+    
+    println!("      -> Found {} columns in multi-sensor file", headers.len());
+    
+    // Create a new CSV content starting from line 5 (skip the metadata rows)
+    let data_lines = lines[4..].join("\n");
+    let data_bytes = data_lines.as_bytes();
+    
+    // Now read the data with the correct number of columns
+    let cursor = Cursor::new(data_bytes);
+    let df = CsvReadOptions::default()
+        .with_has_header(false)
+        .with_ignore_errors(true)
+        .with_n_threads(Some(1))
+        .with_infer_schema_length(Some(100))
+        .with_columns(Some(Arc::new(
+            headers.iter().map(|s| PlSmallStr::from(s.as_str())).collect()
+        )))
+        .into_reader_with_file_handle(cursor)
+        .finish()?;
+    
+    // The data doesn't have headers, so we need to rename columns
+    let temp_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let df = df.lazy()
+        .rename(temp_names, headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), false)
+        .collect()?;
+    
+    // Find all sensor prefixes (S0_, S1_, S2_, etc.)
+    let sensor_prefixes: Vec<String> = headers.iter()
+        .filter_map(|h| {
+            if h.starts_with("S") && h.contains("_") {
+                let prefix = h.split('_').next()?;
+                if prefix.chars().skip(1).all(|c| c.is_numeric()) {
+                    Some(prefix.to_string())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    
+    println!("      -> Found {} sensors: {:?}", sensor_prefixes.len(), sensor_prefixes);
+    
+    // Parse timestamp before processing
+    let df = df.lazy()
+        .with_column(
+            col("TIMESTAMP")
+                .str()
+                .strptime(
+                    DataType::Datetime(TimeUnit::Milliseconds, None),
+                    StrptimeOptions {
+                        format: Some("%Y-%m-%d %H:%M:%S".into()),
+                        strict: false,
+                        exact: false,
+                        cache: true,
+                    },
+                    lit("raise"),
+                )
+                .alias("TIMESTAMP")
+        )
+        .filter(
+            col("TIMESTAMP")
+                .gt_eq(lit(start_date))
+                .and(col("TIMESTAMP").lt_eq(lit(end_date))),
+        )
+        .collect()?;
+    
+    // Process each sensor separately and collect results
+    let mut sensor_dfs = Vec::new();
+    
+    for sensor_prefix in sensor_prefixes {
+        // Extract the SDI address from the prefix (e.g., "S0" -> "0")
+        let sdi_address = sensor_prefix.trim_start_matches('S');
+        
+        // Create expressions to select and rename columns
+        let mut select_exprs: Vec<Expr> = vec![
+            col("TIMESTAMP").alias("timestamp_naive"),
+            col("RECORD").cast(DataType::Int64).alias("record_number"),
+            col("Batt_volt").cast(DataType::Float64).alias("batt_volt"),
+            when(col("PTemp_C").is_not_null())
+                .then(col("PTemp_C"))
+                .otherwise(lit(NULL))
+                .cast(DataType::Float64)
+                .alias("ptemp_c"),
+            lit(sdi_address).alias("sdi_address"),
+        ];
+        
+        // Map sensor columns to standard names
+        let column_mapping = [
+            ("AlpOut", "alpha_out"),
+            ("AlpInn", "alpha_in"),
+            ("BetOut", "beta_out"),
+            ("BetInn", "beta_in"),
+            ("tMxTout", "tmax_tout"),
+            ("tMxTinn", "tmax_tinn"),
+            ("TpDsOut", "tp_ds_out"),
+            ("dTDsOut", "dt_ds_out"),
+            ("TsDsOut", "ts_ds_out"),
+            ("TpUsOut", "tp_us_out"),
+            ("dTUsOut", "dt_us_out"),
+            ("TsUsOut", "ts_us_out"),
+            ("TpDsInn", "tp_ds_inn"),
+            ("dTDsInn", "dt_ds_inn"),
+            ("TsDsInn", "ts_ds_inn"),
+            ("TpUsInn", "tp_us_inn"),
+            ("dTUsInn", "dt_us_inn"),
+            ("TsUsInn", "ts_us_inn"),
+            ("tMxTUsO", "tmax_tus_o"),
+            ("tMxTUsI", "tmax_tus_i"),
+        ];
+        
+        for (old_name, new_name) in &column_mapping {
+            let full_column_name = format!("{}_{}", sensor_prefix, old_name);
+            if headers.contains(&full_column_name) {
+                select_exprs.push(
+                    when(col(&full_column_name).eq(lit(-99.0)))
+                        .then(lit(NULL))
+                        .otherwise(col(&full_column_name))
+                        .cast(DataType::Float64)
+                        .alias(new_name)
+                );
+            } else {
+                select_exprs.push(lit(NULL).cast(DataType::Float64).alias(new_name));
+            }
+        }
+        
+        let sensor_df = df.clone().lazy()
+            .select(&select_exprs)
+            .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false))
+            .select(&get_full_schema_columns());
+            
+        sensor_dfs.push(sensor_df);
+    }
+    
+    // Concatenate all sensor dataframes
+    if sensor_dfs.is_empty() {
+        return Err(PipelineError::Processing("No sensor data found".to_string()));
+    }
+    
+    let unified_lf = concat(&sensor_dfs, UnionArgs::default())?;
+    
+    Ok(unified_lf)
+}
+
+--- FILE: crates/sapflux-cli/src/commands/seed/dst_transitions.rs ---
+// crates/sapflux-cli/src/commands/seed/dst_transitions.rs
+
+use crate::commands::seed::types::DstTransitionsFile;
+use anyhow::{Context, Result};
+use sqlx::{Postgres, Transaction};
+use std::path::Path;
+
+pub async fn seed(tx: &mut Transaction<'_, Postgres>, path: &Path) -> Result<()> {
+    println!("   -> Seeding DST transitions from '{}'...", path.display());
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read DST transitions file at '{}'", path.display()))?;
+    let data: DstTransitionsFile = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse DST transitions TOML from '{}'", path.display()))?;
+
+    sqlx::query("TRUNCATE TABLE dst_transitions RESTART IDENTITY CASCADE")
+        .execute(&mut **tx)
+        .await?;
+    
+    let mut count = 0;
+    for transition in data.transitions {
+        sqlx::query(
+            "INSERT INTO dst_transitions (transition_action, ts_local) VALUES ($1, $2)",
+        )
+        .bind(transition.action)
+        .bind(transition.ts_local)
+        .execute(&mut **tx)
+        .await?;
+        count += 1;
+    }
+    
+    println!("      -> Seeded {} DST transitions.", count);
+    Ok(())
 }
 
