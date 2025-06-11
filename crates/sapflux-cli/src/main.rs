@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
                 &pool, 
                 &projects_file, 
                 &sensors_file,
-                ¶meters_file,
+                &parameters_file,
                 &dst_file,
                 &deployments_file
             ).await?;

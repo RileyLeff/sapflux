@@ -20,3 +20,4 @@ uuid = { workspace = true }
 comfy-table = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
