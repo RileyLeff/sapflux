@@ -1,78 +1,82 @@
-// crates/sapflux-core/processing/mod.rs
+// crates/sapflux-core/src/processing/mod.rs
 
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
 use chrono::{NaiveDate, Utc};
 use polars::prelude::*;
 use sqlx::PgPool;
+use std::collections::HashMap;
 
-// Declare the modules within this `processing` module.
+// --- Module Declarations ---
 mod schema;
 mod legacy_format;
 mod multi_sensor_format;
 
-// Bring the functions from our sub-modules into the current scope.
+// --- Imports from our modules ---
 use legacy_format::process_legacy_format;
 use multi_sensor_format::process_multi_sensor_format;
 
-/// Internal struct to hold data fetched from the database for processing.
+// --- Struct Definitions (Needed in this file's scope) ---
+
+// This struct holds the raw data fetched from the DB for processing.
 struct RawFileRecord {
     file_hash: String,
     file_content: Vec<u8>,
     detected_schema_name: FileSchema,
 }
 
-#[derive(sqlx::FromRow)]
+// This struct holds the manual correction rules fetched from the DB.
+#[derive(sqlx::FromRow, Debug)]
 struct ManualFix {
     file_hash: String,
     action: String,
     value: serde_json::Value,
 }
 
-/// **The Orchestrator**: The main public function for the processing pipeline.
-/// It fetches all raw files, dispatches them to the appropriate parser,
-/// and concatenates the results into a single, unified LazyFrame.
+// --- Main Pipeline Orchestrator ---
+
 pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
+    println!("   -> Fetching manual corrections from the database...");
+    let fixes_vec = sqlx::query_as!(ManualFix, "SELECT file_hash, action, value, description FROM manual_fixes")
+        .fetch_all(pool)
+        .await?;
+    
+    let fixes_map: HashMap<String, ManualFix> = fixes_vec.into_iter().map(|fix| (fix.file_hash.clone(), fix)).collect();
+    println!("      -> Found {} manual fix rules to apply.", fixes_map.len());
+
     println!("   -> Fetching all raw files from the database...");
-    let raw_files = fetch_all_raw_files(pool).await?;
+    let raw_files = fetch_all_raw_files(pool).await?; // This will now resolve.
     println!("      -> Found {} files to process.", raw_files.len());
 
     let mut lazyframes: Vec<LazyFrame> = Vec::with_capacity(raw_files.len());
 
     println!("   -> Parsing, cleaning, and unifying files...");
     for (i, record) in raw_files.iter().enumerate() {
-        // Use print! with a carriage return to show progress on a single line.
         print!("\r      -> Processing file {}/{}...", i + 1, raw_files.len());
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
-        match parse_and_clean_file(record) {
+        match parse_and_clean_file(record, &fixes_map) {
             Ok(lf) => lazyframes.push(lf),
             Err(e) => {
-                // Print warnings on a new line so they don't get overwritten.
-                eprintln!(
-                    "\n      -> WARNING: Could not parse file with hash {}. Reason: {}",
-                    &record.file_hash[..8],
-                    e
-                );
+                // Accessing record.file_hash will now work.
+                eprintln!("\n      -> WARNING: Could not parse file with hash {}. Reason: {}", &record.file_hash[..8], e);
             }
         }
     }
 
-    if lazyframes.is_empty() {
-        return Err(PipelineError::Processing(
-            "No valid raw files could be parsed into DataFrames.".to_string(),
-        ));
-    }
+    if lazyframes.is_empty() { return Err(PipelineError::Processing("No valid files could be parsed.".to_string())); }
 
     println!("\n   -> Concatenating all files into a single dataset...");
-    // The UnionArgs::default() will stack the LazyFrames.
     let unified_lf = concat(&lazyframes, UnionArgs::default())?;
 
     println!("✅ Unified LazyFrame created successfully.");
     Ok(unified_lf)
 }
 
-/// **The Fetcher**: Fetches all raw file records from the database.
+
+// --- Helper Functions (Needed in this file's scope) ---
+
+/// Fetches all raw file records from the database.
 async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     sqlx::query_as!(
         RawFileRecord,
@@ -89,14 +93,13 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     .map_err(PipelineError::from)
 }
 
-/// **The Parser & Cleaner**: Dispatches to the correct format-specific processor.
-fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
-    // Define the valid time window for the entire project.
+/// Dispatches a file to the correct parser and applies any one-off fixes.
+fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFix>) -> Result<LazyFrame> {
     let start_date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
-    // Dispatch based on the schema detected during ingestion.
-    let lf = match record.detected_schema_name {
+    // The initial parsing is the same.
+    let mut lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
         }
@@ -105,6 +108,26 @@ fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
         }
     };
 
-    // Add the file hash as a column for traceability.
+    // Apply the fix if one exists for this hash.
+    if let Some(fix) = fixes.get(&record.file_hash) {
+        println!("\n      -> Applying one-off fix '{}' to hash {}...", fix.action, &record.file_hash[..8]);
+        
+        lf = match fix.action.as_str() {
+            "SET_LOGGER_ID" => {
+                let new_id = fix.value.as_i64().ok_or_else(|| PipelineError::Processing(
+                    format!("Invalid 'value' for SET_LOGGER_ID on hash {}: not an integer.", record.file_hash)
+                ))?;
+                
+                // This fix is only relevant for legacy files which have a `logger_id` column.
+                // We overwrite the entire column with the correct ID.
+                lf.with_column(lit(new_id).alias("logger_id"))
+            },
+            _ => {
+                eprintln!("\n      -> WARNING: Unknown fix action '{}' for hash {}. Skipping.", fix.action, record.file_hash);
+                lf
+            }
+        };
+    }
+
     Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
 }
