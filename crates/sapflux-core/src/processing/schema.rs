@@ -5,6 +5,7 @@ pub fn get_full_schema_columns() -> Vec<Expr> {
     vec![
         col("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
         col("record_number").cast(DataType::Int64),
+        col("logger_id").cast(DataType::Int64),
         col("batt_volt").cast(DataType::Float64),
         col("ptemp_c").cast(DataType::Float64),
         col("sdi_address").cast(DataType::String),

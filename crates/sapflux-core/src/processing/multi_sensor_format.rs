@@ -18,18 +18,27 @@ pub fn process_multi_sensor_format(
         return Err(PipelineError::Processing("Multi-sensor file has fewer than 5 lines.".to_string()));
     }
 
+    // --- NEW LOGIC: EXTRACT LOGGER ID ---
+    let first_line_parts: Vec<&str> = lines[0].split(',').map(|s| s.trim_matches('"')).collect();
+    let logger_id_str = first_line_parts.get(1) // Get the "CR300Series_420" part
+        .and_then(|s| s.split('_').nth(1)) // Split by '_' and get the "420" part
+        .ok_or_else(|| PipelineError::Processing("Could not parse logger_id from TOA5 header.".to_string()))?;
+
+    let logger_id: i64 = logger_id_str.parse().map_err(|_| PipelineError::Processing(
+        format!("Failed to parse '{}' as a valid logger_id integer.", logger_id_str)
+    ))?;
+
     let headers: Vec<String> = lines[1].split(',').map(|s| s.trim_matches('"').to_string()).collect();
     let data_content = lines[4..].join("\n");
     let cursor = Cursor::new(data_content.as_bytes());
 
-    // FIX #1: Use .into() for PlSmallStr and wrap in ParserOptions
     let null_values = NullValues::AllColumns(vec!["NAN".into(), "-99".into(), "-99.0".into()]);
-    let parser_options = CsvParseOptions::default().with_null_values(Some(null_values));
+    let parse_options = CsvParseOptions::default().with_null_values(Some(null_values));
 
     let df_with_temp_names = CsvReadOptions::default()
         .with_has_header(false)
         .with_ignore_errors(true)
-        .with_parse_options(parser_options) // FIX #2: Use the correct builder method
+        .with_parse_options(parse_options)
         .into_reader_with_file_handle(cursor)
         .finish()?;
 
@@ -41,9 +50,7 @@ pub fn process_multi_sensor_format(
         .filter(|p| p.starts_with('S') && p.chars().nth(1).map_or(false, |c| c.is_ascii_digit()))
         .collect::<std::collections::HashSet<_>>().into_iter().map(|s| s.to_string()).collect();
 
-    if sensor_prefixes.is_empty() {
-        return Err(PipelineError::Processing("No sensor data columns found.".to_string()));
-    }
+    if sensor_prefixes.is_empty() { return Err(PipelineError::Processing("No sensor data columns found.".to_string())); }
 
     let mut sensor_lazyframes = Vec::with_capacity(sensor_prefixes.len());
 
@@ -65,6 +72,8 @@ pub fn process_multi_sensor_format(
         let mut select_exprs: Vec<Expr> = vec![
             col("TIMESTAMP").alias("timestamp_naive"),
             col("RECORD").alias("record_number"),
+            // --- NEW LOGIC: ADD THE EXTRACTED LOGGER ID ---
+            lit(logger_id).alias("logger_id"),
             col("Batt_volt").alias("batt_volt"),
             col("PTemp_C").alias("ptemp_c"),
             lit(sdi_address).alias("sdi_address"),
@@ -72,7 +81,6 @@ pub fn process_multi_sensor_format(
 
         for (source_suffix, target_name) in &column_mapping {
             let full_col_name = format!("{}_{}", prefix, source_suffix);
-            // FIX #3: Dereference target_name
             select_exprs.push(col(&full_col_name).alias(*target_name));
         }
 

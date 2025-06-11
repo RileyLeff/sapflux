@@ -7,36 +7,33 @@ use polars::prelude::*;
 use sqlx::PgPool;
 use std::collections::HashMap;
 
-// --- Module Declarations ---
 mod schema;
 mod legacy_format;
 mod multi_sensor_format;
 
-// --- Imports from our modules ---
 use legacy_format::process_legacy_format;
 use multi_sensor_format::process_multi_sensor_format;
 
-// --- Struct Definitions (Needed in this file's scope) ---
-
-// This struct holds the raw data fetched from the DB for processing.
 struct RawFileRecord {
     file_hash: String,
     file_content: Vec<u8>,
     detected_schema_name: FileSchema,
 }
 
-// This struct holds the manual correction rules fetched from the DB.
 #[derive(sqlx::FromRow, Debug)]
 struct ManualFix {
     file_hash: String,
     action: String,
     value: serde_json::Value,
+    // --- FIX IS HERE (1/2) ---
+    // Add the description field to the struct. It's an Option
+    // because the database schema allows it to be NULL.
+    description: Option<String>,
 }
-
-// --- Main Pipeline Orchestrator ---
 
 pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     println!("   -> Fetching manual corrections from the database...");
+    // The query is now correct because the struct matches it.
     let fixes_vec = sqlx::query_as!(ManualFix, "SELECT file_hash, action, value, description FROM manual_fixes")
         .fetch_all(pool)
         .await?;
@@ -45,7 +42,7 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     println!("      -> Found {} manual fix rules to apply.", fixes_map.len());
 
     println!("   -> Fetching all raw files from the database...");
-    let raw_files = fetch_all_raw_files(pool).await?; // This will now resolve.
+    let raw_files = fetch_all_raw_files(pool).await?;
     println!("      -> Found {} files to process.", raw_files.len());
 
     let mut lazyframes: Vec<LazyFrame> = Vec::with_capacity(raw_files.len());
@@ -58,7 +55,6 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
         match parse_and_clean_file(record, &fixes_map) {
             Ok(lf) => lazyframes.push(lf),
             Err(e) => {
-                // Accessing record.file_hash will now work.
                 eprintln!("\n      -> WARNING: Could not parse file with hash {}. Reason: {}", &record.file_hash[..8], e);
             }
         }
@@ -73,10 +69,6 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     Ok(unified_lf)
 }
 
-
-// --- Helper Functions (Needed in this file's scope) ---
-
-/// Fetches all raw file records from the database.
 async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     sqlx::query_as!(
         RawFileRecord,
@@ -93,12 +85,10 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     .map_err(PipelineError::from)
 }
 
-/// Dispatches a file to the correct parser and applies any one-off fixes.
 fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFix>) -> Result<LazyFrame> {
     let start_date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
-    // The initial parsing is the same.
     let mut lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
@@ -108,9 +98,11 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
         }
     };
 
-    // Apply the fix if one exists for this hash.
     if let Some(fix) = fixes.get(&record.file_hash) {
-        println!("\n      -> Applying one-off fix '{}' to hash {}...", fix.action, &record.file_hash[..8]);
+        // --- FIX IS HERE (2/2) ---
+        // Improve the log message to include the human-readable description.
+        let description = fix.description.as_deref().unwrap_or("No description.");
+        println!("\n      -> Applying fix to hash {}: {} ({})", &record.file_hash[..8], fix.action, description);
         
         lf = match fix.action.as_str() {
             "SET_LOGGER_ID" => {
@@ -118,9 +110,8 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
                     format!("Invalid 'value' for SET_LOGGER_ID on hash {}: not an integer.", record.file_hash)
                 ))?;
                 
-                // This fix is only relevant for legacy files which have a `logger_id` column.
-                // We overwrite the entire column with the correct ID.
-                lf.with_column(lit(new_id).alias("logger_id"))
+                  lf.drop(["logger_id"])
+                  .with_column(lit(new_id).cast(DataType::Int64).alias("logger_id"))
             },
             _ => {
                 eprintln!("\n      -> WARNING: Unknown fix action '{}' for hash {}. Skipping.", fix.action, record.file_hash);
