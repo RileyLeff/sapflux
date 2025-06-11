@@ -1,7 +1,7 @@
 // crates/sapflux-core/src/metadata/deployments.rs
 
 use crate::error::{PipelineError, Result};
-use crate::types::{NewDeployment};
+use crate::types::{NewDeployment, DeploymentDetails}; 
 use sqlx::PgPool;
 use uuid::Uuid;
 use serde_json;
@@ -65,4 +65,34 @@ pub async fn create_deployment(pool: &PgPool, data: &NewDeployment) -> Result<Uu
     println!("  -> Successfully created new deployment with ID: {}", new_id);
 
     Ok(new_id)
+}
+
+/// Fetches a detailed list of all deployments, joined with project and sensor info.
+pub async fn get_all_deployments(pool: &PgPool) -> Result<Vec<DeploymentDetails>> {
+    let deployments = sqlx::query_as!(
+        DeploymentDetails,
+        r#"
+        SELECT
+            d.id,
+            p.name as "project_name!",
+            d.datalogger_id,
+            d.sdi_address,
+            d.tree_id,
+            s.sensor_id,
+            d.start_time_utc,
+            d.end_time_utc
+        FROM
+            deployments d
+        LEFT JOIN
+            projects p ON d.project_id = p.id
+        LEFT JOIN
+            sensors s ON d.sensor_id = s.id
+        ORDER BY
+            d.datalogger_id, d.start_time_utc DESC
+        "#
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(deployments)
 }

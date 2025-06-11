@@ -7,6 +7,7 @@ use std::path::PathBuf;
 // Bring our new command module into scope
 mod commands;
 use commands::deployment::{handle_deployment_command, DeploymentCommands};
+use commands::seed::handle_seed_command;
 
 /// A CLI for the Sapflow Data Pipeline
 #[derive(Parser, Debug)]
@@ -28,6 +29,7 @@ enum Commands {
         #[command(subcommand)]
         command: DeploymentCommands,
     },
+    Seed,
 }
 
 #[tokio::main]
@@ -83,6 +85,9 @@ async fn main() -> Result<()> {
         Commands::Deployment { command } => {
             // Delegate all deployment logic to the handler function
             handle_deployment_command(command, &pool).await?;
+        }
+        Commands::Seed => {
+            handle_seed_command(&pool).await?;
         }
     }
 

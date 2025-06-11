@@ -88,6 +88,18 @@ pub struct NewDeployment {
     pub attributes: DeploymentAttributes,
 }
 
+#[derive(Debug, Clone, FromRow)]
+pub struct DeploymentDetails {
+    pub id: Uuid,
+    pub project_name: String,
+    pub datalogger_id: i32,
+    pub sdi_address: String,
+    pub tree_id: String,
+    pub sensor_id: String, // sensor_id from the sensors table, not the foreign key
+    pub start_time_utc: DateTime<Utc>,
+    pub end_time_utc: Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum FileSchema {
     CR300MultiSensor,

@@ -3,7 +3,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sapflux_core::{
-    // --- FIX #1: Removed unused `db` import ---
     metadata,
     types::{
         CoastalMonitoringAttributes, DeploymentAttributes, NewDeployment, SdiAddress,
@@ -12,6 +11,9 @@ use sapflux_core::{
 };
 use sqlx::PgPool;
 use uuid::Uuid;
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Table,
+};
 
 #[derive(clap::Subcommand, Debug)]
 pub enum DeploymentCommands {
@@ -121,7 +123,46 @@ pub async fn handle_deployment_command(command: DeploymentCommands, pool: &PgPoo
             metadata::create_deployment(pool, &new_deployment_data).await?;
         }
         DeploymentCommands::List => {
-            println!("Logic for listing deployments will go here.");
+                        println!("Fetching all deployments...");
+            
+            // --- THIS IS THE NEW LOGIC ---
+            let deployments = metadata::get_all_deployments(pool).await?;
+
+            if deployments.is_empty() {
+                println!("No deployments found in the database.");
+                return Ok(());
+            }
+
+            let mut table = Table::new();
+            table
+                .load_preset(UTF8_FULL)
+                .apply_modifier(UTF8_ROUND_CORNERS)
+                .set_header(vec![
+                    "ID",
+                    "Project",
+                    "Logger ID",
+                    "SDI",
+                    "Tree ID",
+                    "Sensor",
+                    "Start Time (UTC)",
+                    "End Time (UTC)",
+                ]);
+
+            for dep in deployments {
+                let end_time_str = dep.end_time_utc.map_or("Active".to_string(), |t| t.to_string());
+                table.add_row(vec![
+                    Cell::new(dep.id.to_string()),
+                    Cell::new(dep.project_name),
+                    Cell::new(dep.datalogger_id),
+                    Cell::new(dep.sdi_address),
+                    Cell::new(dep.tree_id),
+                    Cell::new(dep.sensor_id),
+                    Cell::new(dep.start_time_utc.to_string()),
+                    Cell::new(end_time_str),
+                ]);
+            }
+
+            println!("{table}");
         }
         DeploymentCommands::Delete { id } => {
             println!("Logic for deleting deployment with ID {} will go here.", id);
