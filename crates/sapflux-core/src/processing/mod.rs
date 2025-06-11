@@ -3,7 +3,7 @@
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
 use chrono::{NaiveDate, Utc};
-use polars::prelude::*;
+use polars::prelude::*; // This prelude already brings in Series, DataFrame, etc.
 use sqlx::PgPool;
 use std::collections::HashMap;
 
@@ -15,18 +15,16 @@ mod multi_sensor_format;
 // --- Imports from our modules ---
 use legacy_format::process_legacy_format;
 use multi_sensor_format::process_multi_sensor_format;
-use schema::get_full_schema_columns; // Import the schema function
+use schema::get_full_schema_columns;
 
 // --- Struct Definitions ---
 
-// This struct holds the raw data fetched from the DB for processing.
 struct RawFileRecord {
     file_hash: String,
     file_content: Vec<u8>,
     detected_schema_name: FileSchema,
 }
 
-// This struct holds the manual correction rules fetched from the DB.
 #[derive(sqlx::FromRow, Debug)]
 struct ManualFix {
     file_hash: String,
@@ -71,7 +69,6 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     }
 
     println!("\n   -> Concatenating all files into a single dataset...");
-    // Every LazyFrame in the vec now has the exact same schema, making this concat safe.
     let unified_lf = concat(&lazyframes, UnionArgs::default())?;
 
     println!("✅ Unified LazyFrame created successfully.");
@@ -81,7 +78,6 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
 
 // --- Helper Functions ---
 
-/// Fetches all raw file records from the database.
 async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     sqlx::query_as!(
         RawFileRecord,
@@ -98,13 +94,10 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
     .map_err(PipelineError::from)
 }
 
-/// Dispatches a file to the correct parser, applies any one-off fixes,
-/// and enforces the final, unified schema.
 fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFix>) -> Result<LazyFrame> {
     let start_date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
-    // Step 1: Parse the file based on its detected schema. The output will have a variable schema.
     let mut lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
@@ -114,7 +107,6 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
         }
     };
 
-    // Step 2: Apply any manual corrections needed for this specific file.
     if let Some(fix) = fixes.get(&record.file_hash) {
         let description = fix.description.as_deref().unwrap_or("No description.");
         println!("\n      -> Applying fix to hash {}: {} ({})", &record.file_hash[..8], fix.action, description);
@@ -125,8 +117,18 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
                     format!("Invalid 'value' for SET_LOGGER_ID on hash {}: not an integer.", record.file_hash)
                 ))?;
                 
-                lf.drop(["logger_id"])
-                  .with_column(lit(new_id).cast(DataType::Int64).alias("logger_id"))
+                // Perform the fix eagerly to bypass the lazy optimizer bug.
+                let mut eager_df = lf.collect()?;
+                eager_df.drop_in_place("logger_id")?;
+                
+                // Create a new Series with the correct value and type.
+                // The `Series` type is available because of `polars::prelude::*`.
+                let new_series = Series::new("logger_id".into(), vec![new_id; eager_df.height()]);
+
+                eager_df.with_column(new_series)?;
+
+                // Convert back to a lazy frame.
+                eager_df.lazy()
             },
             _ => {
                 eprintln!("\n      -> WARNING: Unknown fix action '{}' for hash {}. Skipping.", fix.action, record.file_hash);
@@ -135,9 +137,7 @@ fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFi
         };
     }
 
-    // Step 3: Enforce the final, unified schema.
-    // This adds the file_hash and selects all columns in the correct order,
-    // casting them to the correct final types. This is the single point of truth.
+    // Enforce the final, unified schema on every frame before it leaves this function.
     let final_lf = lf
         .with_column(lit(record.file_hash.clone()).alias("file_hash"))
         .select(&get_full_schema_columns());
