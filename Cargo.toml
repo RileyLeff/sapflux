@@ -2,9 +2,9 @@
 
 [workspace]
 members = [
-    "sapflux-core",
-    "sapflux-cli",
-    "sapflux-api",
+    "crates/sapflux-core",
+    "crates/sapflux-cli",
+    "crates/sapflux-api",
 ]
 resolver = "2" 
 

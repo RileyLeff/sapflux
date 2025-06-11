@@ -3,6 +3,7 @@
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
 use chrono::{NaiveDate, NaiveDateTime, Utc};
+// FIX: Import the free-standing pivot function
 use polars::prelude::*;
 use sqlx::PgPool;
 use std::io::Cursor;
@@ -71,7 +72,7 @@ fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
         NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
-    let mut lf = match record.detected_schema_name {
+    let lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
         }
@@ -80,9 +81,7 @@ fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
         }
     };
 
-    lf = lf.with_column(lit(record.file_hash.clone()).alias("file_hash"));
-
-    Ok(lf)
+    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
 }
 
 /// Processor for the old, single-sensor-per-file formats (CR200, old CR300).
@@ -107,12 +106,11 @@ fn process_legacy_format(
         "tmax_tout", "tmax_tinn",
     ];
 
-    // FIX: `.collect_schema()` returns a `Result<Arc<Schema>>`.
     let old_names: Vec<String> = lf.collect_schema()?.iter_names().map(|s| s.to_string()).collect();
     let new_names: Vec<&str> = legacy_cols.iter().take(old_names.len()).copied().collect();
-
-    // FIX: `.rename` requires a third boolean argument `strict`.
-    lf = lf.rename(&old_names, new_names, false);
+    
+    // Strict mode must be false to handle files with fewer columns than defined.
+    lf = lf.rename(old_names, new_names, false);
 
     let lf = lf
         .filter(
@@ -167,18 +165,22 @@ fn process_multi_sensor_format(
     df.set_column_names(headers.iter().map(|s| s.as_str()))?;
     
     let id_vars = &["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C"];
-    let value_vars: Vec<String> = headers.iter().filter(|h| !id_vars.contains(&h.as_str())).cloned().collect();
+    // FIX: Ensure value_vars is a Vec<&str> for the melt function
+    let value_vars: Vec<&str> = headers.iter().filter(|h| !id_vars.contains(&h.as_str())).map(|s| s.as_str()).collect();
 
-    let melted_df = df.lazy()
+    let filtered_df = df.lazy()
         .filter(
             col("TIMESTAMP")
                 .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
                 .gt_eq(lit(start_date))
                 .and(col("TIMESTAMP").lt_eq(lit(end_date))),
-        )
-        // Perform the unpivot/melt operation
-        .melt(id_vars, value_vars)?
-        .with_columns(&[
+        ).collect()?;
+
+    // The unpivot (melt) and pivot operations must be done eagerly.
+    let melted_df = filtered_df.unpivot(*id_vars, value_vars)?;
+
+    let pivoted_input_df = melted_df.lazy()
+         .with_columns(&[
             col("variable")
                 .str()
                 .extract(lit(r"^S(\d+)_"), 1)
@@ -190,12 +192,18 @@ fn process_multi_sensor_format(
         ])
         .collect()?;
 
-    // FIX: The pivot operation must be done on a GroupBy object created from an eager DataFrame.
-    let pivoted_df = melted_df
-        .group_by(["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address"])?
-        .pivot(col("measurement_type"), col("value"))
-        .first()?;
+    // FIX: Use the free-standing pivot function on the eager DataFrame.
+    let pivoted_df = pivot::pivot(
+        &pivoted_input_df, 
+        ["value"], // values
+        Some(["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address"]), // index
+        Some(["measurement_type"]), // columns
+        true, // sort_columns
+        None, // separator
+        Some(pivot::PivotAgg::First), // aggregate_expression
+    )?;
 
+    // Finally, go back to being lazy and finish the pipeline.
     let lf = pivoted_df.lazy()
         .select(&[
             col("TIMESTAMP").alias("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
