@@ -1,5 +1,6 @@
 // crates/sapflux-core/src/types.rs
 
+use crate::error::{PipelineError, Result as PipelineResult};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -48,8 +49,12 @@ pub struct CoastalMonitoringAttributes {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StemflowAttributes {
-    pub health_status: String,
+    pub site_name: String,
+    pub species: String,
+    // The `robyn_label` field is often empty, so we make it an Option<String>.
+    pub robyn_label: Option<String>, 
     pub collar_present: bool,
+    pub health_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,11 +146,35 @@ pub struct DstTransition {
 pub struct SdiAddress(String);
 
 impl SdiAddress {
-    pub fn new(addr: &str) -> Result<Self, String> {
-        if addr.is_empty() { return Err("SDI-12 address cannot be empty.".to_string()); }
-        if addr.chars().count() != 1 { return Err(format!("SDI-12 address must be a single character, but got '{}'", addr)); }
+    pub fn new(addr: &str) -> PipelineResult<Self> {
+        // Rule 1: Must not be empty.
+        if addr.is_empty() {
+            // --- WRAP THE ERROR ---
+            return Err(PipelineError::Validation(
+                "SDI-12 address cannot be empty.".to_string(),
+            ));
+        }
+
+        // Rule 2: Must be a single character.
+        if addr.chars().count() != 1 {
+            // --- WRAP THE ERROR ---
+            return Err(PipelineError::Validation(format!(
+                "SDI-12 address must be a single character, but got '{}'",
+                addr
+            )));
+        }
+
+        // Rule 3: The character must be ASCII alphanumeric.
         let c = addr.chars().next().unwrap();
-        if !c.is_ascii_alphanumeric() { return Err(format!("SDI-12 address must be alphanumeric (a-z, A-Z, 0-9), but got '{}'", c)); }
+        if !c.is_ascii_alphanumeric() {
+            // --- WRAP THE ERROR ---
+            return Err(PipelineError::Validation(format!(
+                "SDI-12 address must be alphanumeric (a-z, A-Z, 0-9), but got '{}'",
+                c
+            )));
+        }
+
+        // If all rules pass, create the newtype instance.
         Ok(Self(addr.to_string()))
     }
     

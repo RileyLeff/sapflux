@@ -2986,12 +2986,15 @@ name = "sapflux-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "dotenvy",
  "futures",
  "glob",
  "sapflux-core",
+ "sqlx",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

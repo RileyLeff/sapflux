@@ -1,108 +1,121 @@
+#!/usr/bin/env python3
+# PEP 723 Compliant
 # /// script
 # dependencies = [
-#   "toml",
-#   "psycopg2-binary",
 #   "python-dotenv",
+#   "psycopg2-binary",
+#   "toml"
 # ]
 # ///
 
-"""
-This script seeds the PostgreSQL database with initial metadata from the
-`initial_metadata/` directory.
-
-It is designed to be idempotent: it clears the target tables before
-inserting new data, so it can be run safely multiple times to reset
-the database to its initial state.
-
-To run:
-1. Make sure the `DATABASE_URL` is set in a `.env` file in the project root.
-2. From the project root, execute: `uv run scripts/seed_database.py`
-"""
 import os
 import toml
 import psycopg2
-from psycopg2 import extras
 from dotenv import load_dotenv
-from pathlib import Path
+
+load_dotenv()
 
 # --- Configuration ---
-# Define the base path relative to the script's location
-# This makes the script runnable from any directory.
-SCRIPT_DIR = Path(__file__).parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-METADATA_DIR = PROJECT_ROOT / "initial_metadata"
+DB_URL = os.getenv("DATABASE_URL")
+PROJECTS_FILE = "initial_metadata/projects.toml"
+SENSORS_FILE = "initial_metadata/sensors.toml"
+PARAMETERS_FILE = "initial_metadata/parameters.toml"
 
-
-def seed_dst_transitions(conn):
-    """Seeds the dst_transitions table from a TOML file."""
-    print("--- Seeding dst_transitions ---")
-    
-    toml_path = METADATA_DIR / "dst_transitions.toml"
-    if not toml_path.exists():
-        print(f"ERROR: {toml_path} not found.")
-        return
-
-    with open(toml_path, "r") as f:
+def seed_projects(cur):
+    """Seeds the projects table from the TOML file."""
+    print("Seeding projects...")
+    with open(PROJECTS_FILE, 'r') as f:
         data = toml.load(f)
 
-    transitions = data.get("transitions", [])
-    if not transitions:
-        print("No transitions found in TOML file.")
+    project_list = data.get('project', [])
+    if not project_list:
+        print("  -> No projects found to seed.")
         return
 
-    with conn.cursor() as cursor:
-        # Clear the table to ensure idempotency
-        cursor.execute("TRUNCATE TABLE dst_transitions RESTART IDENTITY CASCADE;")
-        print(f"Truncated dst_transitions table.")
-
-        # Prepare data for efficient insertion
-        values_to_insert = [
-            (t['action'], t['ts_local']) for t in transitions
-        ]
-
-        # Use execute_values for a fast bulk insert
-        extras.execute_values(
-            cursor,
-            "INSERT INTO dst_transitions (transition_action, ts_local) VALUES %s",
-            values_to_insert
+    cur.execute("TRUNCATE TABLE projects RESTART IDENTITY CASCADE;")
+    for project in project_list:
+        cur.execute(
+            "INSERT INTO projects (name, description) VALUES (%s, %s)",
+            (project['name'], project.get('description'))
         )
-        
-        print(f"Successfully inserted {len(values_to_insert)} DST transitions.")
+    # --- CORRECTED COUNTING ---
+    print(f"  -> Seeded {len(project_list)} projects.")
 
+def seed_sensors(cur):
+    """Seeds the sensors table from the TOML file."""
+    print("Seeding sensors...")
+    with open(SENSORS_FILE, 'r') as f:
+        data = toml.load(f)
+    
+    sensor_list = data.get('sensor', [])
+    if not sensor_list:
+        print("  -> No sensors found to seed.")
+        return
+
+    cur.execute("TRUNCATE TABLE sensors RESTART IDENTITY CASCADE;")
+    for sensor in sensor_list:
+        cur.execute(
+            """
+            INSERT INTO sensors (sensor_id, downstream_probe_distance_cm, upstream_probe_distance_cm, thermistor_depth_1_mm, thermistor_depth_2_mm)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                sensor['id'],
+                sensor['downstream_probe_distance_cm'],
+                sensor['upstream_probe_distance_cm'],
+                sensor['thermistor_depth_1_mm'],
+                sensor['thermistor_depth_2_mm']
+            )
+        )
+    # --- CORRECTED COUNTING ---
+    print(f"  -> Seeded {len(sensor_list)} sensors.")
+
+def seed_parameters(cur):
+    """Seeds the parameters table from the TOML file."""
+    print("Seeding parameters...")
+    with open(PARAMETERS_FILE, 'r') as f:
+        data = toml.load(f)
+
+    # --- THIS IS THE MAIN FIX ---
+    # We now correctly look inside the [parameters] table.
+    parameters_dict = data.get('parameters', {})
+    if not parameters_dict:
+        print("  -> No parameters found to seed.")
+        return
+
+    cur.execute("TRUNCATE TABLE parameters RESTART IDENTITY CASCADE;")
+    for name, params in parameters_dict.items():
+        cur.execute(
+            "INSERT INTO parameters (name, value, unit, description) VALUES (%s, %s, %s, %s)",
+            (name, params['value'], params.get('unit'), params.get('description'))
+        )
+    # --- CORRECTED COUNTING ---
+    print(f"  -> Seeded {len(parameters_dict)} parameters.")
 
 def main():
-    """Main function to connect to the DB and run all seeders."""
-    
-    # Load environment variables from a .env file in the project root
-    dotenv_path = PROJECT_ROOT / ".env"
-    if dotenv_path.exists():
-        load_dotenv(dotenv_path=dotenv_path)
-        print(f"Loaded environment variables from {dotenv_path}")
-    else:
-        print("Warning: .env file not found. Relying on shell environment.")
-
+    """Main function to connect to DB and run all seeder functions."""
+    conn = None
     try:
-        db_url = os.environ.get("DATABASE_URL")
-        if not db_url:
-            raise ValueError("DATABASE_URL environment variable not set.")
-            
-        with psycopg2.connect(db_url) as conn:
-            print("Successfully connected to the database.")
-            
-            # --- Run all seeder functions here ---
-            seed_dst_transitions(conn)
-            # In the future, you would add:
-            # seed_deployments(conn)
-            # seed_sensors(conn)
-            
-            # We explicitly commit the transaction here.
-            conn.commit()
-            print("\nDatabase seeding complete.")
+        print(f"Connecting to database...")
+        conn = psycopg2.connect(DB_URL)
+        cur = conn.cursor()
+        
+        seed_projects(cur)
+        seed_sensors(cur)
+        seed_parameters(cur)
+        
+        conn.commit()
+        print("\n✅ Database seeding completed successfully.")
 
-    except Exception as e:
-        print(f"\nAN ERROR OCCURRED: {e}")
-        # If there's an error, the 'with' block will handle closing the connection,
-        # and no commit will happen, ensuring atomicity.
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f"Error while seeding database: {error}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+            print("Database connection closed.")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,13 @@
+[[sensor]]
+id = "implexx_old"
+downstream_probe_distance_cm = 0.6
+upstream_probe_distance_cm = 0.6
+thermistor_depth_1_mm = 10
+thermistor_depth_2_mm = 20
+
+[[sensor]]
+id = "implexx_new"
+downstream_probe_distance_cm = 0.8
+upstream_probe_distance_cm = 0.8
+thermistor_depth_1_mm = 10
+thermistor_depth_2_mm = 20
