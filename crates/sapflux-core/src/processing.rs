@@ -194,13 +194,13 @@ fn process_multi_sensor_format(
 
     // FIX: Use the free-standing pivot function on the eager DataFrame.
     let pivoted_df = pivot::pivot(
-        &pivoted_input_df, 
-        ["value"], // values
-        Some(["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address"]), // index
-        Some(["measurement_type"]), // columns
-        true, // sort_columns
-        None, // separator
-        Some(pivot::PivotAgg::First), // aggregate_expression
+        &pivoted_input_df,
+        ["value"].map(PlSmallStr::from_static),
+        Some(["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address"].map(PlSmallStr::from_static)),
+        Some(["measurement_type"].map(PlSmallStr::from_static)),
+        true,
+        Some("first".into()),
+        None,
     )?;
 
     // Finally, go back to being lazy and finish the pipeline.

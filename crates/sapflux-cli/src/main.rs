@@ -3,6 +3,7 @@
 use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
+use polars::prelude::{ParquetWriter, SerWriter};
 
 // Bring our command modules into scope
 mod commands;
@@ -130,7 +131,7 @@ async fn main() -> Result<()> {
 
             // 2. For now, let's just see the schema and save the unified data
             println!("\nUnified Schema:");
-            println!("{:?}", unified_lf.clone().schema());
+            println!("{:?}", unified_lf.clone().collect_schema()?);
 
             println!("\nExecuting query plan and writing to '{}'...", output.display());
             

@@ -2989,6 +2989,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "glob",
+ "polars",
  "sapflux-core",
  "serde",
  "serde_json",
