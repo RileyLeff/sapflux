@@ -1,16 +1,14 @@
-// crates/sapflux-cli/src/commands/seed.rs
+// crates/sapflux-cli/src/commands/seed/types.rs
 
-use anyhow::Result;
 use serde::Deserialize;
-use chrono::{DateTime, Utc};
-use sapflux_core::db; // We will need the pool soon
-use sqlx::PgPool;     // We will need the pool soon
+use chrono::{DateTime, Utc, NaiveDateTime};
+use std::collections::HashMap;
 
-// ... ProjectSeed and SensorSeed structs are correct ...
+// --- Projects ---
 #[derive(Debug, Deserialize)]
-struct ProjectsFile {
+pub struct ProjectsFile {
     #[serde(rename = "project")]
-    projects: Vec<ProjectSeed>,
+    pub projects: Vec<ProjectSeed>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -19,10 +17,11 @@ pub struct ProjectSeed {
     pub description: Option<String>,
 }
 
+// --- Sensors ---
 #[derive(Debug, Deserialize)]
-struct SensorsFile {
+pub struct SensorsFile {
     #[serde(rename = "sensor")]
-    sensors: Vec<SensorSeed>,
+    pub sensors: Vec<SensorSeed>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,25 +33,38 @@ pub struct SensorSeed {
     pub thermistor_depth_2_mm: i32,
 }
 
-
-// --- THIS IS THE CORRECTED STRUCT ---
-// It now uses `toml::Value`, which serde knows how to handle.
+// --- Parameters ---
 #[derive(Debug, Deserialize)]
-struct ParametersFile {
-    parameters: toml::map::Map<String, toml::Value>,
+pub struct ParametersFile {
+    pub parameters: HashMap<String, ParameterValueSeed>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ParameterSeed {
+pub struct ParameterValueSeed {
     pub value: f64,
     pub unit: Option<String>,
     pub description: Option<String>,
 }
 
+
+// --- DST Transitions ---
 #[derive(Debug, Deserialize)]
-struct DeploymentsFile {
+pub struct DstTransitionsFile {
+    #[serde(rename = "transitions")]
+    pub transitions: Vec<DstTransitionSeed>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DstTransitionSeed {
+    pub action: String,
+    pub ts_local: NaiveDateTime,
+}
+
+// --- Deployments ---
+#[derive(Debug, Deserialize)]
+pub struct DeploymentsFile {
     #[serde(rename = "deployment")]
-    deployments: Vec<DeploymentSeed>,
+    pub deployments: Vec<DeploymentSeed>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,14 +76,4 @@ pub struct DeploymentSeed {
     pub sensor_id: String,
     pub tree_id: String,
     pub attributes: toml::Value,
-}
-
-
-// --- THIS FUNCTION IS NOW PUBLIC ---
-// We also add the PgPool argument it will need.
-pub async fn handle_seed_command(pool: &PgPool) -> Result<()> {
-    println!("Seeding logic will go here.");
-    // We pass the pool in but don't use it yet to avoid a compiler warning.
-    let _ = pool; 
-    Ok(())
 }

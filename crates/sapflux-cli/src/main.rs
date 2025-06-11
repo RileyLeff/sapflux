@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 
-// Bring our new command module into scope
+// Bring our command modules into scope
 mod commands;
 use commands::deployment::{handle_deployment_command, DeploymentCommands};
 use commands::seed::handle_seed_command;
@@ -29,7 +29,24 @@ enum Commands {
         #[command(subcommand)]
         command: DeploymentCommands,
     },
-    Seed,
+    /// Seeds the database with initial metadata from TOML files.
+    /// This is a destructive operation and will truncate existing metadata tables.
+    Seed {
+        #[arg(long, default_value = "initial_metadata/projects.toml")]
+        projects_file: PathBuf,
+
+        #[arg(long, default_value = "initial_metadata/sensors.toml")]
+        sensors_file: PathBuf,
+
+        #[arg(long, default_value = "initial_metadata/parameters.toml")]
+        parameters_file: PathBuf,
+        
+        #[arg(long, default_value = "initial_metadata/dst_transitions.toml")]
+        dst_file: PathBuf,
+
+        #[arg(long, default_value = "initial_metadata/deployments.toml")]
+        deployments_file: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -40,7 +57,6 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Ingest { dir } => {
-            // This could also be moved to a handler in `commands/ingest.rs` later
             println!("Starting ingestion from directory: {}", dir.display());
             let pattern = dir.join("**/*");
             let pattern_str = pattern.to_str().expect("Invalid path pattern");
@@ -83,11 +99,24 @@ async fn main() -> Result<()> {
             println!("  ⚠️  Skipped / Failed: {}", failure_count);
         }
         Commands::Deployment { command } => {
-            // Delegate all deployment logic to the handler function
             handle_deployment_command(command, &pool).await?;
         }
-        Commands::Seed => {
-            handle_seed_command(&pool).await?;
+        Commands::Seed { 
+            projects_file, 
+            sensors_file, 
+            parameters_file, 
+            dst_file, 
+            deployments_file 
+        } => {
+            // Delegate all seeding logic to the new handler
+            handle_seed_command(
+                &pool, 
+                &projects_file, 
+                &sensors_file,
+                ¶meters_file,
+                &dst_file,
+                &deployments_file
+            ).await?;
         }
     }
 

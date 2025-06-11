@@ -9,3 +9,7 @@ util/chromedriver
 .Rproj.user
 data/raw
 data/raw/*
+claude_attempt/*
+claude_attempt
+sapflux
+sapflux/*
