@@ -4,52 +4,49 @@ use polars::prelude::*;
 use std::io::Cursor;
 use std::sync::Arc;
 use super::schema::get_full_schema_columns;
+
 /// Processor for the new, wide, multi-sensor format (new CR300).
 pub fn process_multi_sensor_format(
     content: &[u8],
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
-    // Try a different approach - use CsvReadOptions with flexible schema
-    let cursor = Cursor::new(content);
+    // Parse the CSV manually to handle the irregular structure
+    let content_str = std::str::from_utf8(content)
+        .map_err(|e| PipelineError::Processing(format!("Invalid UTF-8: {}", e)))?;
     
-    // First pass: read with very flexible settings to get the header
-    let header_df = CsvReadOptions::default()
-        .with_has_header(false)
-        .with_skip_rows(1)  // Skip first row
-        .with_n_rows(Some(1))  // Read only the header row
-        .with_ignore_errors(true)
-        .with_infer_schema_length(Some(0))  // Don't infer types
-        .into_reader_with_file_handle(cursor)
-        .finish()?;
+    let lines: Vec<&str> = content_str.lines().collect();
+    if lines.len() < 5 {
+        return Err(PipelineError::Processing("File has fewer than 5 lines".to_string()));
+    }
     
-    let headers: Vec<String> = header_df
-        .get_columns()
-        .iter()
-        .enumerate()
-        .map(|(i, col)| {
-            col.get(0)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| format!("column_{}", i))
-        })
+    // Get headers from the second line
+    let headers: Vec<String> = lines[1]
+        .split(',')
+        .map(|s| s.trim_matches('"').to_string())
         .collect();
     
-    println!("      -> Found {} columns: {:?}", headers.len(), &headers[0..5.min(headers.len())]);
+    println!("      -> Found {} columns in multi-sensor file", headers.len());
     
-    // Second pass: read the actual data
-    let cursor = Cursor::new(content);
+    // Create a new CSV content starting from line 5 (skip the metadata rows)
+    let data_lines = lines[4..].join("\n");
+    let data_bytes = data_lines.as_bytes();
+    
+    // Now read the data with the correct number of columns
+    let cursor = Cursor::new(data_bytes);
     let df = CsvReadOptions::default()
         .with_has_header(false)
-        .with_skip_rows(4)
         .with_ignore_errors(true)
         .with_n_threads(Some(1))
         .with_infer_schema_length(Some(100))
-        .with_columns(Some(Arc::new(headers.clone().into_iter().map(PlSmallStr::from).collect())))
+        .with_columns(Some(Arc::new(
+            headers.iter().map(|s| PlSmallStr::from(s.as_str())).collect()
+        )))
         .into_reader_with_file_handle(cursor)
         .finish()?;
     
-    // Rename columns to actual header names
-    let temp_names: Vec<String> = (0..headers.len()).map(|i| format!("column_{}", i)).collect();
+    // The data doesn't have headers, so we need to rename columns
+    let temp_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
     let df = df.lazy()
         .rename(temp_names, headers.iter().map(|s| s.as_str()).collect::<Vec<_>>(), false)
         .collect()?;
@@ -59,7 +56,7 @@ pub fn process_multi_sensor_format(
         .filter_map(|h| {
             if h.starts_with("S") && h.contains("_") {
                 let prefix = h.split('_').next()?;
-                if prefix.chars().skip(1).all(|c| c.is_numeric()) {  // Ensure it's S followed by digits
+                if prefix.chars().skip(1).all(|c| c.is_numeric()) {
                     Some(prefix.to_string())
                 } else {
                     None
@@ -108,11 +105,7 @@ pub fn process_multi_sensor_format(
         // Create expressions to select and rename columns
         let mut select_exprs: Vec<Expr> = vec![
             col("TIMESTAMP").alias("timestamp_naive"),
-            when(col("RECORD").is_not_null())
-                .then(col("RECORD"))
-                .otherwise(lit(NULL))
-                .cast(DataType::Int64)
-                .alias("record_number"),
+            col("RECORD").cast(DataType::Int64).alias("record_number"),
             col("Batt_volt").cast(DataType::Float64).alias("batt_volt"),
             when(col("PTemp_C").is_not_null())
                 .then(col("PTemp_C"))
