@@ -2,7 +2,9 @@
 
 use crate::error::{PipelineError, Result};
 use crate::types::FileSchema;
-use chrono::{NaiveDate, NaiveDateTime, Utc}; // MODIFIED
+use chrono::{NaiveDate, NaiveDateTime, Utc};
+// FIX: Add MeltArgs and PivotArgs
+use polars::lazy::frame::{MeltArgs, PivotArgs};
 use polars::prelude::*;
 use sqlx::PgPool;
 use std::io::Cursor;
@@ -15,8 +17,6 @@ struct RawFileRecord {
 }
 
 /// **The Orchestrator**: The main public function.
-/// Fetches all data, parses it, applies cleaning and unification,
-/// and returns a single LazyFrame ready for the next processing steps.
 pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     println!("   -> Fetching all raw files from the database...");
     let raw_files = fetch_all_raw_files(pool).await?;
@@ -44,14 +44,7 @@ pub async fn get_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame> {
     }
 
     println!("\n   -> Concatenating all files into a single dataset...");
-    let unified_lf = concat(
-        lazyframes,
-        UnionArgs {
-            rechunk: false,
-            parallel: true,
-            to_supertypes: false,
-        },
-    )?;
+    let unified_lf = concat(&lazyframes, UnionArgs::default())?;
 
     println!("✅ Unified LazyFrame created successfully.");
     Ok(unified_lf)
@@ -76,12 +69,10 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
 
 /// **The Parser & Cleaner**: Dispatches to the correct format-specific processor.
 fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
-    // Determine valid time range
     let start_date =
         NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
 
-    // Process based on schema
     let mut lf = match record.detected_schema_name {
         FileSchema::CRLegacySingleSensor => {
             process_legacy_format(&record.file_content, start_date, end_date)?
@@ -91,7 +82,6 @@ fn parse_and_clean_file(record: &RawFileRecord) -> Result<LazyFrame> {
         }
     };
 
-    // Add file_hash column for traceability
     lf = lf.with_column(lit(record.file_hash.clone()).alias("file_hash"));
 
     Ok(lf)
@@ -103,41 +93,38 @@ fn process_legacy_format(
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
-    // These files have 4 header rows.
     let cursor = Cursor::new(content);
-    let mut lf = CsvReader::new(cursor)
-        .has_header(false)
+    let mut df = CsvReadOptions::default()
+        .with_has_header(false)
         .with_skip_rows(4)
-        .with_ignore_errors(true) // Ignore malformed rows
-        .finish()?
-        .lazy();
+        .with_ignore_errors(true)
+        .into_reader_with_file_handle(cursor)
+        .finish()?;
 
-    // Define the column names for the legacy format. These are based on the file examples.
-    // The exact column names (e.g. SDI0 vs SDI1) don't matter as we select by index.
     let legacy_cols = &[
         "timestamp_naive", "record_number", "batt_volt", "logger_id",
         "sdi_address", "sap_flow_total", "vh_outer", "vh_inner",
         "alpha_out", "alpha_in", "beta_out", "beta_in",
         "tmax_tout", "tmax_tinn",
     ];
-
-    let current_cols = lf.schema().unwrap().names();
-    let new_names: Vec<&str> = legacy_cols.iter().take(current_cols.len()).copied().collect();
     
-    lf = lf.rename(current_cols, &new_names);
+    // FIX: Get current names from the eager DataFrame, then rename.
+    let current_cols = df.get_column_names();
+    let new_names: Vec<&str> = legacy_cols.iter().take(current_cols.len()).copied().collect();
+    df.set_column_names(&new_names)?;
+    
+    let lf = df.lazy();
 
     let lf = lf
-        // Step 1: Filter by valid timestamp range
         .filter(
             col("timestamp_naive")
                 .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
-                .dt()
-                .is_between(start_date, end_date),
+                .gt_eq(lit(start_date))
+                .and(col("timestamp_naive").lt_eq(lit(end_date))),
         )
-        // Step 2: Select and unify the columns we need for processing
         .select(&[
             col("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
-            col("sdi_address").cast(DataType::Utf8),
+            col("sdi_address").cast(DataType::String),
             col("alpha_out").cast(DataType::Float64),
             col("alpha_in").cast(DataType::Float64),
             col("beta_out").cast(DataType::Float64),
@@ -145,16 +132,18 @@ fn process_legacy_format(
             col("tmax_tout").cast(DataType::Float64),
             col("tmax_tinn").cast(DataType::Float64),
             col("batt_volt").cast(DataType::Float64),
-            // Add ptemp_c as null since it doesn't exist in this format
             lit(NULL).cast(DataType::Float64).alias("ptemp_c"),
         ])
-        // Step 3: Clean -99 values
         .with_columns(
-            cols(&["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"])
-            .map(|c| when(c.eq(lit(-99.0))).then(lit(NULL)).otherwise(c).keep_name(), "clean -99")
+            ["alpha_out", "alpha_in", "beta_out", "beta_in", "tmax_tout", "tmax_tinn"]
+            .map(|name| {
+                when(col(name).eq(lit(-99.0)))
+                    .then(lit(NULL))
+                    .otherwise(col(name))
+                    .alias(name)
+            })
         )
-        // Step 4: Filter for valid SDI addresses
-        .filter(col("sdi_address").str().contains(lit(r"^[a-zA-Z0-9]$"), false));
+        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false));
         
     Ok(lf)
 }
@@ -165,56 +154,53 @@ fn process_multi_sensor_format(
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
-    // This format also has 4 header/junk rows
-    let cursor = Cursor::new(content);
-    let df = CsvReader::new(cursor)
-        .has_header(false)
-        .with_skip_rows(4)
-        .with_ignore_errors(true)
-        .finish()?;
-
-    // The real headers are on row 2 of the original file. Let's read them.
+    // FIX: Use .has_headers() for the csv crate ReaderBuilder.
     let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(content);
     let headers: Vec<String> = reader.records().nth(1).unwrap()?.iter().map(|s| s.to_string()).collect();
-    let df = df.with_column_names(&headers)?;
+    
+    let cursor = Cursor::new(content);
+    let mut df = CsvReadOptions::default()
+        .with_has_header(false)
+        .with_skip_rows(4)
+        .with_ignore_errors(true)
+        .into_reader_with_file_handle(cursor)
+        .finish()?;
+    
+    // FIX: Use .set_column_names() for an eager DataFrame.
+    df.set_column_names(&headers)?;
 
     let id_vars = &["TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C"];
     let value_vars: Vec<String> = headers.iter().filter(|h| !id_vars.contains(&h.as_str())).cloned().collect();
 
     let lf = df.lazy()
-        // Step 1: Filter by valid timestamp range
         .filter(
             col("TIMESTAMP")
                 .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
-                .dt()
-                .is_between(start_date, end_date),
+                .gt_eq(lit(start_date))
+                .and(col("TIMESTAMP").lt_eq(lit(end_date))),
         )
-        // Step 2: Unpivot (melt) the data from wide to long
         .melt(MeltArgs {
             id_vars: id_vars.iter().map(|s| s.to_string()).collect(),
             value_vars,
             ..Default::default()
         })
-        // Step 3: Extract SDI address and measurement type from the 'variable' column
         .with_columns(&[
             col("variable")
                 .str()
-                .extract(r"^S(\d+)_", 1)
+                .extract(lit(r"^S(\d+)_"), 1)
                 .alias("sdi_address"),
             col("variable")
                 .str()
-                .extract(r"^S\d+_(.*)$", 1)
+                .extract(lit(r"^S\d+_(.*)$"), 1)
                 .alias("measurement_type"),
         ])
-        // Step 4: Pivot the data back up to create columns for each measurement type
         .pivot(PivotAgg {
-            values: "value",
-            index: &[ "TIMESTAMP", "RECORD", "Batt_volt", "PTemp_C", "sdi_address" ],
-            columns: "measurement_type",
-            aggregate_function: None,
+            values: vec!["value".to_string()],
+            index: vec![ "TIMESTAMP".to_string(), "RECORD".to_string(), "Batt_volt".to_string(), "PTemp_C".to_string(), "sdi_address".to_string() ],
+            columns: vec!["measurement_type".to_string()],
+            agg_expr: Some(col("value").first()),
             sort_columns: false,
         })
-        // Step 5: Select and rename to the unified schema
         .select(&[
             col("TIMESTAMP").alias("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
             col("sdi_address"),
@@ -227,8 +213,7 @@ fn process_multi_sensor_format(
             col("Batt_volt").alias("batt_volt").cast(DataType::Float64),
             col("PTemp_C").alias("ptemp_c").cast(DataType::Float64),
         ])
-         // Step 6: Filter for valid SDI addresses
-        .filter(col("sdi_address").str().contains(lit(r"^[a-zA-Z0-9]$"), false));
+        .filter(col("sdi_address").str().contains(lit("^[a-zA-Z0-9]$"), false));
 
     Ok(lf)
 }
