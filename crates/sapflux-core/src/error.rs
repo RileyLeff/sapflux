@@ -13,9 +13,14 @@ pub enum PipelineError {
     #[error("Environment variable error: {0}")]
     EnvVar(#[from] std::env::VarError),
 
-    // THIS IS THE NEW VARIANT
     #[error("CSV parsing error: {0}")]
     Csv(#[from] csv::Error),
+
+    #[error("Validation failed: {0}")]
+    Validation(String),
+
+    #[error("JSON serialization/deserialization error: {0}")]
+    Json(#[from] serde_json::Error),
 
     #[error("Data processing error: {0}")]
     Processing(String),
