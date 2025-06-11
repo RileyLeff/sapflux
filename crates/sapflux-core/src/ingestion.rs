@@ -14,7 +14,7 @@ fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
     let validators: Vec<Box<dyn SchemaValidator>> = vec![
         Box::new(LegacySingleSensorValidator),
         Box::new(CR300MultiSensorValidator)
-        // Add other validators here
+        // Add other validators here=
     ];
 
     for validator in validators {

@@ -1,130 +1,86 @@
-Excellent. This is the most critical step. A clear, detailed plan prevents confusion, ensures we build things in the right order, and serves as our roadmap for the entire project.
-
-Based on our discussion, here is a comprehensive, multi-phase implementation plan. We will execute this step-by-step.
-
-### Guiding Principles
-
-1.  **Library-First Architecture:** All core logic (database interaction, validation, Polars processing) will live in a `sapflux-core` library crate. The CLI and API will be thin wrappers that call this library.
-2.  **Database as the Golden Source:** The PostgreSQL database is the single source of truth. Raw data is ingested once, validated, and becomes immutable. All processing reads from this trusted source.
-3.  **Lazy All the Way:** Polars operations will be constructed as a `LazyFrame` computation graph. Data will only be materialized when absolutely necessary (e.g., sinking to a final Parquet file).
+Of course. Taking stock of progress is a critical part of any successful project. Here is a detailed report on the current state of the `sapflux` project, outlining our accomplishments, architectural decisions, and the clear path forward.
 
 ---
 
-## The Implementation Plan
+### **Project Status Report: `sapflux` Data Platform**
 
-### Phase 0: Environment and Project Scaffolding
+**Date:** June 11, 2025
 
-This phase creates the complete project structure and local development environment.
-
-*   **Definition of Done:** A developer can clone the repository, run `docker-compose up`, and `cargo build` successfully.
-
-*   **Task 0.1: Create Monorepo Structure**
-    *   Action: Create the root `sapflux-monorepo` directory.
-    *   Action: Create subdirectories: `db/`, `crates/`, `frontend/`.
-
-*   **Task 0.2: Initialize Cargo Workspace**
-    *   Action: Create the root `crates/Cargo.toml` workspace manifest.
-    *   Action: Define `members` for `sapflux-core`, `sapflux-cli`, and `sapflux-api`.
-    *   Action: Define all shared dependencies in `[workspace.dependencies]`.
-
-*   **Task 0.3: Initialize Individual Crates**
-    *   Action: Inside `crates/`, run `cargo new --lib sapflux-core`, `cargo new sapflux-cli`, `cargo new sapflux-api`.
-    *   Action: Update the `Cargo.toml` of each sub-crate to inherit dependencies from the workspace and (for `cli` and `api`) declare a `path` dependency on `sapflux-core`.
-
-*   **Task 0.4: Set up Local Database Environment**
-    *   Action: Create the `docker-compose.yml` file in the project root to run PostgreSQL 16.
-    *   Action: Create the `db/schema.sql` file.
-    *   Action: Define the initial table structures in `schema.sql`:
-        *   `file_schemas` (`id`, `name`, `description`)
-        *   `raw_files` (`id`, `file_hash` (UNIQUE), `file_content` (BYTEA), `detected_schema_id`, `ingested_at`)
-        *   `deployments` (all fields from your metadata CSV)
-        *   `sensors` (all fields from your sensor metadata)
-
-### Phase 1: Core Library Foundation (`sapflux-core`)
-
-This phase builds the essential, non-processing logic and types.
-
-*   **Definition of Done:** The `sapflux-core` library can connect to the database and map database rows to strongly-typed Rust structs.
-
-*   **Task 1.1: Implement Centralized Error Handling**
-    *   Action: Create `src/error.rs` with a `thiserror` enum for `PipelineError`, including variants for `sqlx::Error`, `io::Error`, etc.
-
-*   **Task 1.2: Implement Core Data Types**
-    *   Action: Create `src/types.rs`.
-    *   Action: Define Rust structs that mirror the database tables (e.g., `Deployment`, `Sensor`).
-    *   Action: Add `#[derive(sqlx::FromRow)]` to these structs to enable automatic mapping from query results.
-    *   Action: Define a `FileSchema` enum (e.g., `enum FileSchema { CR300New, CR200Old, ... }`) that represents the different known CSV formats.
-
-*   **Task 1.3: Implement Database Connection Module**
-    *   Action: Create `src/db.rs`.
-    *   Action: Write a `pub async fn connect() -> Result<sqlx::PgPool>` function.
-    *   Action: This function will read the `DATABASE_URL` from an environment variable (we will use a `.env` file for local development).
-
-### Phase 2: Ingestion Pipeline (`sapflux-core` & `sapflux-cli`)
-
-This phase builds the "write path" to get validated data into our database.
-
-*   **Definition of Done:** The `sapflux-cli ingest` command can successfully scan a directory of raw files, validate them, and load new, unique files into the `raw_files` table.
-
-*   **Task 2.1: Implement File Validation and Schema Detection**
-    *   Action: In a new `src/ingestion.rs` module, create a function `detect_schema(file_content: &[u8]) -> Result<FileSchema>`.
-    *   Action: This function will contain the logic to inspect the header lines of the file content to determine which `FileSchema` it matches. It will return an error if no schema matches.
-
-*   **Task 2.2: Implement Core Ingestion Logic**
-    *   Action: In `src/ingestion.rs`, create the main library function: `pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64>`.
-    *   Action: This function will orchestrate the full ingestion process:
-        1.  Calculate the SHA-256 hash of `file_content`.
-        2.  Query the DB to see if the hash already exists. If yes, return success (idempotent).
-        3.  Call `detect_schema()` to validate the file.
-        4.  `INSERT` the hash, content, and schema ID into the `raw_files` table.
-        5.  Return the `id` of the newly inserted row.
-
-*   **Task 2.3: Build the `ingest` CLI Tool**
-    *   Action: Implement `crates/sapflux-cli/src/main.rs`.
-    *   Action: Use `clap` to define a subcommand, e.g., `ingest`, which takes a `--directory` argument.
-    *   Action: The `main` function will connect to the DB, recursively find files in the specified directory, read each file's bytes, and call `sapflux_core::ingestion::ingest_file` for each one, printing the status.
-
-### Phase 3: Processing Pipeline (`sapflux-core` & `sapflux-cli`)
-
-This phase builds the "read path" to transform the trusted data into the final scientific output.
-
-*   **Definition of Done:** The `sapflux-cli process` command can successfully read all data from the database, run it through a full (stubbed) Polars pipeline, and save a Parquet file.
-
-*   **Task 3.1: Implement LazyFrame Creation from Database Blobs**
-    *   Action: In a new `src/processing.rs` module, create a function `create_lazyframe_from_blob(bytes: &[u8], schema: &FileSchema) -> Result<LazyFrame>`.
-    *   Action: This function will use `std::io::Cursor` to wrap the byte slice and pass it to Polars' `LazyCsvReader`. It will use the `schema` argument to configure the reader correctly (e.g., skip rows, provide column names).
-
-*   **Task 3.2: Implement Lazy Transformations**
-    *   Action: In `src/processing.rs`, create a chain of functions that each take and return a `LazyFrame`.
-    *   Action: `clean_and_normalize_schema(lf: LazyFrame) -> LazyFrame`: Renames columns, casts types, and converts `-99` to nulls.
-    *   Action: `apply_dst_correction(lf: LazyFrame) -> LazyFrame`: Implements the file-origin-based chunking using Polars window functions. **(This will be the most complex single transformation).**
-    *   Action: `apply_sap_flux_calculations(lf: LazyFrame) -> LazyFrame`: Implements the DMA_Péclet math.
-
-*   **Task 3.3: Implement the Core Processing Orchestrator**
-    *   Action: In `src/processing.rs`, create the main library function: `pub async fn run_processing_pipeline(db_pool: &PgPool) -> Result<LazyFrame>`.
-    *   Action: This function will:
-        1.  Fetch all `(file_content, detected_schema_id)` rows from the DB.
-        2.  For each row, call `create_lazyframe_from_blob` to get a `LazyFrame`.
-        3.  `concat` all the `LazyFrame`s into a single master `LazyFrame`.
-        4.  Pass the master `LazyFrame` through the chain of transformation functions.
-        5.  Return the final, fully-planned `LazyFrame`.
-
-*   **Task 3.4: Build the `process` CLI Tool**
-    *   Action: Add a `process` subcommand to `crates/sapflux-cli/src/main.rs`.
-    *   Action: This command will call `sapflux_core::processing::run_processing_pipeline`, take the resulting `LazyFrame`, and `sink` it to a versioned Parquet file.
-
-### Phase 4 & 5: Application and Deployment (Future)
-
-*   **Task 4.1: Build the Axum API Server** (`sapflux-api`)
-    *   Action: Create an HTTP endpoint `POST /files` that receives a file upload, and calls `sapflux_core::ingestion::ingest_file`.
-    *   Action: Create an HTTP endpoint `GET /datasets/latest` that calls the core processing logic and serves the resulting Parquet file.
-
-*   **Task 5.1: Build SvelteKit Frontend**
-    *   Action: Create a simple UI with a file dropzone for uploads and a download button.
-
-*   **Task 5.2: Deploy to Render.io**
-    *   Action: Create a `render.yaml` "Blueprint" file to define the services (Postgres, API, Static Site) for one-click deployment.
+**Overall Goal:** To build a robust, high-performance, and maintainable data platform for ingesting, processing, and serving sap flux data. The platform is designed to be a long-term "golden source" of truth, with a clear separation between raw data, metadata, and scientific processing logic.
 
 ---
 
-This plan is detailed, structured, and directly addresses your long-term goals. We are ready to begin. Our first action item is **Task 0.1** through **Task 0.4**: setting up the project structure and the database environment.
+### **I. Executive Summary: Architecture and Philosophy**
+
+We have successfully pivoted from a simple script-based approach to a professional, multi-crate monorepo architecture designed for long-term stability and future expansion. The foundational principle is the **separation of concerns**: the system is divided into a core library, application clients (CLI, API), and a declarative database schema.
+
+**Key Architectural Decisions:**
+
+1.  **Monorepo with Cargo Workspace:** The entire project (backend, CLI, future API, future frontend) lives in a single repository, managed by a Cargo Workspace. This ensures dependency consistency and unified build tooling.
+2.  **Database as the Golden Source:** A PostgreSQL database serves as the single, authoritative source of truth for all data and metadata. This decouples data storage from processing and guarantees data integrity.
+3.  **Library-First Design:** All core business logic resides in a `sapflux-core` library crate. The CLI and future API are thin clients that call this library, ensuring that validation and processing logic is centralized and reusable.
+4.  **Two-Tier Validation Strategy:**
+    *   **Tier 1 (Ingestion Gate):** Raw sensor files are subject to strict *structural* validation upon ingestion to ensure they conform to a known, parsable schema. Invalid files are rejected.
+    *   **Tier 2 (Application Layer):** Metadata (Deployments, Rules) is subject to *business logic* validation within the core library whenever it is created or modified.
+5.  **Data-Driven Configuration:** Critical logic, such as DST transition rules, is stored as queryable data in the database rather than being hardcoded in the application.
+
+---
+
+### **II. Accomplishments to Date (What We've Completed)**
+
+We have successfully built the complete foundational infrastructure and the entire "write path" for ingesting data.
+
+**✅ Phase 0: Environment and Project Scaffolding**
+*   **Monorepo Structure:** The full `sapflux/` directory structure with `crates/`, `db/`, `initial_metadata/`, and `scripts/` is in place.
+*   **Cargo Workspace:** The workspace is fully configured with three member crates (`sapflux-core`, `sapflux-cli`, `sapflux-api`) and a centralized dependency manifest.
+*   **Local Database Environment:** A `docker-compose.yml` provides a one-command setup for a local PostgreSQL 17 database.
+*   **Database Schema:** The `db/schema.sql` file defines the initial tables for `raw_files` and `dst_transitions`.
+
+**✅ Phase 1: Core Library Foundation**
+*   **Centralized Error Handling:** A robust `PipelineError` enum has been implemented in `sapflux-core/src/error.rs` using `thiserror`.
+*   **Core Data Types:** Rust structs representing database entities (`Deployment`, `DstTransition`, `SdiAddress`) are defined in `types.rs`, complete with database mapping (`sqlx::FromRow`) and domain-specific validation (the `SdiAddress` newtype).
+*   **Database Connectivity:** The `sapflux-core/src/db.rs` module provides a reliable, async connection pool to the database, configured via a `.env` file.
+
+**✅ Phase 2: Ingestion Pipeline**
+*   **Schema Validation Framework:** A flexible `SchemaValidator` trait has been designed and implemented. We have created two concrete validators:
+    *   `LegacySingleSensorValidator`: Correctly validates and accepts both CR200 and older CR300 single-sensor file formats.
+    *   `CR300MultiSensorValidator`: Correctly validates the generic multi-sensor format for any number of sensors.
+*   **Idempotent Ingestion Logic:** The `sapflux-core/src/ingestion.rs` module can ingest a file's raw byte content. It uses a SHA-256 hash to guarantee that identical files are never inserted twice, making the process robustly idempotent.
+*   **Metadata Seeding:** A PEP 723-compliant Python script (`scripts/seed_database.py`) has been created to populate the `dst_transitions` table from a human-readable `dst_transitions.toml` file, establishing a clear pattern for managing initial metadata.
+*   **Functional CLI:** The `sapflux-cli` application provides a working `ingest` command that successfully uses the core library to scan a directory and populate the database, gracefully handling and reporting files that fail validation.
+
+**Current Status:** All validated raw data files can be successfully and reliably ingested into the PostgreSQL database, creating an immutable, auditable archive of our source data. The foundation is complete and stable.
+
+---
+
+### **III. Remaining Work (What We Have Left to Do)**
+
+The remaining work focuses on building the "read path" for processing the data and implementing the management logic for our other metadata entities.
+
+**🔜 Phase 3: Metadata Management**
+*   **Goal:** Fully implement the database schema, seeding, and validation logic for `deployments`, `sensors`, and `parameters`.
+*   **Tasks:**
+    1.  **Finalize Schemas:** Update `db/schema.sql` with the final table designs for `projects`, `sensors`, and `deployments`, including foreign key relationships.
+    2.  **Create Initial Data Files:** Create `deployments.csv`, `sensors.csv`, and `parameters.toml` in the `initial_metadata/` directory.
+    3.  **Expand Seeding Script:** Add functions to `scripts/seed_database.py` to parse these new files and populate their respective tables.
+    4.  **Implement Rust Types:** Add Rust structs to `types.rs` for `Project`, `Sensor`, and the `DeploymentAttributes` enum.
+    5.  **Implement Validation Rules:** Create `rules/deployment_rules.rs` etc. in the core library to house the business logic for validating new or updated deployment records.
+
+**🚀 Phase 4: The Processing Pipeline**
+*   **Goal:** Implement the full data processing logic to transform the raw data from the database into a clean, corrected, and scientifically valuable Parquet file.
+*   **Tasks:**
+    1.  **Implement the "Read Path":** Write the `sapflux-core/src/processing.rs` logic to fetch blobs from the DB and create a master `LazyFrame`.
+    2.  **Schema-Specific Parsing:** Make the `lazyframe_from_blob` function "smart" by using the `detected_schema_name` to apply the correct Polars parsing options (column names, types, etc.) for each file.
+    3.  **Implement DST Correction Algorithm:** This is the most complex single task. Implement the three-pass strategy we designed:
+        *   Pass 1: Use SQL to discover file relationships for each data point.
+        *   Pass 2: Use Polars to assign a unique `chunk_id` to each row.
+        *   Pass 3: Use the `dst_transitions` LUT to calculate and apply the correct timezone offset for each chunk.
+    4.  **Implement Scientific Calculations:** Add the Polars expressions to calculate heat velocity, apply wound correction, and compute final sap flux density.
+    5.  **Implement `process` CLI Command:** Flesh out the `sapflux-cli process` command to orchestrate the pipeline and save the final `LazyFrame`.
+
+**未来 (Future): Application Layer**
+*   **Goal:** Build user-facing applications on top of the core library.
+*   **Tasks:**
+    1.  **Build Axum API:** Create `sapflux-api` with endpoints for CRUD operations on metadata and for triggering/downloading processed datasets.
+    2.  **Build Svelte Frontend:** Create a web interface for non-technical users to upload data and download versioned results.
+    3.  **Deploy to Render.io:** Package the entire system for production deployment.

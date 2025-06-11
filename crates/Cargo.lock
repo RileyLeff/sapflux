@@ -2988,6 +2988,7 @@ dependencies = [
  "anyhow",
  "clap",
  "dotenvy",
+ "futures",
  "glob",
  "sapflux-core",
  "tokio",

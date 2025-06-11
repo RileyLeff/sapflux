@@ -1,6 +1,6 @@
 // crates/sapflux-core/src/types.rs
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::Deserialize;
 use sqlx::{
     decode::Decode,
@@ -80,5 +80,52 @@ impl<'r> Decode<'r, Postgres> for FileSchema {
     fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn StdError + Send + Sync + 'static>> {
         let s = <&str as Decode<Postgres>>::decode(value)?;
         FileSchema::from_str(s)
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct DstTransition {
+    pub id: i32,
+    pub transition_action: String,
+    pub ts_local: NaiveDateTime,
+}
+
+// A newtype wrapper for SDI-12 addresses that guarantees validity at compile time.
+#[derive(Debug, sqlx::Type)] // The derive macro itself
+#[sqlx(transparent)]        // The helper attribute for the derive macro
+pub struct SdiAddress(String);
+
+impl SdiAddress {
+    /// Creates a new `SdiAddress`, returning an error if the input is invalid.
+    pub fn new(addr: &str) -> Result<Self, String> {
+        // Rule 1: Must not be empty.
+        if addr.is_empty() {
+            return Err("SDI-12 address cannot be empty.".to_string());
+        }
+
+        // Rule 2: Must be a single character.
+        if addr.chars().count() != 1 {
+            return Err(format!(
+                "SDI-12 address must be a single character, but got '{}'",
+                addr
+            ));
+        }
+
+        // Rule 3: The character must be ASCII alphanumeric.
+        let c = addr.chars().next().unwrap();
+        if !c.is_ascii_alphanumeric() {
+            return Err(format!(
+                "SDI-12 address must be alphanumeric (a-z, A-Z, 0-9), but got '{}'",
+                c
+            ));
+        }
+
+        // If all rules pass, create the newtype instance.
+        Ok(Self(addr.to_string()))
+    }
+    
+    // Provides read-only access to the inner string.
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }

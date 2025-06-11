@@ -20,3 +20,17 @@ CREATE TABLE IF NOT EXISTS raw_files (
 
 -- An index on the hash column will make our duplicate check extremely fast.
 CREATE INDEX IF NOT EXISTS idx_raw_files_file_hash ON raw_files(file_hash);
+
+-- Table to store Daylight Saving Time transition rules.
+CREATE TABLE IF NOT EXISTS dst_transitions (
+    id SERIAL PRIMARY KEY,
+    -- 'start' for DST beginning, 'end' for DST ending.
+    transition_action TEXT NOT NULL CHECK (transition_action IN ('start', 'end')),
+    -- The naive, local wall-clock time of the transition.
+    ts_local TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    -- It's good practice to ensure we don't have duplicate rules.
+    UNIQUE (transition_action, ts_local)
+);
+
+-- An index on the timestamp will make lookups very fast.
+CREATE INDEX IF NOT EXISTS idx_dst_transitions_ts ON dst_transitions(ts_local);
