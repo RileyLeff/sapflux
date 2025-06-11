@@ -109,18 +109,32 @@ fn process_legacy_format(
     let old_names: Vec<String> = lf.collect_schema()?.iter_names().map(|s| s.to_string()).collect();
     let new_names: Vec<&str> = legacy_cols.iter().take(old_names.len()).copied().collect();
     
-    // Strict mode must be false to handle files with fewer columns than defined.
     lf = lf.rename(old_names, new_names, false);
 
+    // First, parse the timestamp string into a proper datetime
     let lf = lf
+        .with_column(
+            col("timestamp_naive")
+                .str()
+                .strptime(
+                    DataType::Datetime(TimeUnit::Milliseconds, None),
+                    StrptimeOptions {
+                        format: Some("%Y-%m-%d %H:%M:%S".into()), // Use .into() to convert to PlSmallStr
+                        strict: false,
+                        exact: false,
+                        cache: true,
+                    },
+                    lit("raise"),
+                )
+                .alias("timestamp_naive")
+        )
         .filter(
             col("timestamp_naive")
-                .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
                 .gt_eq(lit(start_date))
                 .and(col("timestamp_naive").lt_eq(lit(end_date))),
         )
         .select(&[
-            col("timestamp_naive").cast(DataType::Datetime(TimeUnit::Milliseconds, None)),
+            col("timestamp_naive"),
             col("sdi_address").cast(DataType::String),
             col("alpha_out").cast(DataType::Float64),
             col("alpha_in").cast(DataType::Float64),
