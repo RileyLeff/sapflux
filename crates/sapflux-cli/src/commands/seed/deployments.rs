@@ -5,6 +5,11 @@ use anyhow::{anyhow, Context, Result};
 use sqlx::{Postgres, Transaction};
 use std::collections::HashMap;
 use std::path::Path;
+// Import the necessary types and functions from the core library
+use sapflux_core::{
+    metadata,
+    types::{NewDeployment, DeploymentAttributes, SdiAddress},
+};
 
 pub async fn seed(
     tx: &mut Transaction<'_, Postgres>,
@@ -18,19 +23,18 @@ pub async fn seed(
     let data: DeploymentsFile = toml::from_str(&content)
         .with_context(|| format!("Failed to parse deployments TOML from '{}'", path.display()))?;
     
-    // We will be calling `create_deployment` from the core library, which handles
-    // the logic of closing out previous deployments. Therefore, we still truncate
-    // to ensure a clean state before this complex logic runs.
+    // We still truncate to ensure a completely clean state before seeding.
     sqlx::query("TRUNCATE TABLE deployments RESTART IDENTITY CASCADE")
         .execute(&mut **tx)
         .await?;
 
-    // The deployments must be inserted in chronological order for the "close out" logic to work correctly.
+    // The deployments MUST be inserted in chronological order for the "close out" logic to work correctly.
     let mut deployments_to_seed = data.deployments;
     deployments_to_seed.sort_by_key(|d| d.start_time_utc);
 
+    println!("      -> Inserting {} deployments chronologically...", deployments_to_seed.len());
     for (i, deployment) in deployments_to_seed.iter().enumerate() {
-        let project_id = project_map.get(&deployment.project_name).ok_or_else(|| {
+        let project_id = *project_map.get(&deployment.project_name).ok_or_else(|| {
             anyhow!(
                 "In deployment #{}, could not find project '{}' in the project map.",
                 i + 1,
@@ -38,36 +42,34 @@ pub async fn seed(
             )
         })?;
 
-        let sensor_id = sensor_map.get(&deployment.sensor_id).ok_or_else(|| {
+        let sensor_id = *sensor_map.get(&deployment.sensor_id).ok_or_else(|| {
             anyhow!(
                 "In deployment #{}, could not find sensor '{}' in the sensor map.",
                 i + 1,
                 deployment.sensor_id
             )
         })?;
+        
+        // The attributes in the TOML file can be directly deserialized into our core DeploymentAttributes enum
+        let attributes: DeploymentAttributes = deployment.attributes.clone().try_into()
+            .with_context(|| format!("Failed to parse attributes for deployment #{}", i + 1))?;
 
-        // Convert TOML attributes to a JSONB-compatible value.
-        let attributes_json = serde_json::to_value(&deployment.attributes)?;
+        // Create the core data type that our function expects
+        let new_deployment_data = NewDeployment {
+            start_time_utc: deployment.start_time_utc,
+            datalogger_id: deployment.datalogger_id,
+            sdi_address: SdiAddress::new(&deployment.sdi_address)?,
+            tree_id: deployment.tree_id.clone(),
+            project_id,
+            sensor_id,
+            attributes,
+        };
 
-        // The core library's `create_deployment` function is more complex than a simple INSERT.
-        // It handles closing out previous deployments. We should reuse that logic instead of
-        // re-implementing it. To do that, we need to call it with a transaction object.
-        // For simplicity in this step, we will use a direct INSERT, but in a future refactor,
-        // you would adapt `sapflux_core::metadata::create_deployment` to accept a `&mut Transaction`.
-        // For now, this direct approach is correct for a pure seeding operation.
-        sqlx::query(
-            "INSERT INTO deployments (project_id, sensor_id, datalogger_id, sdi_address, tree_id, start_time_utc, attributes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        )
-        .bind(project_id)
-        .bind(sensor_id)
-        .bind(deployment.datalogger_id)
-        .bind(&deployment.sdi_address)
-        .bind(&deployment.tree_id)
-        .bind(deployment.start_time_utc)
-        .bind(attributes_json)
-        .execute(&mut **tx)
-        .await?;
+        // NOW we call the core library function, which contains the correct UPDATE/INSERT logic.
+        // We pass our existing transaction to it.
+        metadata::deployments::create_deployment_in_transaction(tx, &new_deployment_data)
+            .await
+            .with_context(|| format!("Failed to insert deployment #{} (Logger: {}, SDI: {})", i + 1, new_deployment_data.datalogger_id, new_deployment_data.sdi_address.as_str()))?;
     }
 
     println!("      -> Seeded {} deployments.", deployments_to_seed.len());

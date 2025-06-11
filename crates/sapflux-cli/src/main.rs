@@ -47,6 +47,10 @@ enum Commands {
         #[arg(long, default_value = "initial_metadata/deployments.toml")]
         deployments_file: PathBuf,
     },
+    Process {
+    #[arg(short, long, default_value = "output.parquet")]
+    output: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -117,6 +121,26 @@ async fn main() -> Result<()> {
                 &dst_file,
                 &deployments_file
             ).await?;
+        }
+        Commands::Process { output } => {
+            println!("🚀 Starting processing pipeline...");
+
+            // 1. Call our new orchestrator function to get the unified data
+            let unified_lf = sapflux_core::processing::get_unified_lazyframe(&pool).await?;
+
+            // 2. For now, let's just see the schema and save the unified data
+            println!("\nUnified Schema:");
+            println!("{:?}", unified_lf.clone().schema());
+
+            println!("\nExecuting query plan and writing to '{}'...", output.display());
+            
+            // .collect() executes the query, .write_parquet() saves it.
+            let mut df = unified_lf.collect()?;
+            
+            let mut file = std::fs::File::create(&output)?;
+            ParquetWriter::new(&mut file).finish(&mut df)?;
+
+            println!("✅ Processing complete. Output saved to '{}'.", output.display());
         }
     }
 

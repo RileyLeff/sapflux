@@ -13,6 +13,9 @@ pub enum PipelineError {
     #[error("Environment variable error: {0}")]
     EnvVar(#[from] std::env::VarError),
 
+    #[error("Polars operation failed: {0}")]
+    Polars(#[from] polars::error::PolarsError),
+
     #[error("CSV parsing error: {0}")]
     Csv(#[from] csv::Error),
 

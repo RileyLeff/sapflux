@@ -5,3 +5,4 @@ pub mod ingestion;
 pub mod validation;
 pub mod rules;
 pub mod metadata;
+pub mod processing;
