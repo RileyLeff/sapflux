@@ -1,0 +1,5 @@
+the psql command that i can't remember is 
+
+psql -h localhost -p 5432 -U postgres -d sapflux -f db/schema.sql
+
+the goated dirgrab for this repo is
