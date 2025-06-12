@@ -1,0 +1,665 @@
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/.DS_Store"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_10_13/.DS_Store"
+hash = "66489a5495a3e83f6cbf718bb0ed37475cd04a0aac2ae1e346800ef1e675372d"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_05/.DS_Store"
+hash = "cc252e06b6ffb2dac935bcc06056c601e8f92959e50f0630bd5bdb3a9b24361f"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_11_18/.DS_Store"
+hash = "bb852686c2cc74bf5dcc50c36a8a80ea87ad88c55527b74c277a2385bc6065ab"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy 2.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_562 copy 2.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy 3.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_H2_5402.csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_562 copy 2.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_562 copy 11.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_560 copy.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_560 copy.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_562 copy 11.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy 4.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_562 copy 6.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy 5.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_562 copy 6.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy 6.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy 5.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_H2_5402 (1).csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_560 copy 2.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy 4.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy 6.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_560 copy 2.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_Table1 copy.csv"
+hash = "1707a28ad6237e8c9c6c986392da6f80254a749c8e2882a88e35570d6050c35e"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_560 copy 5.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy 3.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_H1_5402.csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_Table1 copy.csv"
+hash = "1707a28ad6237e8c9c6c986392da6f80254a749c8e2882a88e35570d6050c35e"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_H2_5402 copy.csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table1 copy.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy 2.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_Table1 copy 2.csv"
+hash = "5412e112471b80414732291edd597593a54ee2c92e2e8554ebdf7c6ca14e8e54"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_H2_5402 (1) copy.csv"
+hash = "1fcc7d363d4f76893a0e6d5cba4d456125670e9547dad0beee00e077a54d58f4"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_Table1 copy 2.csv"
+hash = "5412e112471b80414732291edd597593a54ee2c92e2e8554ebdf7c6ca14e8e54"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_H2_5402 (1).csv"
+hash = "1fcc7d363d4f76893a0e6d5cba4d456125670e9547dad0beee00e077a54d58f4"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_560 copy 5.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_Table1.csv"
+hash = "5412e112471b80414732291edd597593a54ee2c92e2e8554ebdf7c6ca14e8e54"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy 2.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_560 copy 9.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy 3.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_560 copy 9.csv"
+hash = "a9f9e60b215fd93145000888b44515cfe651f7b4f85b8aef6cf1183a1fc9149f"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_301_H5_562 copy.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_H2_5402 copy.csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_Table1.csv"
+hash = "ccbc819d08f95e6066eb342e1325184f8f4e8f897caa8b992cdb1f07330ae4ab"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_H1_5402.csv"
+hash = "7ac31220e2c17cd9ebf29a9cb3708ce88196a195ec5731ad0ee7fa94c5a0f6ca"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy 4.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_301_H5_562 copy.csv"
+hash = "46c57ee9e48f1c3628de54df7a76b2f90001e65734bb1523891b083c8108bf8b"
+category = "METADATA_MISMATCH"
+reason = "Filename ID (301) conflicts with Header ID (2)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy 5.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table1 copy.csv"
+hash = "725b369133e64da51446a9246378b09e8287dd68db7864cb5a37442741b6c328"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR200Series_Table2 copy 6.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy 5.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_403_HX_134 copy.csv"
+hash = "c0bab4d35a6c2332ccad6e1856422fc8e0453fddb4ae348294a7b576ae85f8ad"
+category = "UNKNOWN_SCHEMA"
+reason = "File did not match any known valid schema (Legacy or Multi-Sensor)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_403_HX_135 copy.csv"
+hash = "75300aab7f037ccfeec703dfcb015448a259e94c0e12b6d46576bd949becf594"
+category = "UNKNOWN_SCHEMA"
+reason = "File did not match any known valid schema (Legacy or Multi-Sensor)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR300Series_501_H2_5402 (1) copy.csv"
+hash = "1fcc7d363d4f76893a0e6d5cba4d456125670e9547dad0beee00e077a54d58f4"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy 4.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy 6.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_501_H2_5402.csv"
+hash = "94e99629f64375e081c3aed0253121b7e7c13a4e2da2eac5546f4fadf83905af"
+category = "DATA_AMBIGUITY"
+reason = "Data column contains multiple IDs: [np.int64(501), np.int64(1)]."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy 3.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/CR200Series_Table2 copy 2.csv"
+hash = "927a04df96bf7efced2933b352f0e6098683c8a3c7c849c019e95c127055838b"
+category = "MISSING_METADATA"
+reason = "Could not determine an authoritative ID from filename or header."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_403_HX_134 copy.csv"
+hash = "c0bab4d35a6c2332ccad6e1856422fc8e0453fddb4ae348294a7b576ae85f8ad"
+category = "UNKNOWN_SCHEMA"
+reason = "File did not match any known valid schema (Legacy or Multi-Sensor)."
+
+[[metadata_warnings]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/oldfileCR300Series_403_HX_135 copy.csv"
+hash = "75300aab7f037ccfeec703dfcb015448a259e94c0e12b6d46576bd949becf594"
+category = "UNKNOWN_SCHEMA"
+reason = "File did not match any known valid schema (Legacy or Multi-Sensor)."
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_07_03"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_07_03'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_08_29"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_08_29'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_08_16"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_08_16'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_10_13"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_10_13'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_01_08"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_01_08'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_02_18"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_02_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_05_13"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_05_13'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_05_14"
+hash = "N/A - Could not read file"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_05_14'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_05_15"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_05_15'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_05"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_05'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_09_16"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_09_16'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_03_10"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_03_10'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_20"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_20'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_05_30"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_05_30'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_02_18"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_02_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_05_01"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_05_01'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_06_19"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_06_19'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_04_15"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_04_15'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_06_18"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_06_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_06_16"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_06_16'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_10_30"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_10_30'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_08_03"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_08_03'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_07_18"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_07_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_07_11"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_07_11'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_08_15"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_08_15'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_05_02"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_05_02'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_04_17"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_04_17'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_11_18"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_11_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_09_12"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_09_12'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_03_25"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_03_25'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_09_24"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_09_24'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/older'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_12"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_12'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_01_28"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_01_28'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2025_05_20"
+hash = "3666672124db9499073f342fb52cda72a2460a7b28b07018d16e6e447e5cc8b4"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2025_05_20'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_10_13/2025_04_15"
+hash = "2ca64eebc677128c89af419a634c87d66273c124e739db833bef4c0ee03de9b8"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_10_13/2025_04_15'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_05/2025_01_08"
+hash = "981b14b3c3044e1892a79b3fe81742a13f390313ced749b7a5b0dfba7897ce2b"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_05/2025_01_08'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_05/2024_12_12"
+hash = "d891a5ebf2da8a64e1360df292e6c30b146fe09c26fbf96d6031c2079b165493"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_05/2024_12_12'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_12_05/2025_01_28"
+hash = "d891a5ebf2da8a64e1360df292e6c30b146fe09c26fbf96d6031c2079b165493"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_12_05/2025_01_28'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_11_18/2025_02_18"
+hash = "dd8febc2ba7af0b3b3afac065634d46d10a672cc56d52a720f8fb89783f395e8"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_11_18/2025_02_18'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_11_18/2025_03_10"
+hash = "bfe069e2520f5c17178c6ef268aa91f9d70f33112ee8924c2ccd84ab0a488486"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_11_18/2025_03_10'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/2024_11_18/2025_03_25"
+hash = "e855cce226d49b1e29115d2d7f06ea355f3a1307a3a6e2d4aa8eb19d68ff38f3"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/2024_11_18/2025_03_25'"
+
+[[parse_errors]]
+path = "/Users/rileyleff/Documents/dev/sapflux/data/older/2024_12_20"
+hash = "e06c9773903dd4390d0b574a3f1cde3d623fa45f0354e396a32580ba7a7abb16"
+category = "PARSE_ERROR"
+reason = "[Errno 21] Is a directory: 'data/older/2024_12_20'"

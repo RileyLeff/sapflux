@@ -32,7 +32,7 @@ fn validate_and_identify_schema(file_content: &[u8]) -> Result<FileSchema> {
 
 
 /// Ingests a single file's content into the database.
-pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
+pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8], quiet: bool) -> Result<i64> {
     let hash = Sha256::digest(file_content);
     let hash_hex = format!("{:x}", hash);
 
@@ -42,14 +42,19 @@ pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
         .await?;
 
     if let Some(id) = existing_id {
-        println!("  -> File with hash {}... already exists with id {}. Skipping.", &hash_hex[..8], id);
+        if !quiet {
+            println!("  -> File with hash {}... already exists with id {}. Skipping.", &hash_hex[..8], id);
+        }
+        
         return Ok(id);
     }
 
     // Use our new, powerful validation function.
     let schema = validate_and_identify_schema(file_content)?;
-    println!("  -> New file validated. Schema: {:?}", schema);
-
+    if !quiet{
+        println!("  -> New file validated. Schema: {:?}", schema);
+    }
+    
     let new_id: i64 = sqlx::query_scalar(
         "INSERT INTO raw_files (file_hash, file_content, detected_schema_name)
          VALUES ($1, $2, $3)
@@ -60,7 +65,9 @@ pub async fn ingest_file(db_pool: &PgPool, file_content: &[u8]) -> Result<i64> {
     .bind(&schema)
     .fetch_one(db_pool)
     .await?;
-
-    println!("  -> Successfully ingested as new file with id {}.", new_id);
+    if !quiet{
+        println!("  -> Successfully ingested as new file with id {}.", new_id);
+    }
+    
     Ok(new_id)
 }

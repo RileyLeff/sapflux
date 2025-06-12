@@ -111,7 +111,7 @@ def find_issues(data_dir: Path, exclude_patterns: list):
     fixes, warnings, errors = [], [], []
 
     console.print(f"[bold cyan]Scanning directory:[/] {data_dir.resolve()}")
-    all_files = list(data_dir.rglob("*.dat"))
+    all_files = list(data_dir.rglob("*"))
     
     files_to_scan = all_files
     if exclude_patterns:

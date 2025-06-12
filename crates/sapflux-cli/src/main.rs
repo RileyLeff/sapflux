@@ -24,6 +24,9 @@ enum Commands {
     Ingest {
         #[arg(short, long)]
         dir: PathBuf,
+        
+        #[arg(short, long)]
+        quiet: bool,
     },
     /// Manage deployment metadata.
     Deployment {
@@ -64,10 +67,15 @@ async fn main() -> Result<()> {
     let pool = sapflux_core::db::connect().await?;
 
     match cli.command {
-        Commands::Ingest { dir } => {
-            println!("Starting ingestion from directory: {}", dir.display());
+        Commands::Ingest { dir, quiet } => {
+            if !quiet {
+                println!("Starting ingestion from directory: {}", dir.display());
+            }
             let pattern = dir.join("**/*");
             let pattern_str = pattern.to_str().expect("Invalid path pattern");
+
+            let forbidden_words = ["public", "status", "datatableinfo", "ds_store"];
+            println!("   -> Applying filename filters, ignoring files containing: {:?}", forbidden_words);
 
             let mut success_count = 0;
             let mut failure_count = 0;
@@ -83,7 +91,14 @@ async fn main() -> Result<()> {
                 };
                 
                 if path.is_file() {
-                    println!("Processing file: {}", path.display());
+                    let path_str_lower = path.to_string_lossy().to_lowercase();
+                    if forbidden_words.iter().any(|word| path_str_lower.contains(word)) {
+                        //skipped_count += 1;
+                        continue; // Skip this file and move to the next one
+                    }
+                    if !quiet {
+                        println!("Processing file: {}", path.display());
+                    }
                     let content = match std::fs::read(&path) {
                         Ok(content) => content,
                         Err(e) => {
@@ -93,10 +108,10 @@ async fn main() -> Result<()> {
                         }
                     };
 
-                    match sapflux_core::ingestion::ingest_file(&pool, &content).await {
+                    match sapflux_core::ingestion::ingest_file(&pool, &content, quiet).await {
                         Ok(_) => success_count += 1,
                         Err(e) => {
-                            eprintln!("  -> WARNING: Skipping file. Reason: {}", e);
+                            eprintln!("  -> WARNING: Skipping file {}. Reason: {}", path.display(), e);
                             failure_count += 1;
                         }
                     }
