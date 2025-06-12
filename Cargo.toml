@@ -9,7 +9,7 @@ members = [
 resolver = "2" 
 
 [workspace.dependencies]
-polars = { version = "0.48.1", features = ["lazy", "strings", "temporal", "parquet", "json", "pivot", "regex"] }
+polars = { version = "0.48.1", features = ["lazy", "strings", "temporal", "parquet", "json", "pivot", "regex", "asof_join", "semi_anti_join"] }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "derive", "json", "uuid"] }
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
