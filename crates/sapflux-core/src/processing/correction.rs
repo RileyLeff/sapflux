@@ -79,6 +79,7 @@ pub async fn apply_dst_correction_and_map_deployments(
         );
 
     let final_lf = mapped_lf
+        .drop(["file_hash"])
         .select(get_full_schema_columns())
         .sort(["timestamp_utc"], SortMultipleOptions::default());
         

@@ -16,6 +16,7 @@ pub async fn get_parsed_and_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame
     let raw_files = fetch_all_raw_files(pool).await?;
     let mut lazyframes: Vec<LazyFrame> = Vec::with_capacity(raw_files.len());
 
+    println!("\n[DEBUG] cool ozyy...");
     for record in &raw_files {
         match parse_and_clean_file(record, &fixes_map) {
             Ok(lf) => lazyframes.push(lf),
@@ -23,11 +24,37 @@ pub async fn get_parsed_and_unified_lazyframe(pool: &PgPool) -> Result<LazyFrame
         }
     }
 
+    println!("\n[DEBUG] bigbooty...");
+
     if lazyframes.is_empty() {
         return Err(PipelineError::Processing("No valid files could be parsed.".to_string()));
     }
 
+     // --- NEW DEBUGGING LOGIC ---
+    println!("\n[DEBUG] Verifying schemas of all {} lazyframes before concatenation...", lazyframes.len());
+    let first_schema = lazyframes[0].clone().collect_schema()?;
+    println!("[DEBUG] Reference Schema (from first frame):");
+    println!("{:?}", first_schema);
+
+    for (i, lf) in lazyframes.iter().enumerate() {
+        let current_schema = lf.clone().collect_schema()?;
+        if current_schema != first_schema {
+            println!("\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            println!("[DEBUG] SCHEMA MISMATCH FOUND AT INDEX {}!", i);
+            println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            println!("\n[DEBUG] Reference Schema:");
+            println!("{:?}", first_schema);
+            println!("\n[DEBUG] Mismatched Schema:");
+            println!("{:?}", current_schema);
+            // You can also try to collect just this one frame to see if it causes a more specific error
+            // let _ = lf.clone().collect(); 
+        }
+    }
+    println!("[DEBUG] Schema verification loop finished. Now attempting concat...");
+    // --- END DEBUGGING LOGIC ---
+
     let unified_lf = concat(&lazyframes, UnionArgs::default())?;
+
     println!("   -> Step 1 Complete: Unified data has {} potential rows.", unified_lf.clone().collect()?.height());
     Ok(unified_lf)
 }
@@ -46,21 +73,26 @@ async fn fetch_all_raw_files(pool: &PgPool) -> Result<Vec<RawFileRecord>> {
 fn parse_and_clean_file(record: &RawFileRecord, fixes: &HashMap<String, ManualFix>) -> Result<LazyFrame> {
     let start_date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
     let end_date = Utc::now().naive_utc();
+    
     let mut lf = match record.detected_schema_name {
-        crate::types::FileSchema::CRLegacySingleSensor => process_legacy_format(&record.file_content, start_date, end_date)?,
-        crate::types::FileSchema::CR300MultiSensor => process_multi_sensor_format(&record.file_content, start_date, end_date)?,
+        crate::types::FileSchema::CRLegacySingleSensor => {
+            process_legacy_format(&record.file_content, start_date, end_date)?
+        }
+        crate::types::FileSchema::CR300MultiSensor => {
+            process_multi_sensor_format(&record.file_content, start_date, end_date)?
+        }
     };
+
     if let Some(fix) = fixes.get(&record.file_hash) {
-        lf = match fix.action.as_str() {
-            "SET_LOGGER_ID" => {
-                let new_id = fix.value.as_i64().ok_or_else(|| PipelineError::Processing("Invalid 'value' for SET_LOGGER_ID".into()))?;
-                let mut eager_df = lf.collect()?;
-                eager_df.drop_in_place("logger_id")?;
-                eager_df.with_column(Series::new("logger_id".into(), vec![new_id; eager_df.height()]))?;
-                eager_df.lazy()
-            },
-            _ => lf,
-        };
+        if fix.action.as_str() == "SET_LOGGER_ID" {
+            let new_id = fix.value.as_i64().ok_or_else(|| {
+                PipelineError::Processing("Invalid 'value' for SET_LOGGER_ID".into())
+            })?;
+            // Overwrite the logger_id column with the fixed value
+            lf = lf.with_column(lit(new_id).alias("logger_id"));
+        }
     }
-    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")).select(get_full_schema_columns()))
+
+    // Just add the file_hash column. Do not select/filter columns here.
+    Ok(lf.with_column(lit(record.file_hash.clone()).alias("file_hash")))
 }

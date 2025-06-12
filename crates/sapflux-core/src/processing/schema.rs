@@ -29,5 +29,6 @@ pub fn get_full_schema_columns() -> Vec<Expr> {
         col("ts_us_inn").cast(DataType::Float64),
         col("tmax_tus_o").cast(DataType::Float64),
         col("tmax_tus_i").cast(DataType::Float64),
+        col("file_hash").cast(DataType::String),
     ]
 }

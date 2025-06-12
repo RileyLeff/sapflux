@@ -1,14 +1,13 @@
-// crates/sapflux-core/processing/multi_sensor_format.rs
+// crates/sapflux-core/src/processing/multi_sensor_format.rs
 use crate::error::{PipelineError, Result};
 use chrono::NaiveDateTime;
 use polars::prelude::*;
 use std::io::Cursor;
-use super::schema::get_full_schema_columns;
 
 pub fn process_multi_sensor_format(
     content: &[u8],
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
+    _start_date: NaiveDateTime,
+    _end_date: NaiveDateTime,
 ) -> Result<LazyFrame> {
     let content_str = std::str::from_utf8(content)
         .map_err(|e| PipelineError::Processing(format!("File content is not valid UTF-8: {}", e)))?;
@@ -18,10 +17,9 @@ pub fn process_multi_sensor_format(
         return Err(PipelineError::Processing("Multi-sensor file has fewer than 5 lines.".to_string()));
     }
 
-    // --- NEW LOGIC: EXTRACT LOGGER ID ---
     let first_line_parts: Vec<&str> = lines[0].split(',').map(|s| s.trim_matches('"')).collect();
-    let logger_id_str = first_line_parts.get(1) // Get the "CR300Series_420" part
-        .and_then(|s| s.split('_').nth(1)) // Split by '_' and get the "420" part
+    let logger_id_str = first_line_parts.get(1)
+        .and_then(|s| s.split('_').nth(1))
         .ok_or_else(|| PipelineError::Processing("Could not parse logger_id from TOA5 header.".to_string()))?;
 
     let logger_id: i64 = logger_id_str.parse().map_err(|_| PipelineError::Processing(
@@ -70,45 +68,22 @@ pub fn process_multi_sensor_format(
         ];
 
         let mut select_exprs: Vec<Expr> = vec![
-            col("TIMESTAMP").alias("timestamp_naive"),
-            col("RECORD").alias("record_number"),
-            // --- NEW LOGIC: ADD THE EXTRACTED LOGGER ID ---
-            lit(logger_id).alias("logger_id"),
-            col("Batt_volt").alias("batt_volt"),
-            col("PTemp_C").alias("ptemp_c"),
-            lit(sdi_address).alias("sdi_address"),
+            col("TIMESTAMP").alias("timestamp_naive").cast(DataType::String),
+            col("RECORD").alias("record_number").cast(DataType::Int64),
+            // FIX: Explicitly cast the logger_id literal to Int64
+            lit(logger_id).alias("logger_id").cast(DataType::Int64),
+            col("Batt_volt").alias("batt_volt").cast(DataType::Float64),
+            col("PTemp_C").alias("ptemp_c").cast(DataType::Float64),
+            lit(sdi_address).alias("sdi_address").cast(DataType::String),
         ];
 
         for (source_suffix, target_name) in &column_mapping {
             let full_col_name = format!("{}_{}", prefix, source_suffix);
-            select_exprs.push(col(&full_col_name).alias(*target_name));
+            // FIX: Ensure all data columns are cast to Float64
+            select_exprs.push(col(&full_col_name).alias(*target_name).cast(DataType::Float64));
         }
 
-        let sensor_lf = df.clone().lazy()
-            .select(select_exprs)
-            .with_column(
-                 col("timestamp_naive")
-                .str()
-                .strptime(
-                    DataType::Datetime(TimeUnit::Milliseconds, None),
-                    StrptimeOptions {
-                        format: Some("%Y-%m-%d %H:%M:%S".into()),
-                        strict: false,
-                        exact: false,
-                        cache: true,
-                    },
-                    lit("raise"),
-                )
-                .alias("timestamp_naive")
-            )
-            .filter(
-                col("timestamp_naive").is_not_null()
-                .and(col("timestamp_naive").gt_eq(lit(start_date)))
-                .and(col("timestamp_naive").lt_eq(lit(end_date))),
-            );
-            //.select(&get_full_schema_columns());
-
-        sensor_lazyframes.push(sensor_lf);
+        sensor_lazyframes.push(df.clone().lazy().select(select_exprs));
     }
     
     concat(&sensor_lazyframes, UnionArgs::default()).map_err(PipelineError::from)

@@ -2,7 +2,8 @@
 
 use anyhow::Result;
 use clap::Parser;
-use polars::prelude::{ParquetWriter, SerWriter, ChunkCompareEq};
+// FIX: Add ChunkCompareEq for the .equal() method and remove unused SerWriter
+use polars::prelude::{ChunkCompareEq, ParquetWriter, ChunkUnique, col, lit, IntoLazy};
 use std::path::PathBuf;
 
 // Bring our command modules into scope
@@ -147,45 +148,56 @@ async fn main() -> Result<()> {
                 &dst_file,
                 &deployments_file,
                 &fixes_file,
-            ).await?;
+            )
+            .await?;
         }
-        Commands::Process { output } => {
-            println!("🚀 Starting processing pipeline orchestration...");
+// Then in your match statement, replace the Commands::Process block with:
+Commands::Process { output } => {
+    println!("🚀 Starting processing pipeline orchestration...");
 
-            // Step 1: Call the parsing and unification function
-            let unified_lf = sapflux_core::processing::get_parsed_and_unified_lazyframe(&pool).await?;
+    let unified_lf = sapflux_core::processing::get_parsed_and_unified_lazyframe(&pool).await?;
+    let final_lf = sapflux_core::processing::apply_dst_correction_and_map_deployments(unified_lf, &pool).await?;
+    let mut final_df = final_lf.collect()?;
 
-            // Step 2: Pass the result to the DST and mapping function
-            let final_lf = sapflux_core::processing::apply_dst_correction_and_map_deployments(unified_lf, &pool).await?;
+    println!("\n✅ Full processing and mapping complete.");
+    println!("   -> Final dataset shape: {:?}", final_df.shape());
 
-            // Step 3: Collect the final result into an in-memory DataFrame
-            let mut final_df = final_lf.collect()?;
+    // Get unique project names properly
+    let project_column = final_df.column("project_name")?;
+    let projects: Vec<String> = project_column
+        .cast(&polars::prelude::DataType::String)?  // Use String instead of Utf8
+        .str()?                                      // Get string chunked array
+        .unique()?                                   // Get unique values (ChunkUnique trait must be in scope)
+        .into_no_null_iter()                         // Iterate over non-null values
+        .map(|s| s.to_string())                      // Convert to owned String
+        .collect();
 
-            println!("\n✅ Full processing and mapping complete.");
-            println!("   -> Final dataset shape: {:?}", final_df.shape());
+    println!("   -> Found projects: {:?}", projects);
 
-            // Step 4: Split the DataFrame by project and save each to a separate Parquet file
-            let projects = final_df.column("project_name")?.unique()?.utf8()?.into_no_null_iter().collect::<Vec<_>>();
-            println!("   -> Found projects: {:?}", projects);
+    for project_name in &projects {
+        println!("      -> Filtering for project: {:?}", project_name);
+        
+        // Use lazy API for filtering
+        let mut project_df = final_df
+            .clone()
+            .lazy()
+            .filter(col("project_name").eq(lit(String::from(project_name))))
+            .collect()?;
 
-            for project_name in projects {
-                println!("      -> Filtering for project: '{?}'", project_name);
-                let mut project_df = final_df.filter(&final_df.column("project_name")?.equal(project_name)?)?;
+        let file_name = format!(
+            "{}_{}.parquet",
+            output.file_stem().unwrap_or_default().to_str().unwrap_or("output"),
+            project_name.replace(' ', "_")  // This works because project_name is &String
+        );
+        let output_path = output.with_file_name(file_name);
 
-                let file_name = format!(
-                    "{}_{}.parquet",
-                    output.file_stem().unwrap_or_default().to_str().unwrap_or("output"),
-                    project_name.replace(' ', "_") // Sanitize project name for filename
-                );
-                let output_path = output.with_file_name(file_name);
+        println!("      -> Writing {} rows to '{}'", project_df.height(), output_path.display());
+        let mut file = std::fs::File::create(&output_path)?;
+        ParquetWriter::new(&mut file).finish(&mut project_df)?;
+    }
 
-                println!("      -> Writing {} rows to '{}'", project_df.height(), output_path.display());
-                let mut file = std::fs::File::create(&output_path)?;
-                ParquetWriter::new(&mut file).finish(&mut project_df)?;
-            }
-
-            println!("\n✅ All project files saved successfully.");
-        }
+    println!("\n✅ All project files saved successfully.");
+}
     }
 
     println!("\n✅ CLI command finished successfully.");
