@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use polars::prelude::{ParquetWriter, SerWriter};
+use polars::prelude::{ParquetWriter, SerWriter, ChunkCompareEq};
 use std::path::PathBuf;
 
 // Bring our command modules into scope
@@ -169,7 +169,7 @@ async fn main() -> Result<()> {
             println!("   -> Found projects: {:?}", projects);
 
             for project_name in projects {
-                println!("      -> Filtering for project: '{}'", project_name);
+                println!("      -> Filtering for project: '{?}'", project_name);
                 let mut project_df = final_df.filter(&final_df.column("project_name")?.equal(project_name)?)?;
 
                 let file_name = format!(

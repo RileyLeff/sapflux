@@ -34,14 +34,15 @@ pub async fn apply_dst_correction_and_map_deployments(
         .clone()
         .group_by(["chunk_id"])
         .agg([col("timestamp_naive").min().alias("chunk_start_time")])
-        // FIX: The method is called `join_asof` in this version of Polars.
-        .join_asof(
+        .join(
             dst_rules.lazy(),
-            col("chunk_start_time"),
-            col("ts_local"),
-            AsofStrategy::Backward,
-            None,
-        )?
+            &[col("chunk_start_time")],
+            &[col("ts_local")],
+            JoinArgs::new(JoinType::AsOf(AsOfOptions {
+                strategy: AsofStrategy::Backward,
+                ..Default::default()
+            })),
+        )
         .with_column(
             when(col("transition_action").eq(lit("start")))
                 .then(lit("-04:00"))
@@ -81,7 +82,6 @@ pub async fn apply_dst_correction_and_map_deployments(
         .select(get_full_schema_columns())
         .sort(["timestamp_utc"], SortMultipleOptions::default());
         
-    // FIX: Use a standard join with JoinType::Anti for multiple columns
     let unmapped = utc_corrected_lf
         .join(
             final_lf.clone(),
@@ -103,7 +103,6 @@ pub async fn apply_dst_correction_and_map_deployments(
 async fn fetch_dst_rules(pool: &PgPool) -> Result<DataFrame> {
     let rules = sqlx::query_as!(DstTransition, "SELECT transition_action, ts_local FROM dst_transitions ORDER BY ts_local ASC").fetch_all(pool).await?;
     DataFrame::new(vec![
-        // FIX: Collect owned Strings, not references
         Series::new("transition_action".into(), rules.iter().map(|r| r.transition_action.clone()).collect::<Vec<_>>()).into(),
         Series::new("ts_local".into(), rules.iter().map(|r| r.ts_local).collect::<Vec<_>>()).into(),
     ]).map_err(PipelineError::from)
@@ -112,18 +111,23 @@ async fn fetch_dst_rules(pool: &PgPool) -> Result<DataFrame> {
 async fn fetch_deployments(pool: &PgPool) -> Result<DataFrame> {
     let deployments = sqlx::query_as!(DeploymentInfo, r#"SELECT d.datalogger_id, d.sdi_address, p.name as "project_name!", d.tree_id, s.sensor_id, d.start_time_utc, d.end_time_utc FROM deployments d JOIN projects p ON d.project_id = p.id JOIN sensors s ON d.sensor_id = s.id"#).fetch_all(pool).await?;
 
-    // FIX: The correct and idiomatic way to create DateTime Series from chrono::DateTime<Utc>
-    let start_times: Series = deployments
+    let start_times_ms: Vec<i64> = deployments
         .iter()
-        .map(|d| d.start_time_utc)
-        .collect::<Series>()
-        .with_name("start_time_utc".into());
+        .map(|d| d.start_time_utc.timestamp_millis())
+        .collect();
+    
+    // FIX: The TimeZone type expects a String, not a &str that needs conversion.
+    let start_times_series = Series::new("start_time_utc".into(), start_times_ms)
+        .cast(&DataType::Datetime(TimeUnit::Milliseconds, Some(TimeZone::UTC)))?;
 
-    let end_times: Series = deployments
+    let end_times_ms: Vec<Option<i64>> = deployments
         .iter()
-        .map(|d| d.end_time_utc)
-        .collect::<Series>()
-        .with_name("end_time_utc".into());
+        .map(|d| d.end_time_utc.map(|t| t.timestamp_millis()))
+        .collect();
+    
+    // FIX: The TimeZone type expects a String, not a &str that needs conversion.
+    let end_times_series = Series::new("end_time_utc".into(), end_times_ms)
+        .cast(&DataType::Datetime(TimeUnit::Milliseconds, Some(TimeZone::UTC)))?;
 
     DataFrame::new(vec![
         Series::new("datalogger_id".into(), deployments.iter().map(|d| d.datalogger_id).collect::<Vec<_>>()).into(),
@@ -131,7 +135,7 @@ async fn fetch_deployments(pool: &PgPool) -> Result<DataFrame> {
         Series::new("project_name".into(), deployments.iter().map(|d| d.project_name.clone()).collect::<Vec<_>>()).into(),
         Series::new("tree_id".into(), deployments.iter().map(|d| d.tree_id.clone()).collect::<Vec<_>>()).into(),
         Series::new("sensor_id".into(), deployments.iter().map(|d| d.sensor_id.clone()).collect::<Vec<_>>()).into(),
-        start_times.into(),
-        end_times.into(),
+        start_times_series.into(),
+        end_times_series.into(),
     ]).map_err(PipelineError::from)
 }
