@@ -1,1 +1,0 @@
-next steps are as follows: 1. dst fixer algorithm (very important) 2. match to deployments / attach metadata to rows. consider breaking out into project-specific tables for clarity. robust handling for values that don't match deployments. 
