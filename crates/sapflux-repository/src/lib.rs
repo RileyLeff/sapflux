@@ -1,5 +1,7 @@
 //! Database repository for caching parsed sap flux files in Postgres.
 
+pub mod metadata;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
