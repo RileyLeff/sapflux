@@ -946,3 +946,17 @@ Hosted on Render.io with:
 - Managed PostgreSQL with automatic backups
 - Clerk for authentication and user management
 - Persistent disk storage for reliability
+
+## Local Infrastructure
+
+A docker-compose stack is provided for local development. It includes a Postgres instance and a MinIO server that mimics the production object store.
+
+```
+just up         # start postgres + minio
+just seed-bucket
+just migrate-db
+```
+
+`seed-bucket` uses `uv` to run `scripts/create_bucket.py` (a small PEP 723 script) which creates the `sapflux-parsed` bucket against MinIO. Override the endpoint or credentials via `BUCKET_ENDPOINT`, `BUCKET_ACCESS_KEY`, and `BUCKET_SECRET_KEY`.
+
+The `sapflux-repository` crate exposes Postgres helpers and `cargo run -p sapflux-repository --bin migrate` applies the migrations through sqlx. The `sapflux-bucket` crate provides an S3-compatible client for both R2 and MinIO.
