@@ -1,0 +1,6 @@
+"TOA5","CR200Series_304","CR2xx","","v05","Sapflux2sensor.","63887","Status"
+"TIMESTAMP","RECORD","OSversion","OSDate","ProgName","ProgSig","CalOffset","PakBusAddress","RfInstalled","RfNetAddr","RfAddress","RfHopSeq","RfPwrMode","Rf_ForceOn","Rf_Protocol","RfSignalLevel","RfRxPakBusCnt","VarOutOfBounds","SkipScan","TrapCode","WatchDogCnt","ResetTables","BattVoltage"
+"TS","RN","","","","","","","","","","","","","","","","","","","","",""
+"","","","","","","","","","","","","","","","","","","","","","",""
+"2025-08-27 18:33:55",0,"v05","010306","Sapflux2sensor.",63887,2.75,304,46147,0,0,0,"RF1_Sec",0,2,0,0,0,0,0,0,0,13.25978
+"2025-08-27 18:37:44",0,"v05","010306","sapflux_2senso.",43664,2.625,304,46147,0,0,0,"RF1_Sec",0,2,0,0,0,0,0,0,0,13.1985

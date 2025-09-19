@@ -1,14 +1,14 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod errors;
+pub mod formats;
+pub mod model;
+mod registry;
+
+pub use errors::{ParserAttempt, ParserError};
+pub use model::{
+    ArchiveError, FileMetadata, LoggerData, ParsedFileData, Sdi12Address, SensorData,
+    ThermistorDepth, ThermistorPairData,
+};
+pub use registry::{SapflowParser, parse_sapflow_file, parse_with_parsers};
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+mod tests;
