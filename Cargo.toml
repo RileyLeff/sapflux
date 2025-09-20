@@ -1,8 +1,8 @@
 # ./crates/Cargo.toml
 
 [workspace]
-members = ["crates/sapflux-bucket",
-    "crates/sapflux-parser", "crates/sapflux-repository",
+members = ["crates/sapflux-api","crates/sapflux-bucket",
+    "crates/sapflux-parser", "crates/sapflux-processing", "crates/sapflux-repository",
 ]
 resolver = "2" 
 
