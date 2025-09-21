@@ -1,6 +1,14 @@
 # sapflux-parser
 
-Note this is the old implementation, please read the parsers.md file that describes the new and improved, more generic approach.
+## note from riley (important)
+
+Note from riley: This is the old implementation. Please make sure you've read all of the other notes and writeups to contextualize what improvements and changes are to be made in the new implementation of the parsers, namely:
+
+generic, flexible handling: how they connect to dataformats, pipelines and so on
+strictness: reject files that contain any invalid sdi-12 addresses, reject files that contain any non-sequential record numbers
+important point: the sap flow all data file doesn't log the logger id in each row the same way that the other parser does. you need to extract the logger id from the header. it should be something like "405" or "302", usually a 3 digit number. The logger id should be added as a column in the logger level data in the parsed data structure. We should reject a data file if we find n>1 unique logger ids in a id column.
+
+## old implementation
 
 `sapflux-parser` provides the ingestion layer for Campbell Scientific TOA5 logger exports used in the Gedan Lab sap flux pipeline. The crate detects the supported formats, validates their headers, converts `-99`/`NAN` placeholders into typed nulls, and produces a hierarchical structure of Polars `DataFrame`s that mirrors the logger → sensor → thermistor layout described in `convo.md`.
 

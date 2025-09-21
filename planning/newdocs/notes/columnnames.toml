@@ -103,3 +103,57 @@ internal_names = [
     "S{addr}_TsUsOut", # CR300 format (Outer)
     "S{addr}_TsUsInn", # CR300 format (Inner)
 ]
+
+# ===================================================================
+# Dictionary of Logger-Level Measurement and Metadata Names
+# ===================================================================
+# This file maps canonical column names for logger-level data to their
+# properties and the various raw column header formats found in
+# Campbell Scientific datalogger files.
+# ===================================================================
+
+[timestamp]
+name = "timestamp"
+unit = "datetime"
+description = "The timezone-naive timestamp recorded by the datalogger."
+internal_names = [
+    "TIMESTAMP",
+]
+
+[record]
+name = "record"
+unit = "integer"
+description = "A monotonically increasing integer record number from the datalogger, used for chronological sorting."
+internal_names = [
+    "RECORD",
+]
+
+[battery_voltage_v]
+name = "battery_voltage_v"
+unit = "Volts"
+description = "The minimum or sampled battery voltage of the datalogger during the measurement interval."
+internal_names = [
+    "BattV_Min",
+    "Batt_volt",
+    "BattV",
+]
+
+[panel_temperature_c]
+name = "panel_temperature_c"
+unit = "°C"
+description = "The temperature of the datalogger's wiring panel. This is an optional column, present in some file formats."
+internal_names = [
+    "PTemp_C",
+]
+
+[logger_id]
+name = "logger_id"
+unit = "string"
+description = "The unique identifier for the datalogger. This can be sourced from a per-row 'id' column or from the file header."
+internal_names = [
+    # This is the name of a per-row column that is sometimes present.
+    "id",
+    # This is not a column, but the source from the file header.
+    # e.g., "TOA5","CR300Series_420",... -> "CR300Series_420"
+    "FileMetadata.logger_name"
+]
