@@ -1,0 +1,1 @@
+A valid sdi-12 address is a single digit a-z, A-Z, or 0-9. You should enforce this in the type system. core::ascii::char likely has some useful types and methods you could use to build a struct or newtype wrapper with a nice fallible constructor.

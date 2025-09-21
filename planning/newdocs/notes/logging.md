@@ -1,0 +1,1 @@
+Logging Standard: A note specifying the logging standard. For example: "The application will use the tracing crate for logging. All logs will be structured (JSON format) to allow for easier machine parsing and analysis in production."
