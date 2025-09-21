@@ -46,4 +46,4 @@ The journey of data through the pipeline is a clear, sequential process:
 
 ### How to Learn More
 
-This document is a high-level overview. The other documents in the "planning" folder (e.g. see planning/writeups, planning/notes, and planning/reference_implementations in that order) contain more detailed information.
+This document is a high-level overview. The other documents in the "planning" folder (e.g. see planning/writeups, planning/notes, and planning/reference_implementations, and review_clarifications_and_updates in that order) contain more detailed information.

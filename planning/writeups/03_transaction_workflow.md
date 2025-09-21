@@ -61,7 +61,7 @@ A single API endpoint is the gateway for all changes. The logic behind this endp
 2.  **Validate All Operations**: The API performs a full validation of the entire manifest *before* committing any changes. Operations are validated in a dependency-aware order (e.g., sites before zones, adds before updates).
     *   For each `add`: Checks if a record with the given unique key(s) already exists. If so, the transaction is rejected. Checks that foreign key relationships (e.g., `site_code`) are valid.
     *   For each `update`: Uses the `selector` to find the target record. If exactly one record is not found, the transaction is rejected.
-    *   For each new `file`: Calculates its content hash, checks for duplicates in the `raw_files` table, and performs a test-parse in memory. If a file fails to parse and the transaction is in "strict" mode, the entire transaction is rejected.
+    *   For each new `file`: Calculates its content hash, checks for duplicates in the `raw_files` table, and performs a test-parse in memory. If a file fails to parse, we discard it, keeping only files that parse successfully. We should later report out to the end user about which files were rejected, of course.
 3.  **Determine Outcome**: If any validation step fails, the entire transaction is marked for `REJECTION`. Otherwise, it's marked for `ACCEPTANCE`.
 4.  **Record and Commit/Rollback**:
     *   A detailed **receipt** is generated based on the validation results.
