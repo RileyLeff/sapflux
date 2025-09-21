@@ -1,0 +1,105 @@
+# ===================================================================
+# Dictionary of Implexx Sap Flow Sensor Measurement Names
+# ===================================================================
+# This file maps canonical measurement names to their properties and
+# the various raw column header formats ("internal_names") found in
+# Campbell Scientific datalogger files.
+#
+# The placeholder `{addr}` represents the SDI-12 address of the sensor.
+# ===================================================================
+
+[alpha]
+name = "alpha"
+unit = "ratio"
+description = "The natural log of the ratio of temperatures (ΔT_initial / ΔT_final), used in heat ratio method calculations."
+internal_names = [
+    "AlphaOut{addr}", # CR200 format (Outer)
+    "AlphaIn{addr}",  # CR200 format (Inner)
+    "S{addr}_AlpOut", # CR300 format (Outer)
+    "S{addr}_AlpInn", # CR300 format (Inner)
+]
+
+[beta]
+name = "beta"
+unit = "ratio"
+description = "The natural log of the ratio of maximum temperatures (ΔT_max_downstream / ΔT_max_upstream), used in Tmax method calculations."
+internal_names = [
+    "BetaOut{addr}", # CR200 format (Outer)
+    "BetaIn{addr}",  # CR200 format (Inner)
+    "S{addr}_BetOut", # CR300 format (Outer)
+    "S{addr}_BetInn", # CR300 format (Inner)
+]
+
+[time_to_max_temp_downstream]
+name = "time_to_max_temp_downstream"
+unit = "seconds"
+description = "Time from the start of the heat pulse to the maximum temperature at the downstream thermistor."
+internal_names = [
+    "tMaxTout{addr}", # CR200 format (Outer)
+    "tMaxTin{addr}",  # CR200 format (Inner)
+    "S{addr}_tMxTout", # CR300 format (Outer)
+    "S{addr}_tMxTinn", # CR300 format (Inner)
+]
+
+[time_to_max_temp_upstream]
+name = "time_to_max_temp_upstream"
+unit = "seconds"
+description = "Time from the start of the heat pulse to the maximum temperature at the upstream thermistor."
+internal_names = [
+    "S{addr}_tMxTUsO", # CR300 format (Outer)
+    "S{addr}_tMxTUsI", # CR300 format (Inner)
+]
+
+[pre_pulse_temp_downstream]
+name = "pre_pulse_temp_downstream"
+unit = "°C"
+description = "Temperature at the downstream thermistor immediately before the heat pulse."
+internal_names = [
+    "S{addr}_TpDsOut", # CR300 format (Outer)
+    "S{addr}_TpDsInn", # CR300 format (Inner)
+]
+
+[max_temp_rise_downstream]
+name = "max_temp_rise_downstream"
+unit = "°C"
+description = "The maximum rise in temperature (ΔT_max) observed at the downstream thermistor."
+internal_names = [
+    "S{addr}_dTDsOut", # CR300 format (Outer)
+    "S{addr}_dTDsInn", # CR300 format (Inner)
+]
+
+[post_pulse_temp_downstream]
+name = "post_pulse_temp_downstream"
+unit = "°C"
+description = "Temperature at the downstream thermistor after the heat pulse measurement period has concluded."
+internal_names = [
+    "S{addr}_TsDsOut", # CR300 format (Outer)
+    "S{addr}_TsDsInn", # CR300 format (Inner)
+]
+
+[pre_pulse_temp_upstream]
+name = "pre_pulse_temp_upstream"
+unit = "°C"
+description = "Temperature at the upstream thermistor immediately before the heat pulse."
+internal_names = [
+    "S{addr}_TpUsOut", # CR300 format (Outer)
+    "S{addr}_TpUsInn", # CR300 format (Inner)
+]
+
+[max_temp_rise_upstream]
+name = "max_temp_rise_upstream"
+unit = "°C"
+description = "The maximum rise in temperature (ΔT_max) observed at the upstream thermistor."
+internal_names = [
+    "S{addr}_dTUsOut", # CR300 format (Outer)
+    "S{addr}_dTUsInn", # CR300 format (Inner)
+]
+
+[post_pulse_temp_upstream]
+name = "post_pulse_temp_upstream"
+unit = "°C"
+description = "Temperature at the upstream thermistor after the heat pulse measurement period has concluded."
+internal_names = [
+    "S{addr}_TsUsOut", # CR300 format (Outer)
+    "S{addr}_TsUsInn", # CR300 format (Inner)
+]

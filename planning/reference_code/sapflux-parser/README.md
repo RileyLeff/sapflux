@@ -1,5 +1,7 @@
 # sapflux-parser
 
+Note this is the old implementation, please read the parsers.md file that describes the new and improved, more generic approach.
+
 `sapflux-parser` provides the ingestion layer for Campbell Scientific TOA5 logger exports used in the Gedan Lab sap flux pipeline. The crate detects the supported formats, validates their headers, converts `-99`/`NAN` placeholders into typed nulls, and produces a hierarchical structure of Polars `DataFrame`s that mirrors the logger → sensor → thermistor layout described in `convo.md`.
 
 ## Supported Formats
