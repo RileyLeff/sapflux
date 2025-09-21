@@ -1,3 +1,0 @@
-# Sapflux Config
-
-We might need some concept of a per-run config. This should be pretty minimal, because most features of the run should be described by the state of the database. Not married to this idea, just keeping it around in case something comes up that's worth keeping in a config. I just want to ensure that runs are reproducible. If we have something that we want to put in per-run config, we should stop and ask ourselves if we really are missing a relationship in our database.
