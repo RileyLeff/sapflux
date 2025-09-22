@@ -9,6 +9,8 @@ pub mod metadata_enricher;
 #[cfg(feature = "runtime")]
 pub mod object_gc;
 pub mod object_store;
+#[cfg(feature = "runtime")]
+pub mod outputs;
 pub mod parameter_resolver;
 pub mod parsers;
 pub mod pipelines;

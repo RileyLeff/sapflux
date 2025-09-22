@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 #[cfg(feature = "runtime")]
 use std::time::Duration;
@@ -98,18 +99,37 @@ impl ObjectStore {
         format!("raw-files/{hash}")
     }
 
+    /// Key used for storing output parquet files.
+    pub fn output_parquet_key(output_id: &Uuid) -> String {
+        format!("outputs/{output_id}.parquet")
+    }
+
+    /// Key used for storing reproducibility cartridges.
+    pub fn cartridge_key(output_id: &Uuid) -> String {
+        format!("repro-cartridges/{output_id}.zip")
+    }
+
     #[cfg(feature = "runtime")]
     pub async fn put_raw_file(&self, key: &str, contents: &[u8]) -> Result<()> {
+        self.put_object(key, contents).await
+    }
+
+    #[cfg(not(feature = "runtime"))]
+    pub async fn put_raw_file(&self, _key: &str, _contents: &[u8]) -> Result<()> {
+        Ok(())
+    }
+
+    #[cfg(feature = "runtime")]
+    pub async fn put_object(&self, key: &str, contents: &[u8]) -> Result<()> {
         match self {
             ObjectStore::Noop => Ok(()),
             ObjectStore::LocalDir(store) => store.put(key, contents).await,
-            #[cfg(feature = "runtime")]
             ObjectStore::S3(store) => store.put(key, contents).await,
         }
     }
 
     #[cfg(not(feature = "runtime"))]
-    pub async fn put_raw_file(&self, _key: &str, _contents: &[u8]) -> Result<()> {
+    pub async fn put_object(&self, _key: &str, _contents: &[u8]) -> Result<()> {
         Ok(())
     }
 

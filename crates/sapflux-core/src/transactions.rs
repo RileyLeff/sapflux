@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::db::DbPool;
 use crate::ingestion::{self, FileInput, FileReport, FileStatus, IngestionBatch};
 use crate::object_store::ObjectStore;
+use crate::outputs::publish_output;
 use crate::pipelines::{all_pipelines, ExecutionContext};
 use polars::prelude::{ChunkAgg, DataFrame};
 
@@ -55,6 +56,8 @@ pub struct TransactionReceipt {
     pub files: Vec<FileReport>,
     pub ingestion_summary: IngestionSummary,
     pub pipeline: PipelineSummary,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifacts: Option<PipelineArtifacts>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,6 +111,13 @@ pub struct TimeframeUtc {
     pub end: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PipelineArtifacts {
+    pub output_id: Uuid,
+    pub parquet_key: String,
+    pub cartridge_key: String,
+}
+
 const TRANSACTION_LOCK_KEY: i64 = 0x5350464C5558; // "SPFLUX"
 
 pub async fn execute_transaction(
@@ -154,6 +164,7 @@ async fn execute_transaction_locked(
         .await?;
         Some(id)
     };
+    let mut artifacts: Option<PipelineArtifacts> = None;
 
     let existing_hashes = load_existing_hashes(pool).await?;
 
@@ -186,48 +197,53 @@ async fn execute_transaction_locked(
             .count(),
     };
 
-    let mut pipeline_summary = if ingestion_batch.parsed.is_empty() {
-        PipelineSummary {
-            pipeline: None,
-            status: PipelineStatus::Skipped,
-            row_count: None,
-            error: None,
-            quality_summary: None,
-            provenance_summary: None,
-            record_summary: None,
+    let mut pipeline_run = if ingestion_batch.parsed.is_empty() {
+        PipelineRun {
+            summary: PipelineSummary {
+                pipeline: None,
+                status: PipelineStatus::Skipped,
+                row_count: None,
+                error: None,
+                quality_summary: None,
+                provenance_summary: None,
+                record_summary: None,
+            },
+            dataframe: None,
         }
     } else {
         match ExecutionContext::load_from_db(pool).await {
             Ok(context) => run_pipeline(&context, &ingestion_batch),
-            Err(err) => PipelineSummary {
-                pipeline: None,
-                status: PipelineStatus::Failed,
-                row_count: None,
-                error: Some(err.to_string()),
-                quality_summary: None,
-                provenance_summary: None,
-                record_summary: None,
+            Err(err) => PipelineRun {
+                summary: PipelineSummary {
+                    pipeline: None,
+                    status: PipelineStatus::Failed,
+                    row_count: None,
+                    error: Some(err.to_string()),
+                    quality_summary: None,
+                    provenance_summary: None,
+                    record_summary: None,
+                },
+                dataframe: None,
             },
         }
     };
 
     if !dry_run {
         if let Some(id) = transaction_id {
-            if pipeline_summary.status != PipelineStatus::Failed {
+            if pipeline_run.summary.status != PipelineStatus::Failed {
                 if let Err(err) = upload_new_raw_files(object_store, &files, &ingestion_batch).await
                 {
-                    pipeline_summary = PipelineSummary {
-                        status: PipelineStatus::Failed,
-                        error: Some(format!("object store upload failed: {err}")),
-                        ..pipeline_summary.clone()
-                    };
+                    pipeline_run.summary.status = PipelineStatus::Failed;
+                    pipeline_run.summary.error = Some(format!("object store upload failed: {err}"));
+                    pipeline_run.dataframe = None;
 
                     let receipt = TransactionReceipt {
                         transaction_id: Some(id),
                         dry_run,
                         files: ingestion_batch.reports.clone(),
                         ingestion_summary: ingestion_summary.clone(),
-                        pipeline: pipeline_summary.clone(),
+                        pipeline: pipeline_run.summary.clone(),
+                        artifacts: None,
                     };
 
                     sqlx::query(
@@ -245,9 +261,65 @@ async fn execute_transaction_locked(
 
                     return Err(err.context("object store upload failed"));
                 }
+
+                if pipeline_run.summary.status == PipelineStatus::Success {
+                    if let (Some(code), Some(df)) = (
+                        pipeline_run.summary.pipeline.clone(),
+                        pipeline_run.dataframe.take(),
+                    ) {
+                        match publish_output(
+                            pool,
+                            object_store,
+                            &code,
+                            &df,
+                            id,
+                            &pipeline_run.summary,
+                            &ingestion_summary,
+                        )
+                        .await
+                        {
+                            Ok(outputs) => {
+                                artifacts = Some(PipelineArtifacts {
+                                    output_id: outputs.output_id,
+                                    parquet_key: outputs.parquet_key,
+                                    cartridge_key: outputs.cartridge_key,
+                                });
+                            }
+                            Err(err) => {
+                                pipeline_run.summary.status = PipelineStatus::Failed;
+                                pipeline_run.summary.error =
+                                    Some(format!("output publish failed: {err}"));
+
+                                let receipt = TransactionReceipt {
+                                    transaction_id: Some(id),
+                                    dry_run,
+                                    files: ingestion_batch.reports.clone(),
+                                    ingestion_summary: ingestion_summary.clone(),
+                                    pipeline: pipeline_run.summary.clone(),
+                                    artifacts: None,
+                                };
+
+                                sqlx::query(
+                                    r#"
+                                        UPDATE transactions
+                                    SET outcome = 'REJECTED',
+                                        receipt = $1
+                                    WHERE transaction_id = $2
+                                "#,
+                                )
+                                .bind(serde_json::to_value(&receipt)?)
+                                .bind(id)
+                                .execute(pool)
+                                .await?;
+
+                                return Err(err.context("output publish failed"));
+                            }
+                        }
+                    }
+                }
             }
 
-            let outcome = match pipeline_summary.status {
+            let outcome = match pipeline_run.summary.status {
                 PipelineStatus::Failed => "REJECTED",
                 _ => "ACCEPTED",
             };
@@ -261,7 +333,8 @@ async fn execute_transaction_locked(
                 dry_run,
                 files: ingestion_batch.reports.clone(),
                 ingestion_summary: ingestion_summary.clone(),
-                pipeline: pipeline_summary.clone(),
+                pipeline: pipeline_run.summary.clone(),
+                artifacts: artifacts.clone(),
             };
 
             sqlx::query(
@@ -287,7 +360,8 @@ async fn execute_transaction_locked(
         dry_run,
         files: ingestion_batch.reports,
         ingestion_summary,
-        pipeline: pipeline_summary,
+        pipeline: pipeline_run.summary,
+        artifacts,
     })
 }
 
@@ -329,16 +403,24 @@ async fn persist_ingestion(
     Ok(())
 }
 
-fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineSummary {
+struct PipelineRun {
+    summary: PipelineSummary,
+    dataframe: Option<DataFrame>,
+}
+
+fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineRun {
     if batch.parsed.is_empty() {
-        return PipelineSummary {
-            pipeline: None,
-            status: PipelineStatus::Skipped,
-            row_count: None,
-            error: None,
-            quality_summary: None,
-            provenance_summary: None,
-            record_summary: None,
+        return PipelineRun {
+            summary: PipelineSummary {
+                pipeline: None,
+                status: PipelineStatus::Skipped,
+                row_count: None,
+                error: None,
+                quality_summary: None,
+                provenance_summary: None,
+                record_summary: None,
+            },
+            dataframe: None,
         };
     }
 
@@ -351,34 +433,43 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
 
     if let Some(pipeline) = pipeline {
         match pipeline.run_batch(context, &parsed_refs) {
-            Ok(df) => PipelineSummary {
-                pipeline: Some(pipeline.code_identifier().to_string()),
-                status: PipelineStatus::Success,
-                row_count: Some(df.height()),
-                error: None,
-                quality_summary: compute_quality_summary(&df),
-                provenance_summary: compute_provenance_summary(&df),
-                record_summary: compute_record_summary(&df),
+            Ok(df) => PipelineRun {
+                summary: PipelineSummary {
+                    pipeline: Some(pipeline.code_identifier().to_string()),
+                    status: PipelineStatus::Success,
+                    row_count: Some(df.height()),
+                    error: None,
+                    quality_summary: compute_quality_summary(&df),
+                    provenance_summary: compute_provenance_summary(&df),
+                    record_summary: compute_record_summary(&df),
+                },
+                dataframe: Some(df),
             },
-            Err(err) => PipelineSummary {
-                pipeline: Some(pipeline.code_identifier().to_string()),
-                status: PipelineStatus::Failed,
+            Err(err) => PipelineRun {
+                summary: PipelineSummary {
+                    pipeline: Some(pipeline.code_identifier().to_string()),
+                    status: PipelineStatus::Failed,
+                    row_count: None,
+                    error: Some(err.to_string()),
+                    quality_summary: None,
+                    provenance_summary: None,
+                    record_summary: None,
+                },
+                dataframe: None,
+            },
+        }
+    } else {
+        PipelineRun {
+            summary: PipelineSummary {
+                pipeline: None,
+                status: PipelineStatus::Skipped,
                 row_count: None,
-                error: Some(err.to_string()),
+                error: Some("no pipeline registered for data format".into()),
                 quality_summary: None,
                 provenance_summary: None,
                 record_summary: None,
             },
-        }
-    } else {
-        PipelineSummary {
-            pipeline: None,
-            status: PipelineStatus::Skipped,
-            row_count: None,
-            error: Some("no pipeline registered for data format".into()),
-            quality_summary: None,
-            provenance_summary: None,
-            record_summary: None,
+            dataframe: None,
         }
     }
 }

@@ -210,6 +210,7 @@ fn execute_transaction_roundtrip() -> Result<()> {
             receipt_quality.good_rows + receipt_quality.suspect_rows,
             receipt_quality.total_rows
         );
+        assert!(receipt.artifacts.is_none());
         let receipt_record = receipt
             .pipeline
             .record_summary
@@ -258,6 +259,16 @@ fn execute_transaction_roundtrip() -> Result<()> {
             committed_quality.good_rows + committed_quality.suspect_rows,
             committed_quality.total_rows
         );
+        let committed_artifacts = committed
+            .artifacts
+            .as_ref()
+            .expect("artifacts present for committed pipeline");
+        assert!(committed_artifacts.parquet_key.starts_with("outputs/"));
+        assert!(committed_artifacts.parquet_key.ends_with(".parquet"));
+        assert!(committed_artifacts
+            .cartridge_key
+            .starts_with("repro-cartridges/"));
+        assert!(committed_artifacts.cartridge_key.ends_with(".zip"));
         let committed_record = committed
             .pipeline
             .record_summary

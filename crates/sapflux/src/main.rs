@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -8,20 +8,22 @@ use axum::{
 };
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
+use chrono::{Duration as ChronoDuration, Utc};
 use clap::{Parser, Subcommand};
 use sapflux_core::{
     db,
     object_store::ObjectStore,
-    seed,
+    outputs, seed,
     transactions::{
         execute_transaction, PipelineStatus, TransactionFile, TransactionReceipt,
         TransactionRequest as CoreTransactionRequest,
     },
 };
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Sapflux CLI / API runner", long_about = None)]
@@ -85,6 +87,7 @@ async fn run_server(args: ServeArgs) -> Result<()> {
         .route("/admin/migrate", post(run_migrations))
         .route("/admin/seed", post(run_seed))
         .route("/transactions", post(handle_transaction))
+        .route("/outputs/:id/download", get(download_output))
         .with_state(state);
 
     let addr = args.addr;
@@ -151,6 +154,18 @@ struct TransactionResponse {
     pub receipt: TransactionReceipt,
 }
 
+#[derive(Debug, Deserialize)]
+struct OutputDownloadQuery {
+    #[serde(default)]
+    include_cartridge: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct OutputDownloadResponse {
+    url: String,
+    expires_at: String,
+}
+
 async fn handle_transaction(
     State(state): State<AppState>,
     Json(req): Json<TransactionRequest>,
@@ -201,4 +216,43 @@ async fn handle_transaction(
         )
             .into_response(),
     }
+}
+
+async fn download_output(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Query(query): Query<OutputDownloadQuery>,
+) -> Result<Json<OutputDownloadResponse>, (StatusCode, &'static str)> {
+    let Some(paths) = outputs::fetch_output_paths(&state.pool, id)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "failed to load output"))?
+    else {
+        return Err((StatusCode::NOT_FOUND, "output not found"));
+    };
+
+    let key = if query.include_cartridge {
+        paths.cartridge_path
+    } else {
+        paths.object_store_path
+    };
+
+    let expiry = Duration::from_secs(900);
+    let url = state
+        .object_store
+        .presign_get(&key, expiry)
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to presign output",
+            )
+        })?;
+
+    let Some(url) = url else {
+        return Err((StatusCode::NOT_FOUND, "output not available"));
+    };
+
+    let expires_at = (Utc::now() + ChronoDuration::from_std(expiry).unwrap()).to_rfc3339();
+
+    Ok(Json(OutputDownloadResponse { url, expires_at }))
 }

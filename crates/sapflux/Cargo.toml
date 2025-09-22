@@ -18,6 +18,8 @@ dotenvy = { workspace = true }
 axum = { workspace = true, features = ["macros"] }
 serde = { workspace = true, features = ["derive"] }
 base64 = "0.22.1"
+chrono = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 chrono = { workspace = true }
