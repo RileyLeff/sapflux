@@ -46,11 +46,7 @@ fn calculator_populates_columns() {
     let vh_tmax = df.column("vh_tmax_cm_hr").unwrap().f64().unwrap();
     assert!((vh_tmax.get(1).unwrap() - expected_vh_tmax(90.0)).abs() < 1e-9);
 
-    let method = df
-        .column("calculation_method_used")
-        .unwrap()
-        .str()
-        .unwrap();
+    let method = df.column("calculation_method_used").unwrap().str().unwrap();
     assert_eq!(method.get(0), Some("HRM"));
     assert_eq!(method.get(1), Some("Tmax"));
 

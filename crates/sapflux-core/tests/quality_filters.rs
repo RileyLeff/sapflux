@@ -90,24 +90,32 @@ fn quality_filters_flag_expected_rules() -> PolarsResult<()> {
         )
         .into(),
         Series::new("quality_gap_years".into(), vec![0.01f64; timestamps.len()]).into(),
-        Series::new("quality_max_flux_cm_hr".into(), vec![20.0f64; timestamps.len()]).into(),
-        Series::new("quality_min_flux_cm_hr".into(), vec![-10.0f64; timestamps.len()]).into(),
+        Series::new(
+            "quality_max_flux_cm_hr".into(),
+            vec![20.0f64; timestamps.len()],
+        )
+        .into(),
+        Series::new(
+            "quality_min_flux_cm_hr".into(),
+            vec![-10.0f64; timestamps.len()],
+        )
+        .into(),
         Series::new(
             "sap_flux_density_j_dma_cm_hr".into(),
             vec![5.0, 5.0, 5.0, 5.0, 5.0, 30.0, -20.0],
         )
         .into(),
-        Series::new("record".into(), (1..=timestamps.len() as i64).collect::<Vec<_>>()).into(),
+        Series::new(
+            "record".into(),
+            (1..=timestamps.len() as i64).collect::<Vec<_>>(),
+        )
+        .into(),
         Series::new("logger_id".into(), vec!["logger"; timestamps.len()]).into(),
     ])?;
 
     let result = apply_quality_filters(&df, now).unwrap();
     let quality = result.column("quality").unwrap().str().unwrap();
-    let explanation = result
-        .column("quality_explanation")
-        .unwrap()
-        .str()
-        .unwrap();
+    let explanation = result.column("quality_explanation").unwrap().str().unwrap();
 
     assert!(quality.get(0).is_none());
     assert_eq!(quality.get(1), Some("SUSPECT"));
@@ -149,10 +157,9 @@ fn record_gap_respects_record_sorting() -> PolarsResult<()> {
         (base + Duration::minutes(1)).timestamp_micros(), // record 10 - near baseline
     ];
 
-    let ts_series = Series::new("timestamp_utc".into(), timestamps.clone()).cast(&DataType::Datetime(
-        TimeUnit::Microseconds,
-        Some(polars::prelude::TimeZone::UTC),
-    ))?;
+    let ts_series = Series::new("timestamp_utc".into(), timestamps.clone()).cast(
+        &DataType::Datetime(TimeUnit::Microseconds, Some(polars::prelude::TimeZone::UTC)),
+    )?;
 
     let df = DataFrame::new(vec![
         ts_series.into(),
@@ -184,10 +191,22 @@ fn record_gap_respects_record_sorting() -> PolarsResult<()> {
             vec![0.0f64; records.len()],
         )
         .into(),
-        Series::new("quality_future_lead_minutes".into(), vec![0.0f64; records.len()]).into(),
+        Series::new(
+            "quality_future_lead_minutes".into(),
+            vec![0.0f64; records.len()],
+        )
+        .into(),
         Series::new("quality_gap_years".into(), vec![0.1f64; records.len()]).into(),
-        Series::new("quality_max_flux_cm_hr".into(), vec![100.0f64; records.len()]).into(),
-        Series::new("quality_min_flux_cm_hr".into(), vec![-100.0f64; records.len()]).into(),
+        Series::new(
+            "quality_max_flux_cm_hr".into(),
+            vec![100.0f64; records.len()],
+        )
+        .into(),
+        Series::new(
+            "quality_min_flux_cm_hr".into(),
+            vec![-100.0f64; records.len()],
+        )
+        .into(),
         Series::new(
             "sap_flux_density_j_dma_cm_hr".into(),
             vec![0.0f64; records.len()],

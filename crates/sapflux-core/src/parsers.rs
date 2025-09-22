@@ -3,7 +3,9 @@ use std::any::Any;
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use sapflux_parser::{
-    formats::{Cr300TableParser as ExternalCr300TableParser, SapFlowAllParser as ExternalSapFlowAllParser},
+    formats::{
+        Cr300TableParser as ExternalCr300TableParser, SapFlowAllParser as ExternalSapFlowAllParser,
+    },
     ParsedFileData as ExternalParsedFileData,
 };
 

@@ -10,18 +10,10 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
     let len = df.height();
 
     let timestamp = df.column("timestamp_utc")?.datetime()?;
-    let start_ts = df
-        .column("deployment_start_timestamp_utc")?
-        .datetime()?;
-    let end_ts = df
-        .column("deployment_end_timestamp_utc")?
-        .datetime()?;
-    let start_grace = df
-        .column("quality_deployment_start_grace_minutes")?
-        .f64()?;
-    let end_grace = df
-        .column("quality_deployment_end_grace_minutes")?
-        .f64()?;
+    let start_ts = df.column("deployment_start_timestamp_utc")?.datetime()?;
+    let end_ts = df.column("deployment_end_timestamp_utc")?.datetime()?;
+    let start_grace = df.column("quality_deployment_start_grace_minutes")?.f64()?;
+    let end_grace = df.column("quality_deployment_end_grace_minutes")?.f64()?;
     let future_lead = df.column("quality_future_lead_minutes")?.f64()?;
     let gap_years = df.column("quality_gap_years")?.f64()?;
     let flux_max = df.column("quality_max_flux_cm_hr")?.f64()?;

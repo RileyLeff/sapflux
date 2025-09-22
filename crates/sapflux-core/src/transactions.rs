@@ -429,7 +429,9 @@ fn compute_provenance_summary(df: &DataFrame) -> Option<ProvenanceSummary> {
         overrides.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         let (source, count) = overrides[0].clone();
         entries.push(ParameterProvenanceEntry {
-            parameter: column_name.trim_start_matches("parameter_source_").to_string(),
+            parameter: column_name
+                .trim_start_matches("parameter_source_")
+                .to_string(),
             source,
             count,
         });
@@ -439,7 +441,11 @@ fn compute_provenance_summary(df: &DataFrame) -> Option<ProvenanceSummary> {
         return None;
     }
 
-    entries.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.parameter.cmp(&b.parameter)));
+    entries.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then_with(|| a.parameter.cmp(&b.parameter))
+    });
     entries.truncate(3);
 
     Some(ProvenanceSummary {
@@ -519,7 +525,10 @@ mod tests {
 
         let summary = compute_provenance_summary(&df).expect("provenance summary");
         assert_eq!(summary.top_overrides.len(), 2);
-        assert_eq!(summary.top_overrides[0].parameter, "parameter_heat_pulse_duration_s");
+        assert_eq!(
+            summary.top_overrides[0].parameter,
+            "parameter_heat_pulse_duration_s"
+        );
         assert_eq!(summary.top_overrides[0].source, "stem_override");
         assert_eq!(summary.top_overrides[0].count, 2);
         assert!(summary

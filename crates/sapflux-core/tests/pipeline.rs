@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chrono::{NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
-use std::collections::{HashMap, HashSet};
 use sapflux_core::{
     flatten::flatten_parsed_files,
     metadata_enricher::DeploymentRow,
@@ -9,6 +8,7 @@ use sapflux_core::{
     timestamp_fixer::{DeploymentMetadata, SiteMetadata},
 };
 use sapflux_parser::parse_sapflow_file;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 fn fixture(name: &str) -> String {
@@ -44,10 +44,7 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
         end_timestamp_local: None,
     }];
 
-    let timestamp_sites = vec![SiteMetadata {
-        site_id,
-        timezone,
-    }];
+    let timestamp_sites = vec![SiteMetadata { site_id, timezone }];
 
     let sdi_series = flattened.column("sdi12_address")?.str()?;
     let mut unique_addresses = sdi_series
@@ -158,19 +155,10 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     let mut duplicate_counts: HashMap<(String, i64, String, String), usize> = HashMap::new();
     for idx in 0..output.height() {
         let key = (
-            loggers
-                .get(idx)
-                .expect("logger_id")
-                .to_string(),
+            loggers.get(idx).expect("logger_id").to_string(),
             records.get(idx).expect("record"),
-            depths
-                .get(idx)
-                .expect("thermistor_depth")
-                .to_string(),
-            addresses
-                .get(idx)
-                .expect("sdi12_address")
-                .to_string(),
+            depths.get(idx).expect("thermistor_depth").to_string(),
+            addresses.get(idx).expect("sdi12_address").to_string(),
         );
         *duplicate_counts.entry(key).or_default() += 1;
     }
