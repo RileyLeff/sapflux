@@ -1,0 +1,1 @@
+So I ran the smoke test and got an error with the minio images. I removed the very specific version tags from them and they seem to work now. We got a rust versioning error on the smoke test after the minio error was fixed.
