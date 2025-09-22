@@ -129,7 +129,8 @@ CREATE TABLE IF NOT EXISTS data_formats (
     data_format_id      UUID PRIMARY KEY,
     code_identifier     TEXT UNIQUE NOT NULL, -- e.g., "sapflow_toa5_hierarchical_v1"
     schema_definition   JSONB
-);```
+);
+```
 
 #### 3.4. Parsers
 
@@ -143,7 +144,8 @@ CREATE TABLE IF NOT EXISTS parsers (
     version             TEXT NOT NULL,
     output_data_format_id UUID NOT NULL REFERENCES data_formats(data_format_id),
     include_in_pipeline BOOLEAN NOT NULL DEFAULT TRUE
-);```
+);
+```
 
 #### 3.5. Processing Pipelines
 
@@ -302,7 +304,8 @@ CREATE TABLE IF NOT EXISTS stems (
     code      TEXT NOT NULL,
     dbh_cm    NUMERIC,
     CONSTRAINT uq_stem_plant_code UNIQUE (plant_id, code)
-);```
+);
+```
 
 #### 3.11. Dataloggers and Sensors
 
@@ -470,3 +473,5 @@ CREATE TABLE IF NOT EXISTS parameter_overrides (
 ### Object Storage Lifecycle
 
 Uploads to Cloudflare R2 are performed idempotently before the database transaction commits. Because the blob store is not part of the database transaction, a failure during commit can leave orphaned objects. These are harmless—future uploads deduplicate by hash—and a periodic garbage-collection job enumerates bucket keys and deletes any object whose hash/path is not referenced by the database.
+
+The same pattern applies to derived artifacts (`outputs/{id}.parquet` and `repro-cartridges/{id}.zip`): write the object first, then persist the database row. If the row insert fails, the orphaned object is cleaned up by the same GC routine.

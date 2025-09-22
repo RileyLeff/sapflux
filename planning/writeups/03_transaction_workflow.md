@@ -59,18 +59,20 @@ A single API endpoint is the gateway for all changes. The logic behind this endp
 #### API Processing (Atomic)
 
 1.  **Acquire the Queue Lock**: The orchestrator guarantees serialized execution by taking an advisory lock before any work begins.
-2.  **Preflight Validation (Read-Only)**: The manifest is parsed and validated in dependency order without opening a database transaction.
+2.  **Register the Attempt**: A fresh `transaction_id` is generated and a row is inserted into `transactions` with `outcome = 'PENDING'` and a stub receipt (e.g., manifest digest). This happens outside of any explicit DB transaction so the ID is immediately usable as a foreign key.
+3.  **Preflight Validation (Read-Only)**: The manifest is parsed and validated in dependency order without opening a database transaction.
     *   For each `add`/`update`: The system checks selectors, uniqueness, foreign keys, and overlap constraints. Failures short-circuit with an immediate `REJECTED` outcome and no database mutations.
     *   For each new `file`: The engine computes its `blake3` hash, checks for duplicates, and executes every active parser in memory. Parser failures are recorded per attempt. A file that never parses is marked for rejection but does not invalidate the manifest if metadata remains valid.
-3.  **Mutating Phase**: If preflight succeeds, the engine opens a database transaction.
+4.  **Mutating Phase**: If preflight succeeds, the engine opens a database transaction.
     *   All metadata inserts/updates execute first.
     *   For each successfully parsed file, the engine first ensures the object `raw-files/{blake3}` exists in R2 (uploads opportunistically in an idempotent fashion), then records the `raw_files` row referencing that hash. Object storage is not transactional with Postgres; if the DB transaction later rolls back the object remains as an orphan, and is reclaimed by a periodic garbage-collection task that deletes unreferenced hashes.
     *   Files that failed parsing are omitted entirely.
-4.  **Finalize Outcome**:
-    *   On success, the database transaction commits and a `transactions` row is inserted in autocommit mode with `outcome = ACCEPTED` and the final receipt payload.
-    *   If any mutation fails, the database transaction rolls back; a `transactions` row is still written in autocommit mode with `outcome = REJECTED` and the failure details. Any previously uploaded objects are harmlessly orphaned until the next GC run.
-    *   Dry runs do not perform any mutations or inserts. They return a receipt and durably log the attempt via application logs only.
-5.  **Return Receipt**: The detailed JSON receipt is returned to the client. It includes a `summary.status` of either `COMPLETE` or `PARTIAL_SUCCESS` and lists any rejected files.
+    *   After metadata succeeds, the orchestrator invokes the active processing pipeline with the entire batch of successfully parsed files so batch-aware steps (like timestamp fixing and deduplication across overlapping downloads) operate correctly.
+5.  **Finalize Outcome**:
+    *   On success, the database transaction commits and the initial `transactions` row is updated in autocommit mode with `outcome = ACCEPTED` plus the final receipt payload.
+    *   If any mutation fails, the database transaction rolls back; the existing `transactions` row is updated to `outcome = REJECTED` with failure details. Any previously uploaded objects are harmlessly orphaned until the next GC run.
+    *   Dry runs skip creating the `transactions` row entirely and simply return a receipt while writing a structured application log entry.
+6.  **Return Receipt**: The detailed JSON receipt is returned to the client. It includes a `summary.status` of either `COMPLETE` or `PARTIAL_SUCCESS` and lists any rejected files.
 
 ---
 

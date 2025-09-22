@@ -31,6 +31,8 @@ Parsers are the compiled-in Rust components responsible for understanding the st
 
 It is critical to understand that the relationship between a parser and the data format it produces is fixed in the code. For example, the SapFlowAllParserV1 will always produce a sapflow_toa5_hierarchical_v1 data format. The output_data_format_id field in the parsers database table is a declaration of this hard-coded fact, not a configuration. It serves as a manifest that informs the rest of the pipeline what to expect from a given parser, enabling the system to correctly select the appropriate downstream ProcessingPipeline.
 
+> **Implementation note:** The reference parser included in `planning/reference_implementations` validates header rows using fixed column order/labels purely for fixture testing. Production parsers should rely on pattern-based matching (e.g., regex prefixes, suffixes, SDI-12 templates) so program variants or reordered columns are still accepted as long as they emit the canonical schema.
+
 #### The `SapflowParser` Trait
 
 To enable the system to work with different parsers generically, all parser structs must implement the `SapflowParser` trait. This trait defines the "contract" for a parser.
@@ -50,6 +52,8 @@ pub trait SapflowParser: Send + Sync {
     /// On failure, returns a `ParserError`.
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>, ParserError>;
 }
+
+> **Note:** The reference implementation included in `planning/reference_implementations/sapflux-parser` uses a `name()` method instead of `code_identifier()`, but the semantics are the same—each parser exposes a stable, hard-coded string that matches the database record.
 ```
 
 The application's ingest engine uses the `parsers` table in the database as a dynamic "control panel" to determine which compiled-in parsers are active for any given run.

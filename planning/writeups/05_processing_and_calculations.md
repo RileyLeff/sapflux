@@ -37,11 +37,12 @@ use crate::execution_context::ExecutionContext;
 pub trait ProcessingPipeline: Send + Sync {
     fn code_identifier(&self) -> &'static str;
 
-    /// The run method now takes the execution context, giving it database access.
-    fn run(
+    /// Runs the pipeline for the entire batch of successfully parsed files
+    /// belonging to a single transaction.
+    fn run_batch(
         &self,
         context: &ExecutionContext,
-        parsed_data: &dyn ParsedData,
+        parsed_batch: &[&dyn ParsedData],
     ) -> Result<DataFrame, ProcessingError>;
 }
 ```
@@ -57,18 +58,29 @@ The main application engine contains an "orchestrator" function that manages the
 The default processing pipeline for the `sapflow_toa5_hierarchical_v1` data format is named `standard_v1_dst_fix`. Its `run` method orchestrates a sequence of calls to its internal, reusable components.
 
 **Conceptual Pipeline Implementation (`standard_v1_dst_fix.rs`)**```rust
-fn run(&self, context: &ExecutionContext, parsed_data: &dyn ParsedData) -> Result<DataFrame, ProcessingError> {
-    // Cast the generic ParsedData object to the concrete type this pipeline works with.
-    let data: &ParsedFileData = parsed_data.as_any().downcast_ref::<ParsedFileData>()
-        .ok_or_else(|| ProcessingError::IncorrectDataFormat)?;
+fn run_batch(
+    &self,
+    context: &ExecutionContext,
+    parsed_batch: &[&dyn ParsedData],
+) -> Result<DataFrame, ProcessingError> {
+    // Cast each ParsedData object to the concrete type this pipeline expects.
+    let parsed_files: Vec<&ParsedFileData> = parsed_batch
+        .iter()
+        .map(|parsed| {
+            parsed
+                .as_any()
+                .downcast_ref::<ParsedFileData>()
+                .ok_or_else(|| ProcessingError::IncorrectDataFormat)
+        })
+        .collect::<Result<_, _>>()?;
 
     // --- Execute Components Sequentially ---
 
     // 0. Flatten the hierarchical data into a single observation frame.
-    let mut df = flatten::thermistor_observations(&data.logger)?;
+    let flattened = flatten::thermistor_observations_batch(&parsed_files)?;
 
     // 1. Correct timestamps using the database for timezone info.
-    df = timestamp_fixer::correct_timestamps(context, &df)?;
+    let mut df = timestamp_fixer::correct_timestamps(context, &parsed_files, flattened)?;
 
     // 2. Enrich data by joining with deployment metadata from the database.
     df = metadata_enricher::enrich_with_metadata(context, &df)?;
@@ -88,7 +100,7 @@ fn run(&self, context: &ExecutionContext, parsed_data: &dyn ParsedData) -> Resul
 
 #### Step 0: Flatten Hierarchical Data
 
-`ParsedFileData` contains a logger-level DataFrame plus nested sensor/thermistor tables. The first pipeline operation normalises this into one wide DataFrame where each row represents `(timestamp, record, logger_id, sdi12_address, thermistor_depth)`. The flattening logic:
+`ParsedFileData` contains a logger-level DataFrame plus nested sensor/thermistor tables. The first pipeline operation normalises the entire batch into one wide DataFrame where each row represents `(timestamp, record, logger_id, sdi12_address, thermistor_depth)`. The flattening logic:
 
 * Carries forward logger-level columns (timestamp, record, battery voltage, etc.).
 * Adds sensor metadata (SDI-12 address) and thermistor metadata (inner/outer depth) per row.
@@ -98,7 +110,7 @@ This satisfies the row-level convention defined in `notes/data_column_convention
 
 #### Step 1: Timestamp Correction (Component)
 
-*   This component receives the `ExecutionContext` and the initial `DataFrame`. It uses the context's database connection to fetch site timezone information and applies the `chrono-tz` logic to produce a corrected `timestamp_utc` column.
+*   The timestamp fixer receives the full batch of `ParsedFileData` references plus the flattened frame so it can deduplicate by `(logger_id, record)` across files, compute the sorted file-set signature, and apply timezone correction using deployment metadata. The resulting DataFrame has a single, consistent `timestamp_utc` column and no duplicate measurements.
 
 #### Step 2: Metadata Enrichment (Component)
 
