@@ -64,11 +64,11 @@ A single API endpoint is the gateway for all changes. The logic behind this endp
     *   For each new `file`: The engine computes its `blake3` hash, checks for duplicates, and executes every active parser in memory. Parser failures are recorded per attempt. A file that never parses is marked for rejection but does not invalidate the manifest if metadata remains valid.
 3.  **Mutating Phase**: If preflight succeeds, the engine opens a database transaction.
     *   All metadata inserts/updates execute first.
-    *   Each successfully parsed file is inserted into `raw_files` and uploaded to object storage as part of the same database transaction.
+    *   For each successfully parsed file, the engine first ensures the object `raw-files/{blake3}` exists in R2 (uploads opportunistically in an idempotent fashion), then records the `raw_files` row referencing that hash. Object storage is not transactional with Postgres; if the DB transaction later rolls back the object remains as an orphan, and is reclaimed by a periodic garbage-collection task that deletes unreferenced hashes.
     *   Files that failed parsing are omitted entirely.
 4.  **Finalize Outcome**:
     *   On success, the database transaction commits and a `transactions` row is inserted in autocommit mode with `outcome = ACCEPTED` and the final receipt payload.
-    *   If any mutation fails, the database transaction rolls back; a `transactions` row is still written in autocommit mode with `outcome = REJECTED` and the failure details.
+    *   If any mutation fails, the database transaction rolls back; a `transactions` row is still written in autocommit mode with `outcome = REJECTED` and the failure details. Any previously uploaded objects are harmlessly orphaned until the next GC run.
     *   Dry runs do not perform any mutations or inserts. They return a receipt and durably log the attempt via application logs only.
 5.  **Return Receipt**: The detailed JSON receipt is returned to the client. It includes a `summary.status` of either `COMPLETE` or `PARTIAL_SUCCESS` and lists any rejected files.
 
@@ -187,3 +187,5 @@ The system is designed to be robust against accidental re-submission of the same
 *   **File Duplicates**: If a transaction attempts to add a file whose content hash already exists, this is treated as a success and noted in the receipt. No new `raw_files` record is created.
 *   **Re-running an `update`**: An `update` operation is idempotent. Running it multiple times has the same effect as running it once.
 *   **Re-running an `add`**: An `add` operation for a record that already exists will be **rejected** with a clear error to prevent accidental data conflicts. A user must explicitly use `update` to modify an existing record.
+
+Active parsers and pipelines are still compiled into the binary. The `include_in_pipeline` flags stored in the database simply tell the orchestrator which compiled components should be considered at runtime.

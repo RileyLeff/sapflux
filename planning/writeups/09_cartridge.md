@@ -23,7 +23,7 @@ Each cartridge is a compressed archive (`.zip`) associated with a single `output
 
 **3. Data Manifests (The "Ingredients")**
 *   `raw_files.manifest`: A simple text file listing the `file_hash` of every raw data file that was included in the pipeline run (`include_in_pipeline = true`).
-*   `download_data.sh`: A helper script that reads `raw_files.manifest` and downloads the required files from the public R2 bucket into a local `data/` directory, which is volume-mounted into the MinIO container.
+*   `download_data.sh`: A helper script that reads `raw_files.manifest`, calls the Sapflux API to request pre-signed URLs for each `file_hash`, and downloads the objects into a local `data/` directory (volume-mounted into the MinIO container). This script reuses the user's CLI auth token to keep R2 private.
 
 ### Automated Generation Workflow
 
@@ -53,6 +53,10 @@ A scientist who wants to verify an output follows a simple, foolproof process:
 3.  **Run**: They navigate into the directory and execute the single command: `bash run_repro.sh`.
 4.  **Observe**: The script orchestrates the entire verification:
     *   It runs `docker compose up --build -d`. The `Dockerfile` checks out the correct commit and builds the application. The database container starts and automatically imports `db_state_N-1.sql`.
-    *   It calls `bash download_data.sh` to populate the local data store.
+    *   It calls `bash download_data.sh` to populate the local data store. This step requires outbound internet access to reach the Sapflux API and Cloudflare R2 and uses the same Clerk-backed auth flow as the CLI.
     *   It executes the re-run command: `docker compose exec app sapflux transaction apply --file transaction_N.toml`.
 5.  **Verify**: The process is complete. The user can now find the newly generated `.parquet` file in a local `output/` directory and perform a hash comparison (e.g., `sha256sum`) to prove it is bit-for-bit identical to the one they originally downloaded. They can also inspect the logs and the final database state to observe the entire process.
+
+### Trust & Access Considerations
+
+The cartridge never exposes R2 to the public internet. Instead, `download_data.sh` authenticates with the Sapflux API (using the user's Clerk session) and exchanges each `file_hash` for a short-lived pre-signed URL. Users must therefore possess active credentials and an internet connection when running `run_repro.sh`. If long-term offline verification is required, operators can pre-stage the raw files into the cartridge before distributing it.

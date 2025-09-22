@@ -64,9 +64,12 @@ fn run(&self, context: &ExecutionContext, parsed_data: &dyn ParsedData) -> Resul
 
     // --- Execute Components Sequentially ---
 
+    // 0. Flatten the hierarchical data into a single observation frame.
+    let mut df = flatten::thermistor_observations(&data.logger)?;
+
     // 1. Correct timestamps using the database for timezone info.
-    let mut df = timestamp_fixer::correct_timestamps(context, &data.logger.df)?;
-    
+    df = timestamp_fixer::correct_timestamps(context, &df)?;
+
     // 2. Enrich data by joining with deployment metadata from the database.
     df = metadata_enricher::enrich_with_metadata(context, &df)?;
 
@@ -82,6 +85,16 @@ fn run(&self, context: &ExecutionContext, parsed_data: &dyn ParsedData) -> Resul
     Ok(df)
 }
 ```
+
+#### Step 0: Flatten Hierarchical Data
+
+`ParsedFileData` contains a logger-level DataFrame plus nested sensor/thermistor tables. The first pipeline operation normalises this into one wide DataFrame where each row represents `(timestamp, record, logger_id, sdi12_address, thermistor_depth)`. The flattening logic:
+
+* Carries forward logger-level columns (timestamp, record, battery voltage, etc.).
+* Adds sensor metadata (SDI-12 address) and thermistor metadata (inner/outer depth) per row.
+* Joins all thermistor metrics (`alpha`, `beta`, `time_to_max_*`, temperature readings, etc.) into the same row.
+
+This satisfies the row-level convention defined in `notes/data_column_conventions.md` and gives every subsequent component a uniform table to work with.
 
 #### Step 1: Timestamp Correction (Component)
 
@@ -100,9 +113,9 @@ This component is responsible for implementing the Parameter Cascade. It uses th
     1.  **Fetch Overrides**: The component performs a single, efficient query using the `ExecutionContext` to fetch *all* records from the `parameter_overrides` table.
     2.  **Prepare for Joins**: It transforms this list of overrides into several Polars `DataFrames`, one for each context level (e.g., `site_overrides_df`, `stem_overrides_df`).
     3.  **Join Overrides**: It performs a series of left joins, attaching the override values for every parameter at every level to the main `DataFrame`. This results in many new, nullable columns (e.g., `wound_diameter_cm_site`, `wound_diameter_cm_stem`). JSONB payloads are deserialized into strongly-typed scalars before they are projected into the output frame.
-    4.  **Apply Cascade**: For each required parameter, it uses a Polars `when/then/otherwise` expression to coalesce these columns in the correct order of precedence (deployment -> stem -> ... -> global default). This creates the final `parameter_*` column.
-    5.  **Record Provenance**: A second `when/then/otherwise` expression is used to create a `parameter_source_*` column, which explicitly states which rule was used for that row (e.g., `"stem_override"`).
-*   **Output**: A `DataFrame` where all necessary parameters for calculation are now present as distinct columns, with their provenance recorded.
+    4.  **Apply Cascade**: For each required parameter, it uses a Polars `when/then/otherwise` expression to coalesce these columns in the correct order of precedence (deployment -> stem -> ... -> global default). Calculation parameters are emitted with the `parameter_*` prefix (e.g., `parameter_wood_density_kg_m3`). Quality thresholds retain their own names (e.g., `quality_max_flux_cm_hr`) because they are surfaced directly to operators.
+    5.  **Record Provenance**: A second `when/then/otherwise` expression is used to create provenance columns. Calculation parameters receive `parameter_source_*` companions, while quality thresholds receive `parameter_source_quality_*` columns.
+*   **Output**: A `DataFrame` where all necessary parameters—including quality thresholds—are now present as distinct columns, each with provenance.
 
 #### Step 4: Calculation (Component)
 

@@ -203,6 +203,8 @@ CREATE TABLE IF NOT EXISTS outputs (
 
 **Download Semantics**: The API never streams large objects directly. When `GET /outputs/{id}/download` is called, it issues a short-lived pre-signed URL (15 minute expiry) or a 302 redirect to Cloudflare R2. This keeps the bucket private while enabling clients to download the file without shipping credentials.
 
+**Latest Flag Update Policy**: On every successful insert into `outputs`, the application sets the new row's `is_latest = TRUE` and flips all other rows to `FALSE` within the same database transaction so the flag always identifies the most recent dataset snapshot.
+
 ### Project & Geographic Hierarchy
 
 These tables model the real-world physical and organizational structure of the research.
@@ -330,6 +332,10 @@ CREATE TABLE IF NOT EXISTS datalogger_aliases (
     CONSTRAINT uq_alias_no_overlap EXCLUDE USING gist (
         alias WITH =,
         active_during WITH &&
+    ),
+    CONSTRAINT uq_alias_no_adjacency EXCLUDE USING gist (
+        alias WITH =,
+        active_during WITH -|-
     )
 );
 
@@ -348,7 +354,7 @@ CREATE TABLE IF NOT EXISTS sensor_thermistor_pairs (
 );
 ```
 
-**Logger Alias Resolution**: `datalogger_aliases` maintains every alternate ID ever observed in the raw files. Aliases are stored with a `TSTZRANGE`, letting the system fail fast if two active deployments claim the same alias during overlapping periods. During metadata enrichment the engine first matches on `dataloggers.code`, then on any alias whose range covers the measurement timestamp. If multiple matches exist (which is prevented by the exclusion constraint) the transaction is rejected.
+**Logger Alias Resolution**: `datalogger_aliases` maintains every alternate ID ever observed in the raw files. Aliases are stored with a `TSTZRANGE`, and exclusion constraints forbid both overlaps and "touching" windows, so back-to-back alias reuse must be separated by a true gap. During metadata enrichment the engine first matches on `dataloggers.code`, then on any alias whose range covers the measurement timestamp. If multiple matches exist (which is prevented by the exclusion constraints) the transaction is rejected.
 
 ### The Linking Table
 
@@ -382,10 +388,15 @@ ALTER TABLE deployments
         datalogger_id WITH =,
         sdi_address WITH =,
         active_during WITH &&
+    ),
+    ADD CONSTRAINT uq_deployment_no_adjacency EXCLUDE USING gist (
+        datalogger_id WITH =,
+        sdi_address WITH =,
+        active_during WITH -|-
     );
 ```
 
-The generated `active_during` range ensures there is never more than one active deployment for a `(datalogger, sdi_address)` pair at the same instant. Boundary equality (e.g., one deployment ending exactly when another begins) is also treated as an overlap and will be rejected during manifest validation.
+The generated `active_during` range ensures there is never more than one active deployment for a `(datalogger, sdi_address)` pair at the same instant. Boundary equality (e.g., one deployment ending exactly when another begins) is also disallowed via the `-|-` exclusion; users must leave a real gap before reactivating the same hardware.
 
 **Rust Struct (`sapflux-repository::metadata`)**
 ```rust
@@ -455,3 +466,7 @@ CREATE TABLE IF NOT EXISTS parameter_overrides (
 ```
 
 `value` stores a strongly-typed JSON payload (numeric, boolean, or structured) so the cascade can deserialize without lossy string parsing. Examples of canonical payloads are described in `notes/parameter_info.toml`.
+
+### Object Storage Lifecycle
+
+Uploads to Cloudflare R2 are performed idempotently before the database transaction commits. Because the blob store is not part of the database transaction, a failure during commit can leave orphaned objects. These are harmless—future uploads deduplicate by hash—and a periodic garbage-collection job enumerates bucket keys and deletes any object whose hash/path is not referenced by the database.
