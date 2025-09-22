@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
+use chrono::Utc;
 use once_cell::sync::Lazy;
 use polars::prelude::DataFrame;
 
 #[cfg(feature = "runtime")]
 use anyhow::Context;
 #[cfg(feature = "runtime")]
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 #[cfg(feature = "runtime")]
 use serde_json::Value;
 #[cfg(feature = "runtime")]
@@ -14,12 +15,14 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
+    calculator,
     flatten::flatten_parsed_files,
     metadata_enricher::{
         self, DataloggerAliasRow as EnrichmentAliasRow, DeploymentRow as EnrichmentDeploymentRow,
     },
     parameter_resolver::{self, ParameterDefinition, ParameterOverride},
     parsers::ParsedData,
+    quality_filters,
     timestamp_fixer::{
         self, DeploymentMetadata as TsDeploymentMetadata, SiteMetadata as TsSiteMetadata,
     },
@@ -330,7 +333,10 @@ impl ProcessingPipeline for StandardPipelineStub {
             )?
         };
 
-        Ok(resolved)
+        let calculated = calculator::apply_dma_peclet(&resolved)?;
+        let with_quality = quality_filters::apply_quality_filters(&calculated, Utc::now())?;
+
+        Ok(with_quality)
     }
 }
 

@@ -114,6 +114,8 @@ pub fn enrich_with_metadata(
     let mut plant_ids = Vec::with_capacity(observations.height());
     let mut species_ids = Vec::with_capacity(observations.height());
     let mut stem_ids = Vec::with_capacity(observations.height());
+    let mut deployment_start_us = Vec::with_capacity(observations.height());
+    let mut deployment_end_us = Vec::with_capacity(observations.height());
 
     for idx in 0..observations.height() {
         let logger = match logger_ids.get(idx) {
@@ -129,6 +131,8 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut deployment_start_us,
+                    &mut deployment_end_us,
                     &mut metadata_columns,
                 );
                 continue;
@@ -147,6 +151,8 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut deployment_start_us,
+                    &mut deployment_end_us,
                     &mut metadata_columns,
                 );
                 continue;
@@ -165,6 +171,8 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut deployment_start_us,
+                    &mut deployment_end_us,
                     &mut metadata_columns,
                 );
                 continue;
@@ -203,6 +211,8 @@ pub fn enrich_with_metadata(
             plant_ids.push(dep.plant_id.map(|id| id.to_string()));
             species_ids.push(dep.species_id.map(|id| id.to_string()));
             stem_ids.push(Some(dep.stem_id.to_string()));
+            deployment_start_us.push(Some(dep.start_timestamp_utc));
+            deployment_end_us.push(dep.end_timestamp_utc);
 
             for (key, values) in metadata_columns.iter_mut() {
                 let value = dep.installation_metadata.get(key).and_then(value_to_string);
@@ -219,6 +229,8 @@ pub fn enrich_with_metadata(
                 &mut plant_ids,
                 &mut species_ids,
                 &mut stem_ids,
+                &mut deployment_start_us,
+                &mut deployment_end_us,
                 &mut metadata_columns,
             );
         }
@@ -234,6 +246,16 @@ pub fn enrich_with_metadata(
     enriched.with_column(Series::new("plant_id".into(), plant_ids))?;
     enriched.with_column(Series::new("species_id".into(), species_ids))?;
     enriched.with_column(Series::new("stem_id".into(), stem_ids))?;
+    enriched.with_column(
+        Series::new("deployment_start_timestamp_utc".into(), deployment_start_us).cast(
+            &DataType::Datetime(TimeUnit::Microseconds, Some(polars::prelude::TimeZone::UTC)),
+        )?,
+    )?;
+    enriched.with_column(
+        Series::new("deployment_end_timestamp_utc".into(), deployment_end_us).cast(
+            &DataType::Datetime(TimeUnit::Microseconds, Some(polars::prelude::TimeZone::UTC)),
+        )?,
+    )?;
 
     for (key, values) in metadata_columns {
         enriched.with_column(Series::new(key.into(), values))?;
@@ -306,6 +328,8 @@ fn push_none(
     plant_ids: &mut Vec<Option<String>>,
     species_ids: &mut Vec<Option<String>>,
     stem_ids: &mut Vec<Option<String>>,
+    deployment_start_us: &mut Vec<Option<i64>>,
+    deployment_end_us: &mut Vec<Option<i64>>,
     metadata_columns: &mut HashMap<String, Vec<Option<String>>>,
 ) {
     deployment_ids.push(None);
@@ -317,6 +341,8 @@ fn push_none(
     plant_ids.push(None);
     species_ids.push(None);
     stem_ids.push(None);
+    deployment_start_us.push(None);
+    deployment_end_us.push(None);
 
     for values in metadata_columns.values_mut() {
         values.push(None);
