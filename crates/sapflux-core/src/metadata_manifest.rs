@@ -301,7 +301,7 @@ pub async fn apply_manifest(
         .bind(&deployment.entry.sdi_address)
         .bind(deployment.entry.start_timestamp_utc)
         .bind(deployment.entry.end_timestamp_utc)
-        .bind(&installation_metadata)
+        .bind(sqlx::types::Json(installation_metadata))
         .bind(deployment.entry.include_in_pipeline)
         .execute(&mut *tx)
         .await?;
@@ -331,7 +331,7 @@ pub async fn apply_manifest(
         )
         .bind(Uuid::new_v4())
         .bind(override_entry.parameter_id)
-        .bind(&override_entry.entry.value)
+        .bind(sqlx::types::Json(override_entry.entry.value.clone()))
         .bind(override_entry.site_id)
         .bind(override_entry.species_id)
         .bind(override_entry.zone_id)
@@ -361,4 +361,21 @@ const fn default_true() -> bool {
 
 fn default_object() -> Value {
     json!({})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_manifest_defaults() {
+        let toml = r#"
+[metadata]
+# empty
+"#;
+
+        let manifest = parse_manifest(toml).expect("parse manifest");
+        assert!(manifest.deployments.is_empty());
+        assert!(manifest.parameter_overrides.is_empty());
+    }
 }

@@ -15,9 +15,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
-axum = { workspace = true, features = ["macros"] }
+axum = { workspace = true, features = ["macros", "multipart"] }
 serde = { workspace = true, features = ["derive"] }
-base64 = "0.22.1"
 chrono = { workspace = true }
 uuid = { workspace = true }
 

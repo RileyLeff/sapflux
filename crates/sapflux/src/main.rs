@@ -1,13 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{Json, Multipart, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine;
 use chrono::{Duration as ChronoDuration, Utc};
 use clap::{Parser, Subcommand};
 use sapflux_core::{
@@ -134,22 +132,6 @@ async fn run_seed(
     }))
 }
 
-#[derive(Debug, Deserialize)]
-struct TransactionFilePayload {
-    path: String,
-    contents_base64: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct TransactionRequest {
-    pub message: Option<String>,
-    #[serde(default)]
-    pub dry_run: bool,
-    pub files: Vec<TransactionFilePayload>,
-    #[serde(default)]
-    pub metadata_manifest: Option<String>,
-}
-
 #[derive(Debug, Serialize)]
 struct TransactionResponse {
     pub status: PipelineStatus,
@@ -168,42 +150,84 @@ struct OutputDownloadResponse {
     expires_at: String,
 }
 
-async fn handle_transaction(
-    State(state): State<AppState>,
-    Json(req): Json<TransactionRequest>,
-) -> Response {
-    let TransactionRequest {
-        message,
-        dry_run,
-        files: file_payloads,
-        metadata_manifest,
-    } = req;
+async fn handle_transaction(State(state): State<AppState>, mut multipart: Multipart) -> Response {
+    let mut message: Option<String> = None;
+    let mut dry_run = false;
+    let mut metadata_manifest: Option<String> = None;
+    let mut files: Vec<TransactionFile> = Vec::new();
 
-    if file_payloads.is_empty() {
+    while let Some(mut field) = match multipart.next_field().await {
+        Ok(opt) => opt,
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "invalid multipart payload").into_response();
+        }
+    } {
+        let name = field.name().map(|s| s.to_string());
+        match name.as_deref() {
+            Some("message") => match field.text().await {
+                Ok(text) => message = Some(text),
+                Err(_) => {
+                    return (StatusCode::BAD_REQUEST, "failed to read message field")
+                        .into_response();
+                }
+            },
+            Some("dry_run") => match field.text().await {
+                Ok(text) => {
+                    dry_run = matches!(
+                        text.trim().to_lowercase().as_str(),
+                        "true" | "1" | "yes" | "y"
+                    );
+                }
+                Err(_) => {
+                    return (StatusCode::BAD_REQUEST, "failed to read dry_run field")
+                        .into_response();
+                }
+            },
+            Some("metadata_manifest") | Some("manifest") => match field.text().await {
+                Ok(text) => metadata_manifest = Some(text),
+                Err(_) => {
+                    return (StatusCode::BAD_REQUEST, "failed to read metadata manifest")
+                        .into_response();
+                }
+            },
+            Some("files") | Some("files[]") | Some("file") => {
+                let filename = match field.file_name().map(|s| s.to_string()) {
+                    Some(name) => name,
+                    None => {
+                        return (StatusCode::BAD_REQUEST, "file part missing filename")
+                            .into_response();
+                    }
+                };
+
+                let mut bytes = Vec::new();
+                loop {
+                    match field.chunk().await {
+                        Ok(Some(chunk)) => bytes.extend_from_slice(chunk.as_ref()),
+                        Ok(None) => break,
+                        Err(_) => {
+                            return (StatusCode::BAD_REQUEST, "failed to read file chunk")
+                                .into_response();
+                        }
+                    }
+                }
+
+                files.push(TransactionFile {
+                    path: filename,
+                    contents: bytes,
+                });
+            }
+            _ => {
+                // Ignore unknown fields
+            }
+        }
+    }
+
+    if files.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
             "transaction requires at least one file",
         )
             .into_response();
-    }
-
-    let mut files = Vec::with_capacity(file_payloads.len());
-    for file in file_payloads {
-        let bytes = match BASE64_STANDARD.decode(file.contents_base64.as_bytes()) {
-            Ok(bytes) => bytes,
-            Err(_) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    "file contents must be base64 encoded",
-                )
-                    .into_response();
-            }
-        };
-
-        files.push(TransactionFile {
-            path: file.path,
-            contents: bytes,
-        });
     }
 
     let core_req = CoreTransactionRequest {
