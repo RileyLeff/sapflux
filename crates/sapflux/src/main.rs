@@ -1,12 +1,10 @@
 use anyhow::{Context, Result};
-use axum::{extract::State, response::IntoResponse, routing::{get, post}, Json, Router};
+use axum::{extract::{Json, State}, http::StatusCode, routing::{get, post}, Router};
 use clap::{Parser, Subcommand};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sapflux_core::{db, seed};
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tracing::{info, warn};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
@@ -64,6 +62,7 @@ async fn run_server(args: ServeArgs) -> Result<()> {
         .route("/health", get(health_check))
         .route("/admin/migrate", post(run_migrations))
         .route("/admin/seed", post(run_seed))
+        .route("/transactions", post(handle_transaction))
         .with_state(state);
 
     let addr = args.addr;
@@ -85,23 +84,43 @@ struct AdminResponse {
     message: String,
 }
 
-async fn run_migrations(State(state): State<AppState>) -> Result<Json<AdminResponse>, (axum::http::StatusCode, &'static str)> {
+async fn run_migrations(State(state): State<AppState>) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
     db::run_migrations(&state.pool)
         .await
-        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
     Ok(Json(AdminResponse {
         message: "migrations applied".to_string(),
     }))
 }
 
-async fn run_seed(State(state): State<AppState>) -> Result<Json<AdminResponse>, (axum::http::StatusCode, &'static str)> {
+async fn run_seed(State(state): State<AppState>) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
     db::run_migrations(&state.pool)
         .await
-        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
     seed::run(&state.pool)
         .await
-        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "seed failed"))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "seed failed"))?;
     Ok(Json(AdminResponse {
         message: "seed complete".to_string(),
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct TransactionRequest {
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct TransactionResponse {
+    pub status: String,
+    pub message: Option<String>,
+}
+
+async fn handle_transaction(
+    Json(req): Json<TransactionRequest>,
+) -> Result<Json<TransactionResponse>, (StatusCode, &'static str)> {
+    Ok(Json(TransactionResponse {
+        status: "accepted".to_string(),
+        message: req.message,
     }))
 }
