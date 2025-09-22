@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   db:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:17-3.4
     environment:
       POSTGRES_USER: sapflux
       POSTGRES_PASSWORD: sapflux
@@ -24,21 +22,18 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   minio-init:
     image: minio/mc
     depends_on:
-      - minio
+      minio:
+        condition: service_started
     entrypoint: ["/bin/sh", "-c"]
     command: >-
-      until mc alias set local http://minio:9000 minio miniosecret; do sleep 1; done &&
-      mc mb --ignore-existing local/sapflux-tests &&
-      mc anonymous set download local/sapflux-tests
+      set -e;
+      until mc alias set --api s3v4 local http://minio:9000 minio miniosecret; do sleep 1; done;
+      mc mb --ignore-existing local/sapflux &&
+      mc anonymous set download local/sapflux
     restart: "no"
 
   api:
@@ -46,9 +41,10 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - db
-      - minio
-      - minio-init
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgres://sapflux:sapflux@db:5432/sapflux
       SAPFLUX_OBJECT_STORE_KIND: s3
@@ -58,6 +54,7 @@ services:
       S3_SECRET_ACCESS_KEY: miniosecret
       S3_FORCE_PATH_STYLE: "true"
       SAPFLUX_GIT_COMMIT_HASH: local-dev
+      S3_BUCKET: sapflux
     ports:
       - "8080:8080"
     command: ["/app/sapflux", "serve", "--addr", "0.0.0.0:8080"]
