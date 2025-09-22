@@ -205,6 +205,24 @@ fn execute_transaction_roundtrip() -> Result<()> {
             receipt.pipeline.row_count.unwrap_or_default()
         );
         assert!(receipt_quality.suspect_rows <= receipt_quality.total_rows);
+        assert!(receipt_quality.suspect_ratio >= 0.0);
+        assert_eq!(
+            receipt_quality.good_rows + receipt_quality.suspect_rows,
+            receipt_quality.total_rows
+        );
+        let receipt_record = receipt
+            .pipeline
+            .record_summary
+            .as_ref()
+            .expect("record summary present for dry-run pipeline");
+        assert!(receipt_record.logger_count >= 1);
+        assert!(receipt_record.sensor_count >= 1);
+        assert!(receipt_record
+            .timeframe_utc
+            .as_ref()
+            .expect("timeframe available")
+            .start
+            .contains("T"));
 
         let committed = execute_transaction(
             &pool,
@@ -235,6 +253,24 @@ fn execute_transaction_roundtrip() -> Result<()> {
             committed.pipeline.row_count.unwrap_or_default()
         );
         assert!(committed_quality.suspect_rows <= committed_quality.total_rows);
+        assert!(committed_quality.suspect_ratio >= 0.0);
+        assert_eq!(
+            committed_quality.good_rows + committed_quality.suspect_rows,
+            committed_quality.total_rows
+        );
+        let committed_record = committed
+            .pipeline
+            .record_summary
+            .as_ref()
+            .expect("record summary present for committed pipeline");
+        assert!(committed_record.logger_count >= 1);
+        assert!(committed_record.sensor_count >= 1);
+        assert!(committed_record
+            .timeframe_utc
+            .as_ref()
+            .expect("timeframe available")
+            .end
+            .contains("T"));
 
         let outcome: String = sqlx::query_scalar(
             "SELECT outcome::text FROM transactions WHERE transaction_id = $1",

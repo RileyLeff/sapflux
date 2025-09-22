@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::Row;
 use tokio::task;
@@ -12,7 +13,7 @@ use crate::db::DbPool;
 use crate::ingestion::{self, FileInput, FileReport, FileStatus, IngestionBatch};
 use crate::object_store::ObjectStore;
 use crate::pipelines::{all_pipelines, ExecutionContext};
-use polars::prelude::DataFrame;
+use polars::prelude::{ChunkAgg, DataFrame};
 
 #[derive(Debug)]
 pub struct TransactionFile {
@@ -44,6 +45,7 @@ pub struct PipelineSummary {
     pub error: Option<String>,
     pub quality_summary: Option<QualitySummary>,
     pub provenance_summary: Option<ProvenanceSummary>,
+    pub record_summary: Option<RecordSummary>,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +69,8 @@ pub struct IngestionSummary {
 pub struct QualitySummary {
     pub total_rows: usize,
     pub suspect_rows: usize,
+    pub good_rows: usize,
+    pub suspect_ratio: f64,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub top_reasons: Vec<QualityReasonCount>,
 }
@@ -88,6 +92,20 @@ pub struct ParameterProvenanceEntry {
     pub parameter: String,
     pub source: String,
     pub count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecordSummary {
+    pub logger_count: usize,
+    pub sensor_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeframe_utc: Option<TimeframeUtc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TimeframeUtc {
+    pub start: String,
+    pub end: String,
 }
 
 const TRANSACTION_LOCK_KEY: i64 = 0x5350464C5558; // "SPFLUX"
@@ -176,6 +194,7 @@ async fn execute_transaction_locked(
             error: None,
             quality_summary: None,
             provenance_summary: None,
+            record_summary: None,
         }
     } else {
         match ExecutionContext::load_from_db(pool).await {
@@ -187,6 +206,7 @@ async fn execute_transaction_locked(
                 error: Some(err.to_string()),
                 quality_summary: None,
                 provenance_summary: None,
+                record_summary: None,
             },
         }
     };
@@ -318,6 +338,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
             error: None,
             quality_summary: None,
             provenance_summary: None,
+            record_summary: None,
         };
     }
 
@@ -337,6 +358,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
                 error: None,
                 quality_summary: compute_quality_summary(&df),
                 provenance_summary: compute_provenance_summary(&df),
+                record_summary: compute_record_summary(&df),
             },
             Err(err) => PipelineSummary {
                 pipeline: Some(pipeline.code_identifier().to_string()),
@@ -345,6 +367,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
                 error: Some(err.to_string()),
                 quality_summary: None,
                 provenance_summary: None,
+                record_summary: None,
             },
         }
     } else {
@@ -355,6 +378,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
             error: Some("no pipeline registered for data format".into()),
             quality_summary: None,
             provenance_summary: None,
+            record_summary: None,
         }
     }
 }
@@ -365,6 +389,13 @@ fn compute_quality_summary(df: &DataFrame) -> Option<QualitySummary> {
         .iter()
         .filter(|value| matches!(value, Some("SUSPECT")))
         .count();
+    let total_rows = df.height();
+    let good_rows = total_rows.saturating_sub(suspect_rows);
+    let suspect_ratio = if total_rows == 0 {
+        0.0
+    } else {
+        suspect_rows as f64 / total_rows as f64
+    };
 
     let mut reason_counts: HashMap<String, usize> = HashMap::new();
     if let Ok(explanation_series) = df.column("quality_explanation") {
@@ -386,8 +417,10 @@ fn compute_quality_summary(df: &DataFrame) -> Option<QualitySummary> {
         .collect();
 
     Some(QualitySummary {
-        total_rows: df.height(),
+        total_rows,
         suspect_rows,
+        good_rows,
+        suspect_ratio,
         top_reasons,
     })
 }
@@ -453,6 +486,54 @@ fn compute_provenance_summary(df: &DataFrame) -> Option<ProvenanceSummary> {
     })
 }
 
+fn compute_record_summary(df: &DataFrame) -> Option<RecordSummary> {
+    let logger_series = df.column("logger_id").ok()?.str().ok()?;
+    let sdi_series = df.column("sdi12_address").ok()?.str().ok()?;
+    let depth_series = df.column("thermistor_depth").ok()?.str().ok()?;
+
+    let mut logger_ids: HashSet<String> = HashSet::new();
+    for value in logger_series.iter().flatten() {
+        logger_ids.insert(value.to_string());
+    }
+
+    let mut sensors: HashSet<(String, String, String)> = HashSet::new();
+    let height = df.height();
+    for idx in 0..height {
+        if let (Some(logger), Some(addr), Some(depth)) = (
+            logger_series.get(idx),
+            sdi_series.get(idx),
+            depth_series.get(idx),
+        ) {
+            sensors.insert((logger.to_string(), addr.to_string(), depth.to_string()));
+        }
+    }
+
+    let timeframe = compute_timeframe(df);
+
+    Some(RecordSummary {
+        logger_count: logger_ids.len(),
+        sensor_count: sensors.len(),
+        timeframe_utc: timeframe,
+    })
+}
+
+fn compute_timeframe(df: &DataFrame) -> Option<TimeframeUtc> {
+    let timestamp_series = df.column("timestamp_utc").ok()?.datetime().ok()?;
+    let start = timestamp_series.min()?;
+    let end = timestamp_series.max()?;
+    let start_str = micros_to_rfc3339(start)?;
+    let end_str = micros_to_rfc3339(end)?;
+    Some(TimeframeUtc {
+        start: start_str,
+        end: end_str,
+    })
+}
+
+fn micros_to_rfc3339(micros: i64) -> Option<String> {
+    DateTime::<Utc>::from_timestamp_micros(micros)
+        .map(|dt| dt.to_rfc3339_opts(SecondsFormat::Micros, true))
+}
+
 async fn upload_new_raw_files(
     object_store: &ObjectStore,
     files: &[TransactionFile],
@@ -500,11 +581,45 @@ mod tests {
         let summary = compute_quality_summary(&df).expect("quality summary");
         assert_eq!(summary.total_rows, 4);
         assert_eq!(summary.suspect_rows, 2);
+        assert_eq!(summary.good_rows, 2);
+        assert!((summary.suspect_ratio - 0.5).abs() < f64::EPSILON);
         assert!(!summary.top_reasons.is_empty());
         assert!(summary
             .top_reasons
             .iter()
             .any(|entry| entry.reason == "timestamp_future"));
+    }
+
+    #[test]
+    fn compute_record_summary_counts_loggers_and_sensors() {
+        use polars::prelude::{DataType, TimeUnit};
+
+        let mut df = df![
+            "logger_id" => [Some("A"), Some("A"), Some("B")],
+            "sdi12_address" => [Some("0"), Some("1"), Some("0")],
+            "thermistor_depth" => [Some("inner"), Some("outer"), Some("inner")],
+        ]
+        .expect("construct record summary frame");
+
+        let timestamp_series = Series::new(
+            "timestamp_utc".into(),
+            vec![1_000_000i64, 2_000_000i64, 3_000_000i64],
+        )
+        .cast(&DataType::Datetime(
+            TimeUnit::Microseconds,
+            Some(polars::prelude::TimeZone::UTC),
+        ))
+        .expect("cast timestamps to datetime");
+
+        df.with_column(timestamp_series)
+            .expect("add timestamp column");
+
+        let summary = compute_record_summary(&df).expect("record summary");
+        assert_eq!(summary.logger_count, 2);
+        assert_eq!(summary.sensor_count, 3);
+        let timeframe = summary.timeframe_utc.expect("timeframe present");
+        assert!(timeframe.start.contains("00:00:01"));
+        assert!(timeframe.end.contains("00:00:03"));
     }
 
     #[test]
