@@ -17,3 +17,4 @@ tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
 axum.workspace = true
 serde = { workspace = true, features = ["derive"] }
+base64 = "0.22.1"
