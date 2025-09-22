@@ -8,7 +8,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::db::DbPool;
-use crate::ingestion::{self, FileInput, FileReport, IngestionBatch};
+use crate::ingestion::{self, FileInput, FileReport, FileStatus, IngestionBatch};
 use crate::object_store::ObjectStore;
 use crate::pipelines::{all_pipelines, ExecutionContext};
 
@@ -115,7 +115,7 @@ pub async fn execute_transaction(
         }
     };
 
-    if pipeline_summary.status != PipelineStatus::Failed {
+    if !dry_run && pipeline_summary.status != PipelineStatus::Failed {
         upload_new_raw_files(object_store, &files, &ingestion_batch).await?;
     }
 
@@ -248,16 +248,17 @@ async fn upload_new_raw_files(
     files: &[TransactionFile],
     batch: &IngestionBatch,
 ) -> Result<()> {
-    use crate::ingestion::FileStatus;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     let path_map: HashMap<&str, &[u8]> = files
         .iter()
         .map(|file| (file.path.as_str(), file.contents.as_slice()))
         .collect();
 
+    let mut uploaded = HashSet::new();
+
     for report in batch.reports.iter() {
-        if let FileStatus::Parsed = report.status {
+        if report.status == FileStatus::Parsed && uploaded.insert(&report.hash) {
             if let Some(contents) = path_map.get(report.path.as_str()) {
                 let key = ObjectStore::raw_file_key(&report.hash);
                 object_store.put_raw_file(&key, contents).await?;
