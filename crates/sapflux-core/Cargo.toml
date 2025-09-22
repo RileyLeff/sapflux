@@ -1,0 +1,30 @@
+[package]
+name = "sapflux-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+polars = { workspace = true }
+sqlx = { workspace = true, features = ["macros", "postgres", "migrate"] }
+tokio = { workspace = true, optional = true }
+once_cell = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+sapflux-parser = { path = "../sapflux-parser" }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+
+[features]
+default = []
+runtime = ["tokio"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }
+sqlx = { workspace = true }
