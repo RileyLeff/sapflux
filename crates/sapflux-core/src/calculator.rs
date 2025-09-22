@@ -75,14 +75,14 @@ pub fn apply_dma_peclet(df: &DataFrame) -> Result<DataFrame, PolarsError> {
 
     let mut output = df.clone();
     output.hstack_mut(&mut [
-        Series::new("vh_hrm_cm_hr", vh_hrm).into(),
-        Series::new("vh_tmax_cm_hr", vh_tmax).into(),
-        Series::new("vc_hrm_cm_hr", vc_hrm).into(),
-        Series::new("vc_tmax_cm_hr", vc_tmax).into(),
-        Series::new("j_hrm_cm_hr", j_hrm).into(),
-        Series::new("j_tmax_cm_hr", j_tmax).into(),
-        Series::new("calculation_method_used", method_vec).into(),
-        Series::new("sap_flux_density_j_dma_cm_hr", sap_flux).into(),
+        Series::new("vh_hrm_cm_hr".into(), vh_hrm).into(),
+        Series::new("vh_tmax_cm_hr".into(), vh_tmax).into(),
+        Series::new("vc_hrm_cm_hr".into(), vc_hrm).into(),
+        Series::new("vc_tmax_cm_hr".into(), vc_tmax).into(),
+        Series::new("j_hrm_cm_hr".into(), j_hrm).into(),
+        Series::new("j_tmax_cm_hr".into(), j_tmax).into(),
+        Series::new("calculation_method_used".into(), method_vec).into(),
+        Series::new("sap_flux_density_j_dma_cm_hr".into(), sap_flux).into(),
     ])?;
 
     Ok(output)

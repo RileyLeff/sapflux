@@ -1,9 +1,11 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use sapflux_core::{
     flatten::flatten_parsed_files,
-    timestamp_fixer::{self, DeploymentMetadata, SiteMetadata},
+    metadata_enricher::DeploymentRow,
+    pipelines::{all_pipelines, ExecutionContext},
+    timestamp_fixer::{DeploymentMetadata, SiteMetadata},
 };
 use sapflux_parser::parse_sapflow_file;
 use uuid::Uuid;
@@ -25,27 +27,80 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     let flattened = flatten_parsed_files(&[&parsed_a, &parsed_b])?;
     assert!(!flattened.is_empty());
 
+    let logger_series = flattened.column("logger_id")?.str()?;
+    let logger_id = logger_series
+        .get(0)
+        .expect("flattened data should contain logger_id");
+
     let site_id = Uuid::new_v4();
+    let timezone: Tz = "America/New_York".parse().unwrap();
+    let start_local = NaiveDateTime::parse_from_str("2025-07-28 00:00:00", "%Y-%m-%d %H:%M:%S")?;
+
     let deployments = vec![DeploymentMetadata {
-        datalogger_id: "420".into(),
+        datalogger_id: logger_id.to_string(),
         site_id,
-        start_timestamp_local: NaiveDateTime::parse_from_str(
-            "2025-07-28 00:00:00",
-            "%Y-%m-%d %H:%M:%S",
-        )?,
+        start_timestamp_local: start_local,
         end_timestamp_local: None,
     }];
 
-    let corrected = timestamp_fixer::correct_timestamps(
-        &flattened,
-        &[SiteMetadata {
-            site_id,
-            timezone: "America/New_York".parse::<Tz>().unwrap(),
-        }],
-        &deployments,
-    )?;
+    let timestamp_sites = vec![SiteMetadata {
+        site_id,
+        timezone,
+    }];
 
-    let signature_series = corrected.column("file_set_signature")?.str()?;
+    let sdi_series = flattened.column("sdi12_address")?.str()?;
+    let mut unique_addresses = sdi_series
+        .into_iter()
+        .flatten()
+        .collect::<std::collections::HashSet<_>>();
+    // Reuse an address value from the iterator after collect.
+    let mut enrichment_deployments = Vec::with_capacity(unique_addresses.len());
+
+    let project_id = Uuid::new_v4();
+    let plant_id = Uuid::new_v4();
+    let species_id = Uuid::new_v4();
+    let stem_id = Uuid::new_v4();
+
+    let start_utc = timezone
+        .from_local_datetime(&start_local)
+        .single()
+        .expect("unambiguous start timestamp")
+        .with_timezone(&Utc);
+
+    for address in unique_addresses.drain() {
+        enrichment_deployments.push(DeploymentRow {
+            deployment_id: Uuid::new_v4(),
+            datalogger_id: logger_id.to_string(),
+            sdi_address: address.to_string(),
+            project_id,
+            site_id,
+            zone_id: None,
+            plot_id: None,
+            plant_id: Some(plant_id),
+            species_id: Some(species_id),
+            stem_id,
+            start_timestamp_utc: start_utc.timestamp_micros(),
+            end_timestamp_utc: None,
+            installation_metadata: Default::default(),
+        });
+    }
+
+    let mut context = ExecutionContext::default();
+    context.timestamp_sites = timestamp_sites;
+    context.timestamp_deployments = deployments;
+    context.enrichment_deployments = enrichment_deployments;
+    context.datalogger_aliases = Vec::new();
+
+    let batch: [&dyn sapflux_core::parsers::ParsedData; 2] = [&parsed_a, &parsed_b];
+
+    let pipeline = all_pipelines()
+        .iter()
+        .find(|p| p.code_identifier() == "standard_v1_dst_fix")
+        .expect("standard pipeline registered");
+
+    let output = pipeline.run_batch(&context, &batch)?;
+
+    let signature_series = output.column("file_set_signature")?.str()?;
     let expected = {
         let mut hashes = vec!["hash_a", "hash_b"];
         hashes.sort();
@@ -58,12 +113,14 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     assert_eq!(unique_signatures.len(), 1);
     assert_eq!(unique_signatures.iter().next().unwrap(), &expected);
 
-    let ts_utc = corrected.column("timestamp_utc")?.datetime()?;
+    let ts_utc = output.column("timestamp_utc")?.datetime()?;
     assert_eq!(ts_utc.null_count(), 0);
 
-    assert!(corrected.column("calculation_method_used").is_ok());
-    assert!(corrected.column("sap_flux_density_j_dma_cm_hr").is_ok());
-    assert!(corrected.column("quality").is_ok());
+    assert!(output.column("calculation_method_used").is_ok());
+    assert!(output.column("sap_flux_density_j_dma_cm_hr").is_ok());
+    assert!(output.column("quality").is_ok());
+
+    assert!(output.height() > 0);
 
     Ok(())
 }

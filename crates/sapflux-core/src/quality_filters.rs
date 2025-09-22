@@ -9,37 +9,57 @@ const YEARS_TO_MICROS: f64 = 365.25 * 24.0 * 60.0 * 60.0 * 1_000_000.0;
 pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataFrame, PolarsError> {
     let len = df.height();
 
-    let timestamp = df.column("timestamp_utc")?.as_series().datetime()?;
+    let timestamp = df.column("timestamp_utc")?.datetime()?;
     let start_ts = df
         .column("deployment_start_timestamp_utc")?
-        .as_series()
         .datetime()?;
     let end_ts = df
         .column("deployment_end_timestamp_utc")?
-        .as_series()
         .datetime()?;
     let start_grace = df
         .column("quality_deployment_start_grace_minutes")?
-        .as_series()
         .f64()?;
     let end_grace = df
         .column("quality_deployment_end_grace_minutes")?
-        .as_series()
         .f64()?;
-    let future_lead = df
-        .column("quality_future_lead_minutes")?
-        .as_series()
-        .f64()?;
-    let gap_years = df.column("quality_gap_years")?.as_series().f64()?;
-    let flux_max = df.column("quality_max_flux_cm_hr")?.as_series().f64()?;
-    let flux_min = df.column("quality_min_flux_cm_hr")?.as_series().f64()?;
-    let sap_flux = df
-        .column("sap_flux_density_j_dma_cm_hr")?
-        .as_series()
-        .f64()?;
-    let logger_id = df.column("logger_id")?.as_series().utf8()?;
+    let future_lead = df.column("quality_future_lead_minutes")?.f64()?;
+    let gap_years = df.column("quality_gap_years")?.f64()?;
+    let flux_max = df.column("quality_max_flux_cm_hr")?.f64()?;
+    let flux_min = df.column("quality_min_flux_cm_hr")?.f64()?;
+    let sap_flux = df.column("sap_flux_density_j_dma_cm_hr")?.f64()?;
+    let logger_id = df.column("logger_id")?.str()?;
+    let record_series = df.column("record")?.i64()?;
 
-    let mut last_timestamp: HashMap<String, i64> = HashMap::new();
+    let mut per_logger: HashMap<&str, Vec<(i64, i64, usize)>> = HashMap::new();
+
+    for idx in 0..len {
+        if let (Some(logger), Some(record), Some(ts)) = (
+            logger_id.get(idx),
+            record_series.get(idx),
+            timestamp.get(idx),
+        ) {
+            per_logger
+                .entry(logger)
+                .or_default()
+                .push((record, ts, idx));
+        }
+    }
+
+    let mut record_gap_flags = vec![false; len];
+
+    for entries in per_logger.values_mut() {
+        entries.sort_by_key(|(record, _, _)| *record);
+        for window in entries.windows(2) {
+            let (_, prev_ts, _) = window[0];
+            let (_, curr_ts, curr_idx) = window[1];
+            let delta_years = (curr_ts - prev_ts).abs() as f64 / YEARS_TO_MICROS;
+            let threshold = gap_years.get(curr_idx).unwrap_or(0.0);
+            if delta_years > threshold {
+                record_gap_flags[curr_idx] = true;
+            }
+        }
+    }
+
     let mut quality: Vec<Option<String>> = Vec::with_capacity(len);
     let mut explanations: Vec<Option<String>> = Vec::with_capacity(len);
 
@@ -74,16 +94,8 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
             }
         }
 
-        if let (Some(ts_val), Some(logger_val)) = (ts, logger_id.get(idx)) {
-            let key = logger_val.to_string();
-            if let Some(prev) = last_timestamp.get(&key) {
-                let delta_years = (ts_val - *prev).abs() as f64 / YEARS_TO_MICROS;
-                let threshold = gap_years.get(idx).unwrap_or(0.0);
-                if delta_years > threshold {
-                    reasons.push("record_gap_gt_quality_gap_years");
-                }
-            }
-            last_timestamp.insert(key, ts_val);
+        if record_gap_flags[idx] {
+            reasons.push("record_gap_gt_quality_gap_years");
         }
 
         if let Some(flux) = sap_flux.get(idx) {

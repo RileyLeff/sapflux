@@ -2,7 +2,10 @@ use std::any::Any;
 
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
-use sapflux_parser::{parse_sapflow_file, ParsedFileData as ExternalParsedFileData};
+use sapflux_parser::{
+    formats::{Cr300TableParser as ExternalCr300TableParser, SapFlowAllParser as ExternalSapFlowAllParser},
+    ParsedFileData as ExternalParsedFileData,
+};
 
 pub trait ParsedData: Any + Send + Sync {
     fn data_format_name(&self) -> &'static str;
@@ -100,7 +103,9 @@ impl SapflowParser for SapFlowAllParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parsed = parse_sapflow_file(content).context("sapflow_all_v1 parser failed")?;
+        let parser = ExternalSapFlowAllParser::default();
+        let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
+            .context("sapflow_all_v1 parser failed")?;
         Ok(Box::new(parsed))
     }
 }
@@ -121,7 +126,9 @@ impl SapflowParser for Cr300TableParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parsed = parse_sapflow_file(content).context("cr300_table_v1 parser failed")?;
+        let parser = ExternalCr300TableParser::default();
+        let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
+            .context("cr300_table_v1 parser failed")?;
         Ok(Box::new(parsed))
     }
 }

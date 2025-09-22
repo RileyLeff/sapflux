@@ -31,7 +31,7 @@ fn expected_vh_hrm(alpha: f64) -> f64 {
 fn expected_vh_tmax(tm: f64) -> f64 {
     let k = 0.002409611;
     let heat = 3.0;
-    let probe_down = 0.6;
+    let probe_down: f64 = 0.6;
     let inner = (4.0 * k / heat) * ((1.0 - heat / tm).ln()) + probe_down.powi(2);
     (inner.sqrt() / (tm * (tm - heat))) * 3600.0
 }
@@ -49,7 +49,7 @@ fn calculator_populates_columns() {
     let method = df
         .column("calculation_method_used")
         .unwrap()
-        .utf8()
+        .str()
         .unwrap();
     assert_eq!(method.get(0), Some("HRM"));
     assert_eq!(method.get(1), Some("Tmax"));
