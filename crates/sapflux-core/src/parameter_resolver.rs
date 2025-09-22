@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use polars::prelude::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -24,6 +24,103 @@ pub struct ParameterDefinition {
     pub code: &'static str,
     pub kind: ParameterKind,
     pub default_value: Value,
+}
+
+pub fn canonical_parameter_definitions() -> Vec<ParameterDefinition> {
+    use ParameterKind::Float;
+
+    vec![
+        ParameterDefinition {
+            code: "parameter_thermal_diffusivity_k_cm2_s",
+            kind: Float,
+            default_value: json!(0.002409611f64),
+        },
+        ParameterDefinition {
+            code: "parameter_probe_distance_downstream_cm",
+            kind: Float,
+            default_value: json!(0.6f64),
+        },
+        ParameterDefinition {
+            code: "parameter_probe_distance_upstream_cm",
+            kind: Float,
+            default_value: json!(0.6f64),
+        },
+        ParameterDefinition {
+            code: "parameter_heat_pulse_duration_s",
+            kind: Float,
+            default_value: json!(3.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_wound_correction_a",
+            kind: Float,
+            default_value: json!(1.8905f64),
+        },
+        ParameterDefinition {
+            code: "parameter_wound_correction_b",
+            kind: Float,
+            default_value: json!(0.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_wound_correction_c",
+            kind: Float,
+            default_value: json!(0.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_wood_density_kg_m3",
+            kind: Float,
+            default_value: json!(500.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_wood_specific_heat_j_kg_c",
+            kind: Float,
+            default_value: json!(1000.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_water_content_g_g",
+            kind: Float,
+            default_value: json!(1.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_water_specific_heat_j_kg_c",
+            kind: Float,
+            default_value: json!(4182.0f64),
+        },
+        ParameterDefinition {
+            code: "parameter_water_density_kg_m3",
+            kind: Float,
+            default_value: json!(1000.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_max_flux_cm_hr",
+            kind: Float,
+            default_value: json!(40.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_min_flux_cm_hr",
+            kind: Float,
+            default_value: json!(-15.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_gap_years",
+            kind: Float,
+            default_value: json!(2.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_deployment_start_grace_minutes",
+            kind: Float,
+            default_value: json!(0.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_deployment_end_grace_minutes",
+            kind: Float,
+            default_value: json!(0.0f64),
+        },
+        ParameterDefinition {
+            code: "quality_future_lead_minutes",
+            kind: Float,
+            default_value: json!(5.0f64),
+        },
+    ]
 }
 
 #[derive(Debug, Clone)]
@@ -100,15 +197,16 @@ impl ObservationContext {
     }
 }
 
-fn extract_uuid_column(df: &DataFrame, name: &str) -> Result<Vec<Option<Uuid>>, ParameterResolverError> {
+fn extract_uuid_column(
+    df: &DataFrame,
+    name: &str,
+) -> Result<Vec<Option<Uuid>>, ParameterResolverError> {
     match df.column(name) {
         Ok(column) => {
             let str_col = column.as_materialized_series().str()?;
             let mut values = Vec::with_capacity(df.height());
             for idx in 0..df.height() {
-                let parsed = str_col
-                    .get(idx)
-                    .and_then(|s| Uuid::parse_str(s).ok());
+                let parsed = str_col.get(idx).and_then(|s| Uuid::parse_str(s).ok());
                 values.push(parsed);
             }
             Ok(values)
@@ -182,10 +280,17 @@ fn resolve_value(
             return (Some(override_row.value.clone()), label.to_string());
         }
     }
-    (Some(definition.default_value.clone()), "default".to_string())
+    (
+        Some(definition.default_value.clone()),
+        "default".to_string(),
+    )
 }
 
-fn override_matches(override_row: &ParameterOverride, context: &ObservationContext, idx: usize) -> bool {
+fn override_matches(
+    override_row: &ParameterOverride,
+    context: &ObservationContext,
+    idx: usize,
+) -> bool {
     let matches_site = match override_row.site_id {
         Some(ref id) => context.site_ids[idx].as_ref() == Some(id),
         None => true,

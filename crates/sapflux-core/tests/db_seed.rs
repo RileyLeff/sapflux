@@ -26,7 +26,10 @@ async fn db_seed_is_idempotent_when_database_available() -> Result<()> {
     .fetch_one(&pool)
     .await?;
 
-    assert_eq!(format_count, 1, "expected exactly one canonical data format record");
+    assert_eq!(
+        format_count, 1,
+        "expected exactly one canonical data format record"
+    );
 
     Ok(())
 }

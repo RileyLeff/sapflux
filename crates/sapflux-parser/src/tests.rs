@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::errors::ParserError;
-use crate::formats::{Cr300TableParser, LoggerColumns, SapFlowAllParser, build_logger_dataframe};
+use crate::formats::{build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser};
 use crate::model::{ParsedFileData, ThermistorDepth};
 use crate::parse_sapflow_file;
 use crate::registry::SapflowParser;
@@ -47,13 +47,11 @@ fn parses_cr300_table_file() {
     let content = fixture("CR300Series_402_Table2.dat");
     let parsed = parse_sapflow_file(&content).expect("CR300 table parse failed");
 
-    assert!(
-        parsed
-            .file_metadata
-            .table_name
-            .to_ascii_lowercase()
-            .starts_with("table")
-    );
+    assert!(parsed
+        .file_metadata
+        .table_name
+        .to_ascii_lowercase()
+        .starts_with("table"));
     assert_eq!(parsed.logger.sensors.len(), 1);
 
     let sensor = &parsed.logger.sensors[0];

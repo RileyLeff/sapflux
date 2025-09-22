@@ -2,22 +2,231 @@ use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use polars::prelude::DataFrame;
 
+#[cfg(feature = "runtime")]
+use anyhow::Context;
+#[cfg(feature = "runtime")]
+use chrono::{DateTime, Utc};
+#[cfg(feature = "runtime")]
+use serde_json::Value;
+#[cfg(feature = "runtime")]
+use std::collections::HashMap;
+#[cfg(feature = "runtime")]
+use uuid::Uuid;
+
 use crate::{
     flatten::flatten_parsed_files,
-    metadata_enricher::{self, DeploymentRow as EnrichmentDeploymentRow},
+    metadata_enricher::{
+        self, DataloggerAliasRow as EnrichmentAliasRow, DeploymentRow as EnrichmentDeploymentRow,
+    },
     parameter_resolver::{self, ParameterDefinition, ParameterOverride},
     parsers::ParsedData,
-    timestamp_fixer::{self, DeploymentMetadata as TsDeploymentMetadata, SiteMetadata as TsSiteMetadata},
+    timestamp_fixer::{
+        self, DeploymentMetadata as TsDeploymentMetadata, SiteMetadata as TsSiteMetadata,
+    },
 };
 use sapflux_parser::ParsedFileData;
 
-#[derive(Debug, Default)]
+#[cfg(feature = "runtime")]
+use crate::db::DbPool;
+#[cfg(feature = "runtime")]
+use sqlx::Row;
+
+#[derive(Debug)]
 pub struct ExecutionContext {
     pub timestamp_sites: Vec<TsSiteMetadata>,
     pub timestamp_deployments: Vec<TsDeploymentMetadata>,
     pub enrichment_deployments: Vec<EnrichmentDeploymentRow>,
+    pub datalogger_aliases: Vec<EnrichmentAliasRow>,
     pub parameter_definitions: Vec<ParameterDefinition>,
     pub parameter_overrides: Vec<ParameterOverride>,
+}
+
+impl Default for ExecutionContext {
+    fn default() -> Self {
+        Self {
+            timestamp_sites: Vec::new(),
+            timestamp_deployments: Vec::new(),
+            enrichment_deployments: Vec::new(),
+            datalogger_aliases: Vec::new(),
+            parameter_definitions: parameter_resolver::canonical_parameter_definitions(),
+            parameter_overrides: Vec::new(),
+        }
+    }
+}
+
+impl ExecutionContext {
+    #[cfg(feature = "runtime")]
+    pub async fn load_from_db(pool: &DbPool) -> Result<Self> {
+        let site_rows = sqlx::query(r#"SELECT site_id, timezone FROM sites"#)
+            .fetch_all(pool)
+            .await?;
+
+        let mut site_tz_map: HashMap<Uuid, chrono_tz::Tz> = HashMap::new();
+        let mut timestamp_sites = Vec::with_capacity(site_rows.len());
+        for row in site_rows {
+            let site_id: Uuid = row.try_get("site_id")?;
+            let timezone: String = row.try_get("timezone")?;
+            let tz: chrono_tz::Tz = timezone
+                .parse()
+                .with_context(|| format!("unknown timezone {}", timezone))?;
+            site_tz_map.insert(site_id, tz);
+            timestamp_sites.push(TsSiteMetadata { site_id, timezone: tz });
+        }
+
+        let deployment_rows = sqlx::query(
+            r#"
+            SELECT
+                d.deployment_id,
+                d.project_id,
+                d.stem_id,
+                d.sdi_address,
+                d.start_timestamp_utc,
+                d.end_timestamp_utc,
+                d.installation_metadata,
+                dl.code AS datalogger_code,
+                s.site_id,
+                zones.zone_id,
+                plots.plot_id,
+                plants.plant_id,
+                species.species_id
+            FROM deployments d
+            JOIN dataloggers dl ON d.datalogger_id = dl.datalogger_id
+            JOIN stems st ON d.stem_id = st.stem_id
+            JOIN plants ON st.plant_id = plants.plant_id
+            JOIN plots ON plants.plot_id = plots.plot_id
+            JOIN zones ON plots.zone_id = zones.zone_id
+            JOIN sites s ON zones.site_id = s.site_id
+            JOIN species ON plants.species_id = species.species_id
+            WHERE d.include_in_pipeline = TRUE
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mut timestamp_deployments = Vec::with_capacity(deployment_rows.len());
+        let mut enrichment_deployments = Vec::with_capacity(deployment_rows.len());
+
+        for row in deployment_rows {
+            let deployment_id: Uuid = row.try_get("deployment_id")?;
+            let project_id: Uuid = row.try_get("project_id")?;
+            let stem_id: Uuid = row.try_get("stem_id")?;
+            let sdi_address: String = row.try_get("sdi_address")?;
+            let start_timestamp_utc: DateTime<Utc> = row.try_get("start_timestamp_utc")?;
+            let end_timestamp_utc: Option<DateTime<Utc>> = row.try_get("end_timestamp_utc")?;
+            let installation_metadata: Option<Value> = row.try_get("installation_metadata")?;
+            let datalogger_code: String = row.try_get("datalogger_code")?;
+            let site_id: Uuid = row.try_get("site_id")?;
+            let zone_id: Option<Uuid> = row.try_get("zone_id")?;
+            let plot_id: Option<Uuid> = row.try_get("plot_id")?;
+            let plant_id: Uuid = row.try_get("plant_id")?;
+            let species_id: Uuid = row.try_get("species_id")?;
+
+            let tz = site_tz_map
+                .get(&site_id)
+                .copied()
+                .ok_or_else(|| anyhow!("missing timezone for site {}", site_id))?;
+
+            let start_local = start_timestamp_utc.with_timezone(&tz).naive_local();
+            let end_local = end_timestamp_utc.map(|dt| dt.with_timezone(&tz).naive_local());
+
+            timestamp_deployments.push(TsDeploymentMetadata {
+                datalogger_id: datalogger_code.clone(),
+                site_id,
+                start_timestamp_local: start_local,
+                end_timestamp_local: end_local,
+            });
+
+            let installation_metadata = json_value_to_map(installation_metadata);
+
+            enrichment_deployments.push(EnrichmentDeploymentRow {
+                deployment_id,
+                datalogger_id: datalogger_code.clone(),
+                sdi_address,
+                project_id,
+                site_id,
+                zone_id,
+                plot_id,
+                plant_id: Some(plant_id),
+                species_id: Some(species_id),
+                stem_id,
+                start_timestamp_utc: datetime_to_utc_micros(start_timestamp_utc),
+                end_timestamp_utc: end_timestamp_utc.map(datetime_to_utc_micros),
+                installation_metadata,
+            });
+        }
+
+        let alias_rows = sqlx::query(
+            r#"
+                SELECT
+                    da.alias,
+                    dl.code AS datalogger_code,
+                    lower(da.active_during) AS start_utc,
+                    upper(da.active_during) AS end_utc
+                FROM datalogger_aliases da
+                JOIN dataloggers dl ON da.datalogger_id = dl.datalogger_id
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mut datalogger_aliases = Vec::with_capacity(alias_rows.len());
+        for row in alias_rows {
+            let alias: String = row.try_get("alias")?;
+            let datalogger_code: String = row.try_get("datalogger_code")?;
+            let start_utc: DateTime<Utc> = row.try_get("start_utc")?;
+            let end_utc: Option<DateTime<Utc>> = row.try_get("end_utc")?;
+
+            datalogger_aliases.push(EnrichmentAliasRow {
+                alias,
+                datalogger_id: datalogger_code,
+                start_timestamp_utc: datetime_to_utc_micros(start_utc),
+                end_timestamp_utc: end_utc.map(datetime_to_utc_micros),
+            });
+        }
+
+        let override_rows = sqlx::query(
+            r#"
+                SELECT
+                    p.code,
+                    po.value,
+                    po.site_id,
+                    po.species_id,
+                    po.zone_id,
+                    po.plot_id,
+                    po.plant_id,
+                    po.stem_id,
+                    po.deployment_id
+                FROM parameter_overrides po
+                JOIN parameters p ON po.parameter_id = p.parameter_id
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mut parameter_overrides = Vec::with_capacity(override_rows.len());
+        for row in override_rows {
+            parameter_overrides.push(ParameterOverride {
+                code: row.try_get("code")?,
+                value: row.try_get("value")?,
+                site_id: row.try_get("site_id")?,
+                species_id: row.try_get("species_id")?,
+                zone_id: row.try_get("zone_id")?,
+                plot_id: row.try_get("plot_id")?,
+                plant_id: row.try_get("plant_id")?,
+                stem_id: row.try_get("stem_id")?,
+                deployment_id: row.try_get("deployment_id")?,
+            });
+        }
+
+        Ok(Self {
+            timestamp_sites,
+            timestamp_deployments,
+            enrichment_deployments,
+            datalogger_aliases,
+            parameter_definitions: parameter_resolver::canonical_parameter_definitions(),
+            parameter_overrides,
+        })
+    }
 }
 
 pub trait ProcessingPipeline: Send + Sync {
@@ -89,9 +298,9 @@ impl ProcessingPipeline for StandardPipelineStub {
 
         let mut typed_files: Vec<&ParsedFileData> = Vec::with_capacity(_parsed_batch.len());
         for parsed in _parsed_batch {
-            let file = parsed
-                .downcast_ref::<ParsedFileData>()
-                .ok_or_else(|| anyhow!("standard_v1_dst_fix requires sapflow_toa5_hierarchical_v1"))?;
+            let file = parsed.downcast_ref::<ParsedFileData>().ok_or_else(|| {
+                anyhow!("standard_v1_dst_fix requires sapflow_toa5_hierarchical_v1")
+            })?;
             typed_files.push(file);
         }
 
@@ -105,6 +314,7 @@ impl ProcessingPipeline for StandardPipelineStub {
         let enriched = metadata_enricher::enrich_with_metadata(
             &corrected,
             &context.enrichment_deployments,
+            &context.datalogger_aliases,
         )?;
 
         let resolved = if context.parameter_definitions.is_empty() {
@@ -119,4 +329,17 @@ impl ProcessingPipeline for StandardPipelineStub {
 
         Ok(resolved)
     }
+}
+
+#[cfg(feature = "runtime")]
+fn json_value_to_map(value: Option<Value>) -> HashMap<String, Value> {
+    match value {
+        Some(Value::Object(map)) => map.into_iter().collect(),
+        _ => HashMap::new(),
+    }
+}
+
+#[cfg(feature = "runtime")]
+fn datetime_to_utc_micros(dt: DateTime<Utc>) -> i64 {
+    dt.timestamp_micros()
 }

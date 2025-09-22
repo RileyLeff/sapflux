@@ -1,9 +1,14 @@
-use sapflux_core::{data_formats::all_data_formats, parsers::all_parser_descriptors, pipelines::all_pipeline_descriptors};
+use sapflux_core::{
+    data_formats::all_data_formats, parsers::all_parser_descriptors,
+    pipelines::all_pipeline_descriptors,
+};
 
 #[test]
 fn registries_are_populated() {
     assert!(
-        all_data_formats().iter().any(|df| df.code == "sapflow_toa5_hierarchical_v1"),
+        all_data_formats()
+            .iter()
+            .any(|df| df.code == "sapflow_toa5_hierarchical_v1"),
         "expected canonical data format to be registered"
     );
 

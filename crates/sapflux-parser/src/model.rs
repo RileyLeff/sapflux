@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io::{Cursor, Read, Write};
 
-use ::zip::{CompressionMethod, ZipArchive, ZipWriter, write::FileOptions};
+use ::zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

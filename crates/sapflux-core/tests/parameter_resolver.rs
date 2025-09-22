@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use polars::prelude::*;
-use serde_json::json;
 use sapflux_core::parameter_resolver::{
     self, ParameterDefinition, ParameterKind, ParameterOverride,
 };
+use serde_json::json;
 use uuid::Uuid;
 
 struct ObservationFixtures {
@@ -70,8 +72,7 @@ fn parameter_resolver_prefers_more_specific_override() {
         },
     ];
 
-    let resolved = parameter_resolver::resolve_parameters(&df, &defs, &overrides)
-        .expect("resolve");
+    let resolved = parameter_resolver::resolve_parameters(&df, &defs, &overrides).expect("resolve");
 
     let values = resolved
         .column("parameter_wood_density_kg_m3")
@@ -104,8 +105,7 @@ fn parameter_resolver_falls_back_to_default() {
 
     let overrides: Vec<ParameterOverride> = Vec::new();
 
-    let resolved = parameter_resolver::resolve_parameters(&df, &defs, &overrides)
-        .expect("resolve");
+    let resolved = parameter_resolver::resolve_parameters(&df, &defs, &overrides).expect("resolve");
 
     let values = resolved
         .column("parameter_heat_pulse_duration_s")
@@ -121,4 +121,17 @@ fn parameter_resolver_falls_back_to_default() {
     assert_eq!(values.get(0), Some(3.0));
     assert_eq!(values.get(1), Some(3.0));
     assert_eq!(sources.get(0), Some("default"));
+}
+
+#[test]
+fn canonical_definitions_include_quality_thresholds() {
+    let defs = parameter_resolver::canonical_parameter_definitions();
+    let lookup: HashMap<&str, &ParameterDefinition> =
+        defs.iter().map(|def| (def.code, def)).collect();
+
+    let future_lead = lookup
+        .get("quality_future_lead_minutes")
+        .expect("quality_future_lead_minutes present");
+    assert_eq!(future_lead.kind, ParameterKind::Float);
+    assert_eq!(future_lead.default_value.as_f64(), Some(5.0));
 }

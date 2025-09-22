@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use polars::lazy::dsl::col;
 use polars::prelude::*;
+use sapflux_core::metadata_enricher::{self, DataloggerAliasRow, DeploymentRow};
 use serde_json::json;
-use sapflux_core::metadata_enricher::{self, DeploymentRow};
 use uuid::Uuid;
 
 fn make_observations(logger: &str, address: &str, timestamp_micros: i64) -> DataFrame {
@@ -14,10 +14,7 @@ fn make_observations(logger: &str, address: &str, timestamp_micros: i64) -> Data
     ]
     .expect("df")
     .lazy()
-    .with_column(
-        col("timestamp_utc")
-            .cast(DataType::Datetime(TimeUnit::Microseconds, None)),
-    )
+    .with_column(col("timestamp_utc").cast(DataType::Datetime(TimeUnit::Microseconds, None)))
     .collect()
     .expect("collect")
 }
@@ -42,14 +39,20 @@ fn enrichment_populates_deployment_and_metadata() {
         sdi_address: "0".to_string(),
         project_id,
         site_id,
+        zone_id: None,
+        plot_id: None,
+        plant_id: None,
+        species_id: None,
         stem_id,
         start_timestamp_utc: timestamp - 1_000_000,
         end_timestamp_utc: Some(timestamp + 1_000_000),
         installation_metadata,
     }];
 
-    let enriched = metadata_enricher::enrich_with_metadata(&df, &deployments)
-        .expect("enrichment");
+    let aliases: Vec<DataloggerAliasRow> = Vec::new();
+
+    let enriched =
+        metadata_enricher::enrich_with_metadata(&df, &deployments, &aliases).expect("enrichment");
 
     let deployment_col = enriched
         .column("deployment_id")
@@ -66,11 +69,7 @@ fn enrichment_populates_deployment_and_metadata() {
         .unwrap();
     assert_eq!(azimuth_col.get(0), Some("180"));
 
-    let notes_col = enriched
-        .column("notes")
-        .expect("notes")
-        .str()
-        .unwrap();
+    let notes_col = enriched.column("notes").expect("notes").str().unwrap();
     assert_eq!(notes_col.get(0), Some("Shaded"));
 }
 
@@ -80,9 +79,10 @@ fn enrichment_handles_missing_deployment() {
     let df = make_observations("420", "0", timestamp);
 
     let deployments: Vec<DeploymentRow> = Vec::new();
+    let aliases: Vec<DataloggerAliasRow> = Vec::new();
 
-    let enriched = metadata_enricher::enrich_with_metadata(&df, &deployments)
-        .expect("enrichment");
+    let enriched =
+        metadata_enricher::enrich_with_metadata(&df, &deployments, &aliases).expect("enrichment");
 
     let deployment_col = enriched
         .column("deployment_id")
@@ -90,4 +90,56 @@ fn enrichment_handles_missing_deployment() {
         .str()
         .unwrap();
     assert_eq!(deployment_col.get(0), None);
+}
+
+#[test]
+fn enrichment_resolves_logger_alias() {
+    let timestamp = 1_720_137_600_i64 * 1_000_000;
+    let df = make_observations("ALIAS420", "0", timestamp);
+
+    let deployment_id = Uuid::new_v4();
+    let project_id = Uuid::new_v4();
+    let site_id = Uuid::new_v4();
+    let stem_id = Uuid::new_v4();
+
+    let deployments = vec![DeploymentRow {
+        deployment_id,
+        datalogger_id: "420".to_string(),
+        sdi_address: "0".to_string(),
+        project_id,
+        site_id,
+        zone_id: None,
+        plot_id: None,
+        plant_id: None,
+        species_id: None,
+        stem_id,
+        start_timestamp_utc: timestamp - 10_000_000,
+        end_timestamp_utc: Some(timestamp + 10_000_000),
+        installation_metadata: HashMap::new(),
+    }];
+
+    let aliases = vec![DataloggerAliasRow {
+        alias: "ALIAS420".to_string(),
+        datalogger_id: "420".to_string(),
+        start_timestamp_utc: timestamp - 20_000_000,
+        end_timestamp_utc: Some(timestamp + 20_000_000),
+    }];
+
+    let enriched =
+        metadata_enricher::enrich_with_metadata(&df, &deployments, &aliases).expect("enrichment");
+
+    let datalogger_col = enriched
+        .column("datalogger_id")
+        .expect("datalogger_id")
+        .str()
+        .unwrap();
+    assert_eq!(datalogger_col.get(0), Some("420"));
+
+    let deployment_col = enriched
+        .column("deployment_id")
+        .expect("deployment_id")
+        .str()
+        .unwrap();
+    let deployment_id_str = deployment_id.to_string();
+    assert_eq!(deployment_col.get(0), Some(deployment_id_str.as_str()));
 }

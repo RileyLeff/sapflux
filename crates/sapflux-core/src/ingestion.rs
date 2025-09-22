@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use blake3::Hasher;
+use serde::Serialize;
 
 use crate::parsers::{all_parsers, ParsedData};
 
@@ -10,20 +11,20 @@ pub struct FileInput<'a> {
     pub contents: &'a [u8],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum FileStatus {
     Duplicate,
     Parsed,
     Failed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ParserAttemptReport {
     pub parser: &'static str,
     pub message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FileReport {
     pub path: String,
     pub hash: String,
@@ -86,7 +87,10 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
 
         for parser in all_parsers() {
             match parser.parse(content_str) {
-                Ok(parsed) => {
+                Ok(mut parsed) => {
+                    if let Some(pfd) = parsed.downcast_mut::<sapflux_parser::ParsedFileData>() {
+                        pfd.file_hash = hash.clone();
+                    }
                     parsed_opt = Some(parsed);
                     break;
                 }

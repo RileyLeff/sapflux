@@ -19,8 +19,14 @@ fn flatten_creates_rows_for_each_thermistor_pair() {
     let df = flatten_parsed_files(&[&parsed]).expect("flatten failed");
 
     assert!(df.column("file_hash").is_ok(), "expected file_hash column");
-    assert!(df.column("sdi12_address").is_ok(), "expected sdi12_address column");
-    assert!(df.column("thermistor_depth").is_ok(), "expected depth column");
+    assert!(
+        df.column("sdi12_address").is_ok(),
+        "expected sdi12_address column"
+    );
+    assert!(
+        df.column("thermistor_depth").is_ok(),
+        "expected depth column"
+    );
 
     // Expect two sensors * two depths for the first fixture (4 groups)
     let expected_pairs = parsed

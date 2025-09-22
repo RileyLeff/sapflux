@@ -8,7 +8,7 @@ pub use model::{
     ArchiveError, FileMetadata, LoggerData, ParsedFileData, Sdi12Address, SensorData,
     ThermistorDepth, ThermistorPairData,
 };
-pub use registry::{SapflowParser, parse_sapflow_file, parse_with_parsers};
+pub use registry::{parse_sapflow_file, parse_with_parsers, SapflowParser};
 
 #[cfg(test)]
 mod tests;

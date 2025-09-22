@@ -47,22 +47,14 @@ pub fn flatten_parsed_files(files: &[&ParsedFileData]) -> Result<DataFrame, Flat
 
                 let mut columns: Vec<Column> = logger_df.get_columns().iter().cloned().collect();
 
-                let file_hash = Series::new(
-                    "file_hash".into(),
-                    vec![file.file_hash.as_str(); rows],
-                );
+                let file_hash =
+                    Series::new("file_hash".into(), vec![file.file_hash.as_str(); rows]);
                 columns.push(file_hash.into());
 
-                let sdi12 = Series::new(
-                    "sdi12_address".into(),
-                    vec![address_str.as_str(); rows],
-                );
+                let sdi12 = Series::new("sdi12_address".into(), vec![address_str.as_str(); rows]);
                 columns.push(sdi12.into());
 
-                let depth = Series::new(
-                    "thermistor_depth".into(),
-                    vec![pair.depth.as_str(); rows],
-                );
+                let depth = Series::new("thermistor_depth".into(), vec![pair.depth.as_str(); rows]);
                 columns.push(depth.into());
 
                 if let Some(sensor_df) = sensor.sensor_df.as_ref() {

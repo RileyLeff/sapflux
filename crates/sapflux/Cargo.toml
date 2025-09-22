@@ -10,11 +10,11 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-sapflux-core = { path = "../sapflux-core" }
+sapflux-core = { path = "../sapflux-core", features = ["runtime"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
-axum.workspace = true
+axum = { workspace = true, features = ["macros"] }
 serde = { workspace = true, features = ["derive"] }
 base64 = "0.22.1"

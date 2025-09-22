@@ -7,11 +7,16 @@ use sapflux_parser::{parse_sapflow_file, ParsedFileData as ExternalParsedFileDat
 pub trait ParsedData: Any + Send {
     fn data_format_name(&self) -> &'static str;
     fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl dyn ParsedData {
     pub fn downcast_ref<T: ParsedData + 'static>(&self) -> Option<&T> {
         self.as_any().downcast_ref::<T>()
+    }
+
+    pub fn downcast_mut<T: ParsedData + 'static>(&mut self) -> Option<&mut T> {
+        self.as_any_mut().downcast_mut::<T>()
     }
 }
 
@@ -21,6 +26,10 @@ impl ParsedData for ExternalParsedFileData {
     }
 
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }
@@ -91,8 +100,7 @@ impl SapflowParser for SapFlowAllParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parsed = parse_sapflow_file(content)
-            .context("sapflow_all_v1 parser failed")?;
+        let parsed = parse_sapflow_file(content).context("sapflow_all_v1 parser failed")?;
         Ok(Box::new(parsed))
     }
 }
@@ -113,8 +121,7 @@ impl SapflowParser for Cr300TableParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parsed = parse_sapflow_file(content)
-            .context("cr300_table_v1 parser failed")?;
+        let parsed = parse_sapflow_file(content).context("cr300_table_v1 parser failed")?;
         Ok(Box::new(parsed))
     }
 }

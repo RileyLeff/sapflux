@@ -233,7 +233,7 @@ impl SensorFrameBuilder {
                             ),
                         });
                     }
-                columns.push(Series::new(metric.canonical_name().into(), data.clone()).into());
+                    columns.push(Series::new(metric.canonical_name().into(), data.clone()).into());
                 }
                 Some(
                     DataFrame::new(columns).map_err(|err| ParserError::Validation {

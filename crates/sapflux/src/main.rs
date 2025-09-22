@@ -1,8 +1,21 @@
 use anyhow::{Context, Result};
-use axum::{extract::{Json, State}, http::StatusCode, routing::{get, post}, Router};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    routing::{get, post},
+    Router,
+};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 use clap::{Parser, Subcommand};
+use sapflux_core::{
+    db, seed,
+    transactions::{
+        execute_transaction, PipelineStatus, TransactionFile, TransactionReceipt,
+        TransactionRequest as CoreTransactionRequest,
+    },
+};
 use serde::{Deserialize, Serialize};
-use sapflux_core::{db, seed};
 use std::net::SocketAddr;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -84,7 +97,9 @@ struct AdminResponse {
     message: String,
 }
 
-async fn run_migrations(State(state): State<AppState>) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
+async fn run_migrations(
+    State(state): State<AppState>,
+) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
     db::run_migrations(&state.pool)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
@@ -93,7 +108,9 @@ async fn run_migrations(State(state): State<AppState>) -> Result<Json<AdminRespo
     }))
 }
 
-async fn run_seed(State(state): State<AppState>) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
+async fn run_seed(
+    State(state): State<AppState>,
+) -> Result<Json<AdminResponse>, (StatusCode, &'static str)> {
     db::run_migrations(&state.pool)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "migration failed"))?;
@@ -106,21 +123,70 @@ async fn run_seed(State(state): State<AppState>) -> Result<Json<AdminResponse>, 
 }
 
 #[derive(Debug, Deserialize)]
+struct TransactionFilePayload {
+    path: String,
+    contents_base64: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct TransactionRequest {
     pub message: Option<String>,
+    #[serde(default)]
+    pub dry_run: bool,
+    pub files: Vec<TransactionFilePayload>,
 }
 
 #[derive(Debug, Serialize)]
 struct TransactionResponse {
-    pub status: String,
-    pub message: Option<String>,
+    pub status: PipelineStatus,
+    pub receipt: TransactionReceipt,
 }
 
 async fn handle_transaction(
+    State(state): State<AppState>,
     Json(req): Json<TransactionRequest>,
 ) -> Result<Json<TransactionResponse>, (StatusCode, &'static str)> {
-    Ok(Json(TransactionResponse {
-        status: "accepted".to_string(),
+    if req.files.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "transaction requires at least one file",
+        ));
+    }
+
+    let mut files = Vec::with_capacity(req.files.len());
+    for file in req.files {
+        let bytes = BASE64_STANDARD
+            .decode(file.contents_base64.as_bytes())
+            .map_err(|_| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    "file contents must be base64 encoded",
+                )
+            })?;
+
+        files.push(TransactionFile {
+            path: file.path,
+            contents: bytes,
+        });
+    }
+
+    let core_req = CoreTransactionRequest {
+        user_id: "anonymous".to_string(),
         message: req.message,
-    }))
+        dry_run: req.dry_run,
+        files,
+    };
+
+    let receipt = execute_transaction(&state.pool, core_req)
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "transaction processing failed",
+            )
+        })?;
+
+    let status = receipt.pipeline.status.clone();
+
+    Ok(Json(TransactionResponse { status, receipt }))
 }

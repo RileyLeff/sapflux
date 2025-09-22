@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{Duration, NaiveDateTime, Offset, TimeZone, Utc};
 use chrono_tz::Tz;
+use polars::df;
 use polars::lazy::dsl::*;
 use polars::prelude::*;
-use polars::df;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -86,8 +86,7 @@ pub fn correct_timestamps(
 
     record_rows.sort_by_key(|row| (row.logger_id.clone(), row.record));
 
-    let site_map: HashMap<Uuid, &SiteMetadata> =
-        sites.iter().map(|s| (s.site_id, s)).collect();
+    let site_map: HashMap<Uuid, &SiteMetadata> = sites.iter().map(|s| (s.site_id, s)).collect();
     let deployment_map = build_deployment_map(deployments);
 
     let chunk_offsets = compute_chunk_offsets(&record_rows, &site_map, &deployment_map)?;
@@ -102,12 +101,13 @@ pub fn correct_timestamps(
 
     for row in record_rows.iter() {
         let key = (row.logger_id.clone(), row.file_set_signature.clone());
-        let offset = chunk_offsets
-            .get(&key)
-            .ok_or_else(|| TimestampFixerError::MissingUtcOffset {
-                logger_id: row.logger_id.clone(),
-                file_set_signature: row.file_set_signature.clone(),
-            })?;
+        let offset =
+            chunk_offsets
+                .get(&key)
+                .ok_or_else(|| TimestampFixerError::MissingUtcOffset {
+                    logger_id: row.logger_id.clone(),
+                    file_set_signature: row.file_set_signature.clone(),
+                })?;
 
         let local_dt = naive_from_micros(row.timestamp_micros)?;
         let utc_dt = local_dt - Duration::seconds(*offset as i64);
@@ -153,15 +153,12 @@ pub fn correct_timestamps(
         .clone()
         .lazy()
         .join(
-            record_df
-                .clone()
-                .lazy()
-                .select([
-                    col("logger_id"),
-                    col("record"),
-                    col("file_set_signature"),
-                    col("timestamp_utc"),
-                ]),
+            record_df.clone().lazy().select([
+                col("logger_id"),
+                col("record"),
+                col("file_set_signature"),
+                col("timestamp_utc"),
+            ]),
             [col("logger_id"), col("record")],
             [col("logger_id"), col("record")],
             JoinArgs::new(JoinType::Left),
@@ -209,10 +206,7 @@ fn populate_records_map(
         let timestamp_micros = timestamps
             .get(idx)
             .ok_or_else(|| TimestampFixerError::InvalidAnchor(0))?;
-        let file_hash = file_hashes
-            .get(idx)
-            .unwrap_or("")
-            .to_string();
+        let file_hash = file_hashes.get(idx).unwrap_or("").to_string();
 
         map.entry((logger_id.clone(), record))
             .and_modify(|entry| {
@@ -287,9 +281,7 @@ fn find_offset_for_chunk(
         .and_then(|deps| {
             deps.iter().find(|d| {
                 anchor_time >= d.start_timestamp_local
-                    && d
-                        .end_timestamp_local
-                        .map_or(true, |end| anchor_time < end)
+                    && d.end_timestamp_local.map_or(true, |end| anchor_time < end)
             })
         })
         .ok_or_else(|| TimestampFixerError::NoActiveDeployment {
