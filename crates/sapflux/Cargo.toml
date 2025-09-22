@@ -18,3 +18,9 @@ dotenvy = { workspace = true }
 axum = { workspace = true, features = ["macros"] }
 serde = { workspace = true, features = ["derive"] }
 base64 = "0.22.1"
+
+[dev-dependencies]
+chrono = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true, features = ["postgres"] }

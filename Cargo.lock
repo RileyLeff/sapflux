@@ -3093,13 +3093,17 @@ dependencies = [
  "anyhow",
  "axum",
  "base64",
+ "chrono",
  "clap",
  "dotenvy",
  "sapflux-core",
  "serde",
+ "serde_json",
+ "sqlx",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

@@ -9,6 +9,16 @@ use uuid::Uuid;
 pub enum MetadataEnrichmentError {
     #[error("polars operation failed: {0}")]
     Polars(#[from] PolarsError),
+    #[error(
+        "multiple deployments matched logger {logger_id} / address {sdi_address} at timestamp {timestamp}"
+    )]
+    AmbiguousDeployment {
+        logger_id: String,
+        sdi_address: String,
+        timestamp: i64,
+    },
+    #[error("multiple aliases matched alias {alias} at timestamp {timestamp}")]
+    AmbiguousAlias { alias: String, timestamp: i64 },
 }
 
 #[derive(Debug, Clone)]
@@ -162,27 +172,23 @@ pub fn enrich_with_metadata(
         };
 
         let mut canonical_logger = logger.to_string();
-        let key = (canonical_logger.clone(), address.to_string());
-        let mut deployment = deployment_map.get(&key).and_then(|deps| {
-            deps.iter().find(|dep| {
-                ts >= dep.start_timestamp_utc && ts < dep.end_timestamp_utc.unwrap_or(i64::MAX)
-            })
-        });
+        let mut deployment = select_deployment(
+            deployment_map.get(&(canonical_logger.clone(), address.to_string())),
+            &canonical_logger,
+            address,
+            ts,
+        )?;
 
         if deployment.is_none() {
             if let Some(alias_rows) = alias_map.get(logger) {
-                if let Some(alias_row) = alias_rows.iter().find(|alias| {
-                    ts >= alias.start_timestamp_utc
-                        && ts < alias.end_timestamp_utc.unwrap_or(i64::MAX)
-                }) {
+                if let Some(alias_row) = select_alias(alias_rows, logger, ts)? {
                     canonical_logger = alias_row.datalogger_id.clone();
-                    let alias_key = (canonical_logger.clone(), address.to_string());
-                    deployment = deployment_map.get(&alias_key).and_then(|deps| {
-                        deps.iter().find(|dep| {
-                            ts >= dep.start_timestamp_utc
-                                && ts < dep.end_timestamp_utc.unwrap_or(i64::MAX)
-                        })
-                    });
+                    deployment = select_deployment(
+                        deployment_map.get(&(canonical_logger.clone(), address.to_string())),
+                        &canonical_logger,
+                        address,
+                        ts,
+                    )?;
                 }
             }
         }
@@ -234,6 +240,60 @@ pub fn enrich_with_metadata(
     }
 
     Ok(enriched)
+}
+
+fn timestamp_in_range(ts: i64, start: i64, end: Option<i64>) -> bool {
+    ts >= start && ts < end.unwrap_or(i64::MAX)
+}
+
+fn select_deployment<'a>(
+    entries: Option<&'a Vec<&'a DeploymentRow>>,
+    logger_id: &str,
+    sdi_address: &str,
+    timestamp: i64,
+) -> Result<Option<&'a DeploymentRow>, MetadataEnrichmentError> {
+    let Some(entries) = entries else {
+        return Ok(None);
+    };
+
+    let mut matches = entries
+        .iter()
+        .copied()
+        .filter(|dep| timestamp_in_range(timestamp, dep.start_timestamp_utc, dep.end_timestamp_utc))
+        .peekable();
+
+    let first = matches.next();
+    if matches.peek().is_some() {
+        return Err(MetadataEnrichmentError::AmbiguousDeployment {
+            logger_id: logger_id.to_string(),
+            sdi_address: sdi_address.to_string(),
+            timestamp,
+        });
+    }
+
+    Ok(first)
+}
+
+fn select_alias<'a>(
+    entries: &'a Vec<&'a DataloggerAliasRow>,
+    alias: &str,
+    timestamp: i64,
+) -> Result<Option<&'a DataloggerAliasRow>, MetadataEnrichmentError> {
+    let mut matches = entries
+        .iter()
+        .copied()
+        .filter(|row| timestamp_in_range(timestamp, row.start_timestamp_utc, row.end_timestamp_utc))
+        .peekable();
+
+    let first = matches.next();
+    if matches.peek().is_some() {
+        return Err(MetadataEnrichmentError::AmbiguousAlias {
+            alias: alias.to_string(),
+            timestamp,
+        });
+    }
+
+    Ok(first)
 }
 
 fn push_none(

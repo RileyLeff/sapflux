@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use chrono::{Duration, NaiveDateTime, Offset, TimeZone, Utc};
+use chrono::{Duration, NaiveDateTime, Offset, TimeZone as _, Utc};
 use chrono_tz::Tz;
 use polars::df;
 use polars::lazy::dsl::*;
@@ -136,7 +136,10 @@ pub fn correct_timestamps(
     )
     .with_column(
         col("timestamp_utc_raw")
-            .cast(DataType::Datetime(TimeUnit::Microseconds, None))
+            .cast(DataType::Datetime(
+                TimeUnit::Microseconds,
+                Some(polars::prelude::TimeZone::UTC),
+            ))
             .alias("timestamp_utc"),
     )
     .select([

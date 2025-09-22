@@ -11,7 +11,7 @@ pub enum ObjectStore {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct LocalDirStore {
+pub struct LocalDirStore {
     root: PathBuf,
 }
 

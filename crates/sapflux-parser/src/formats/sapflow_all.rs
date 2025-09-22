@@ -22,6 +22,10 @@ impl SapFlowAllParser {
     const NAME: &'static str = "SAPFLOW_ALL";
 
     fn classify_columns(columns: &StringRecord) -> Result<Vec<ColumnRole>, ParserError> {
+        // NOTE: The strict checks in this reference parser mirror the fixtures used in tests.
+        // For production ingestion we expect to replace these with pattern-based validations
+        // (e.g., prefix/suffix checks, SDI-12 templates) so harmless header tweaks do not turn
+        // into hard failures.
         columns.iter().map(Self::classify_column).collect()
     }
 

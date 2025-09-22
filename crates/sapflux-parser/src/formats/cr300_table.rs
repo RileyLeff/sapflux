@@ -23,6 +23,9 @@ impl Cr300TableParser {
     const NAME: &'static str = "CR300_TABLE";
 
     fn classify_columns(columns: &StringRecord) -> Result<Vec<ColumnRole>, ParserError> {
+        // NOTE: This reference implementation performs exact column matching for the test
+        // fixtures. Production parsers should relax this logic to pattern-based checks so
+        // benign column order variations or firmware updates do not cause unnecessary rejects.
         columns.iter().map(Self::classify_column).collect()
     }
 

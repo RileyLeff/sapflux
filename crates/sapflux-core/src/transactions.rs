@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 use sqlx::Row;
+use tokio::task;
 use uuid::Uuid;
 
 use crate::db::DbPool;
@@ -47,10 +48,32 @@ pub struct TransactionReceipt {
     pub transaction_id: Option<Uuid>,
     pub dry_run: bool,
     pub files: Vec<FileReport>,
+    pub ingestion_summary: IngestionSummary,
     pub pipeline: PipelineSummary,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct IngestionSummary {
+    pub total: usize,
+    pub parsed: usize,
+    pub duplicates: usize,
+    pub failed: usize,
+}
+
+const TRANSACTION_LOCK_KEY: i64 = 0x5350464C5558; // "SPFLUX"
+
 pub async fn execute_transaction(
+    pool: &DbPool,
+    object_store: &ObjectStore,
+    request: TransactionRequest,
+) -> Result<TransactionReceipt> {
+    let lock = AdvisoryLock::acquire(pool, TRANSACTION_LOCK_KEY).await?;
+    let result = execute_transaction_locked(pool, object_store, request).await;
+    lock.release().await?;
+    result
+}
+
+async fn execute_transaction_locked(
     pool: &DbPool,
     object_store: &ObjectStore,
     request: TransactionRequest,
@@ -96,7 +119,26 @@ pub async fn execute_transaction(
 
     let ingestion_batch = ingestion::ingest_files(&file_inputs, &existing_hashes);
 
-    let pipeline_summary = if ingestion_batch.parsed.is_empty() {
+    let ingestion_summary = IngestionSummary {
+        total: ingestion_batch.reports.len(),
+        parsed: ingestion_batch
+            .reports
+            .iter()
+            .filter(|r| r.status == FileStatus::Parsed)
+            .count(),
+        duplicates: ingestion_batch
+            .reports
+            .iter()
+            .filter(|r| r.status == FileStatus::Duplicate)
+            .count(),
+        failed: ingestion_batch
+            .reports
+            .iter()
+            .filter(|r| r.status == FileStatus::Failed)
+            .count(),
+    };
+
+    let mut pipeline_summary = if ingestion_batch.parsed.is_empty() {
         PipelineSummary {
             pipeline: None,
             status: PipelineStatus::Skipped,
@@ -115,12 +157,43 @@ pub async fn execute_transaction(
         }
     };
 
-    if !dry_run && pipeline_summary.status != PipelineStatus::Failed {
-        upload_new_raw_files(object_store, &files, &ingestion_batch).await?;
-    }
-
     if !dry_run {
         if let Some(id) = transaction_id {
+            if pipeline_summary.status != PipelineStatus::Failed {
+                if let Err(err) = upload_new_raw_files(object_store, &files, &ingestion_batch).await
+                {
+                    pipeline_summary = PipelineSummary {
+                        pipeline: pipeline_summary.pipeline.clone(),
+                        status: PipelineStatus::Failed,
+                        row_count: pipeline_summary.row_count,
+                        error: Some(format!("object store upload failed: {err}")),
+                    };
+
+                    let receipt = TransactionReceipt {
+                        transaction_id: Some(id),
+                        dry_run,
+                        files: ingestion_batch.reports.clone(),
+                        ingestion_summary: ingestion_summary.clone(),
+                        pipeline: pipeline_summary.clone(),
+                    };
+
+                    sqlx::query(
+                        r#"
+                            UPDATE transactions
+                            SET outcome = 'REJECTED',
+                                receipt = $1
+                            WHERE transaction_id = $2
+                        "#,
+                    )
+                    .bind(serde_json::to_value(&receipt)?)
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+
+                    return Err(err.context("object store upload failed"));
+                }
+            }
+
             let outcome = match pipeline_summary.status {
                 PipelineStatus::Failed => "REJECTED",
                 _ => "ACCEPTED",
@@ -134,6 +207,7 @@ pub async fn execute_transaction(
                 transaction_id: Some(id),
                 dry_run,
                 files: ingestion_batch.reports.clone(),
+                ingestion_summary: ingestion_summary.clone(),
                 pipeline: pipeline_summary.clone(),
             };
 
@@ -159,6 +233,7 @@ pub async fn execute_transaction(
         transaction_id,
         dry_run,
         files: ingestion_batch.reports,
+        ingestion_summary,
         pipeline: pipeline_summary,
     })
 }
@@ -267,4 +342,50 @@ async fn upload_new_raw_files(
     }
 
     Ok(())
+}
+
+struct AdvisoryLock {
+    conn: Option<sqlx::pool::PoolConnection<sqlx::Postgres>>,
+    key: i64,
+}
+
+impl AdvisoryLock {
+    async fn acquire(pool: &DbPool, key: i64) -> Result<Self> {
+        let mut conn = pool.acquire().await?;
+        sqlx::query::<sqlx::Postgres>("SELECT pg_advisory_lock($1)")
+            .bind(key)
+            .execute(conn.as_mut())
+            .await?;
+        Ok(Self {
+            conn: Some(conn),
+            key,
+        })
+    }
+
+    async fn release(mut self) -> Result<()> {
+        if let Some(mut conn) = self.conn.take() {
+            sqlx::query::<sqlx::Postgres>("SELECT pg_advisory_unlock($1)")
+                .bind(self.key)
+                .execute(conn.as_mut())
+                .await?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for AdvisoryLock {
+    fn drop(&mut self) {
+        if let Some(mut conn) = self.conn.take() {
+            let key = self.key;
+            task::spawn(async move {
+                if let Err(err) = sqlx::query::<sqlx::Postgres>("SELECT pg_advisory_unlock($1)")
+                    .bind(key)
+                    .execute(conn.as_mut())
+                    .await
+                {
+                    tracing::warn!("failed to release advisory lock in drop: {err}");
+                }
+            });
+        }
+    }
 }

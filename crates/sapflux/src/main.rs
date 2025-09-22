@@ -73,8 +73,12 @@ async fn connect_pool() -> Result<db::DbPool> {
 
 async fn run_server(args: ServeArgs) -> Result<()> {
     let pool = connect_pool().await?;
-    let object_store = Arc::new(ObjectStore::noop());
-    let state = AppState { pool, object_store };
+    let store = ObjectStore::from_env().context("failed to configure object store")?;
+    info!(?store, "configured object store");
+    let state = AppState {
+        pool,
+        object_store: Arc::new(store),
+    };
 
     let app = Router::new()
         .route("/health", get(health_check))

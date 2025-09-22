@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
+use anyhow::Error;
 use blake3::Hasher;
+use sapflux_parser::ParserError;
 use serde::Serialize;
 
 use crate::parsers::{all_parsers, ParsedData};
@@ -22,6 +24,7 @@ pub enum FileStatus {
 pub struct ParserAttemptReport {
     pub parser: &'static str,
     pub message: String,
+    pub line_index: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +33,7 @@ pub struct FileReport {
     pub hash: String,
     pub status: FileStatus,
     pub parser_attempts: Vec<ParserAttemptReport>,
+    pub first_error_line: Option<usize>,
 }
 
 pub struct ParsedFile {
@@ -65,6 +69,7 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
                 hash,
                 status: FileStatus::Duplicate,
                 parser_attempts: Vec::new(),
+                first_error_line: None,
             });
             continue;
         }
@@ -80,7 +85,9 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
                 parser_attempts: vec![ParserAttemptReport {
                     parser: "utf8",
                     message: "file contents were not valid UTF-8".to_string(),
+                    line_index: None,
                 }],
+                first_error_line: None,
             });
             continue;
         };
@@ -94,10 +101,14 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
                     parsed_opt = Some(parsed);
                     break;
                 }
-                Err(err) => attempts.push(ParserAttemptReport {
-                    parser: parser.code_identifier(),
-                    message: err.to_string(),
-                }),
+                Err(err) => {
+                    let line_index = extract_line_index(&err);
+                    attempts.push(ParserAttemptReport {
+                        parser: parser.code_identifier(),
+                        message: err.to_string(),
+                        line_index,
+                    });
+                }
             }
         }
 
@@ -113,14 +124,17 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
                     hash,
                     status: FileStatus::Parsed,
                     parser_attempts: attempts,
+                    first_error_line: None,
                 });
             }
             None => {
+                let first_error_line = attempts.iter().find_map(|a| a.line_index);
                 reports.push(FileReport {
                     path: input.path.to_string(),
                     hash,
                     status: FileStatus::Failed,
                     parser_attempts: attempts,
+                    first_error_line,
                 });
             }
         }
@@ -138,4 +152,16 @@ fn compute_hash(contents: &[u8]) -> String {
     hasher.update(contents);
     let hash = hasher.finalize();
     hash.to_hex().to_string()
+}
+
+fn extract_line_index(error: &Error) -> Option<usize> {
+    error.chain().find_map(|cause| {
+        cause
+            .downcast_ref::<ParserError>()
+            .and_then(|parser_err| match parser_err {
+                ParserError::DataRow { line_index, .. } => Some(*line_index),
+                ParserError::InvalidHeader { row_index, .. } => Some(*row_index),
+                _ => None,
+            })
+    })
 }
