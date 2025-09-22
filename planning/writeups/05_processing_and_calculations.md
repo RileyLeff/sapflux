@@ -76,6 +76,9 @@ fn run(&self, context: &ExecutionContext, parsed_data: &dyn ParsedData) -> Resul
     // 4. Perform the final calculations on the fully prepared DataFrame.
     df = calculator::perform_dma_peclet_calculations(&df)?;
 
+    // 5. Run canonical quality filters and flag suspect records.
+    df = quality_filters::apply(&df)?;
+
     Ok(df)
 }
 ```
@@ -96,7 +99,7 @@ This component is responsible for implementing the Parameter Cascade. It uses th
 *   **Process**:
     1.  **Fetch Overrides**: The component performs a single, efficient query using the `ExecutionContext` to fetch *all* records from the `parameter_overrides` table.
     2.  **Prepare for Joins**: It transforms this list of overrides into several Polars `DataFrames`, one for each context level (e.g., `site_overrides_df`, `stem_overrides_df`).
-    3.  **Join Overrides**: It performs a series of left joins, attaching the override values for every parameter at every level to the main `DataFrame`. This results in many new, nullable columns (e.g., `wound_diameter_cm_site`, `wound_diameter_cm_stem`).
+    3.  **Join Overrides**: It performs a series of left joins, attaching the override values for every parameter at every level to the main `DataFrame`. This results in many new, nullable columns (e.g., `wound_diameter_cm_site`, `wound_diameter_cm_stem`). JSONB payloads are deserialized into strongly-typed scalars before they are projected into the output frame.
     4.  **Apply Cascade**: For each required parameter, it uses a Polars `when/then/otherwise` expression to coalesce these columns in the correct order of precedence (deployment -> stem -> ... -> global default). This creates the final `parameter_*` column.
     5.  **Record Provenance**: A second `when/then/otherwise` expression is used to create a `parameter_source_*` column, which explicitly states which rule was used for that row (e.g., `"stem_override"`).
 *   **Output**: A `DataFrame` where all necessary parameters for calculation are now present as distinct columns, with their provenance recorded.
@@ -108,6 +111,17 @@ This final component is "pure" and decoupled from the database. It performs the 
 *   **Input**: The `DataFrame` from the previous step, which now contains all measurements and all resolved parameters.
 *   **Process**: It applies the DMA_Péclet mathematical formulas using Polars expressions. It reads from columns like `alpha`, `beta`, and the `parameter_*` columns and produces the final output columns.
 *   **Output**: The final, fully calculated `DataFrame`.
+
+#### Step 5: Quality Filtering (Component)
+
+The last step applies declarative quality rules and surfaces them to end users.
+
+*   **Input**: The fully calculated `DataFrame` (which includes `parameter_*` columns).
+*   **Process**:
+    *   Each canonical threshold is parameterised via the same override cascade and uses JSONB values with agreed codes such as `quality_max_flux_cm_hr`, `quality_min_flux_cm_hr`, and `quality_gap_years`.
+    *   Checks include deployment window bounds, time-travel gaps, and physiologically implausible flux magnitudes.
+    *   Rows that fail any rule receive `quality = "SUSPECT"` and a human-readable `quality_explanation` (e.g., `"sap_flux_density_j_dma_cm_hr > 40 cm/hr"`). Multiple failures are concatenated in a deterministic order.
+*   **Output**: The same `DataFrame` with `quality` and `quality_explanation` columns populated (left null when data is good).
 
 ---
 

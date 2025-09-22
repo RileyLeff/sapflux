@@ -30,12 +30,12 @@ The solution is a robust algorithm that uses a more reliable sequencing key and 
 
 *   **`RECORD` is the True Sequence Key**: The `RECORD` number, a monotonically increasing integer from the logger, is the only reliable source for the true chronological order of measurements. All sorting must be performed on this column.
 *   **The "First" Record is the Anchor**: The timestamp associated with the **lowest `RECORD` number** within a contiguous block of data from one visit is our anchor. This timestamp is the most likely to be correct, as it represents the moment the logger was configured during that visit.
-*   **The "Chunk" is the Implied Visit**: We identify a unique "chunk" (an implied visit) by its signature: the combination of its **`logger_id`** and the unique **set of `file_hash`es** that its measurements belong to. This elegantly untangles overlapping data from "download all" and "download new" files.
+*   **The "Chunk" is the Implied Visit**: We identify a unique "chunk" (an implied visit) by its signature: the combination of its **`logger_id`** and the sorted **set of `file_hash`es** that its measurements belong to. This elegantly untangles overlapping data from "download all" and "download new" files.
 
 #### The Algorithm Steps
 
 1.  **Gather & Combine**: The process begins after the ingest stage. The algorithm takes a list of all successfully parsed `ParsedFileData` objects for the current run. It iterates through them, creating a single, large logger-level `DataFrame` by vertically stacking the `df` from each object. As it does this, it adds the top-level `file_hash` from each object as a new column, ensuring every row is tagged with its origin file.
-2.  **Identify Unique Chunks**: The combined `DataFrame` is grouped by the chunk signature: `["logger_id", "file_hash"]`.
+2.  **Identify Unique Chunks**: The combined `DataFrame` is deduplicated by `(logger_id, record)` so that each measurement appears exactly once. During this pass we gather the list of source `file_hash`es, sort them, and join them into a stable `file_set_signature` string.
 3.  **Find the Anchor Timestamp for Each Chunk**: Within each chunk group, the algorithm sorts the rows by the `record` column in ascending order and takes the `timestamp` value from the very first row. This is the chunk's **anchor timestamp**.
 4.  **Determine UTC Offset for Each Chunk**: For each unique chunk and its anchor timestamp, the algorithm performs a one-time lookup:
     *   It uses the `logger_id` and the `anchor_timestamp` to query the `deployments` and `sites` metadata tables.
@@ -123,10 +123,12 @@ pub fn correct_timestamps(
     //    adding the `file_hash` as a column to tag each row with its origin.
     let combined_df = combine_parsed_files(parsed_files)?;
 
-    // 2. & 3. Identify Chunks and Find Anchor Timestamps.
-    // Group by the (logger_id, file_hash) signature, then for each group,
-    // sort by the 'record' number and take the timestamp of the first record.
-    let chunks = combined_df.group_by(["logger_id", "file_hash"])?
+    // 2. Deduplicate by (logger_id, record) and compute each record's file-set signature.
+    let annotated_df = annotate_with_file_sets(&combined_df)?;
+
+    // 3. Identify chunks by grouping on (logger_id, file_set_signature) and
+    //    take the timestamp associated with the lowest record number.
+    let chunks = annotated_df.group_by(["logger_id", "file_set_signature"])?
         .agg([
             col("timestamp")
                 .sort_by([col("record")], SortOptions::default())
@@ -141,10 +143,10 @@ pub fn correct_timestamps(
     let offsets_df = calculate_chunk_offsets(&chunks, &site_map, &deployment_map)?;
 
     // 5. Apply the offsets back to the main DataFrame.
-    let result_with_offsets = combined_df.join(
+    let result_with_offsets = annotated_df.join(
         &offsets_df,
-        &[col("logger_id"), col("file_hash")],
-        &[col("logger_id"), col("file_hash")],
+        &[col("logger_id"), col("file_set_signature")],
+        &[col("logger_id"), col("file_set_signature")],
         JoinArgs::new(JoinType::Left),
     )?;
 
@@ -155,7 +157,7 @@ pub fn correct_timestamps(
                 .cast(DataType::Datetime(TimeUnit::Microseconds, Some("UTC".into())))
                 .alias("timestamp_utc")
         )
-        .drop_columns(["utc_offset_seconds"])
+        .drop_columns(["utc_offset_seconds", "file_set_signature"])
         .collect()?;
 
     Ok(final_df)
@@ -180,6 +182,34 @@ fn combine_parsed_files(parsed_files: &[ParsedFileData]) -> Result<DataFrame, Po
     Ok(combined_df)
 }
 
+fn annotate_with_file_sets(df: &DataFrame) -> Result<DataFrame, PolarsError> {
+    let aggregated = df
+        .clone()
+        .lazy()
+        .groupby([col("logger_id"), col("record")])
+        .agg([
+            all().first(),
+            col("file_hash")
+                .unique()
+                .alias("file_hashes"),
+        ])
+        .with_column(
+            col("file_hashes")
+                .arr
+                .sort(SortOptions::default())
+                .alias("file_hashes")
+        )
+        .with_column(
+            col("file_hashes")
+                .arr
+                .join(lit("+"))
+                .alias("file_set_signature")
+        )
+        .collect()?;
+
+    aggregated.drop("file_hashes")
+}
+
 /// Helper to build a map for efficient deployment lookups.
 fn build_deployment_map(deployments: &[Deployment]) -> HashMap<String, Vec<&Deployment>> {
     let mut map: HashMap<String, Vec<&Deployment>> = HashMap::new();
@@ -196,28 +226,28 @@ fn calculate_chunk_offsets(
     deployment_map: &HashMap<String, Vec<&Deployment>>,
 ) -> Result<DataFrame, TimestampFixerError> {
     let mut logger_ids = StringChunkBuilder::new("logger_id", chunks.height());
-    let mut file_hashes = StringChunkBuilder::new("file_hash", chunks.height());
+    let mut file_signatures = StringChunkBuilder::new("file_set_signature", chunks.height());
     let mut offsets = Int32ChunkBuilder::new("utc_offset_seconds", chunks.height());
 
     let logger_id_ca = chunks.column("logger_id")?.str()?;
-    let file_hash_ca = chunks.column("file_hash")?.str()?;
+    let signature_ca = chunks.column("file_set_signature")?.str()?;
     let anchor_time_ca = chunks.column("anchor_timestamp")?.datetime()?;
 
     for i in 0..chunks.height() {
         let logger_id = logger_id_ca.get(i).unwrap();
-        let file_hash = file_hash_ca.get(i).unwrap();
+        let file_signature = signature_ca.get(i).unwrap();
         let anchor_time = anchor_time_ca.get(i).unwrap();
 
         let offset = find_offset_for_chunk(logger_id, anchor_time, site_map, deployment_map)?;
 
         logger_ids.append_value(logger_id);
-        file_hashes.append_value(file_hash);
+        file_signatures.append_value(file_signature);
         offsets.append_value(offset);
     }
 
     df!(
         "logger_id" => logger_ids.finish(),
-        "file_hash" => file_hashes.finish(),
+        "file_set_signature" => file_signatures.finish(),
         "utc_offset_seconds" => offsets.finish(),
     ).map_err(TimestampFixerError::from)
 }

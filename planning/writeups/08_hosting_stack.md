@@ -9,7 +9,7 @@ This document outlines the proposed technology stack for the production deployme
 *   **Cloud Provider**: Hetzner Cloud (Ashburn, VA location). CPX11 instance.
 *   **Infrastructure as Code**: Pulumi (with Python) to manage server provisioning, firewalls, and networking.
 *   **Edge & DNS**: Cloudflare for DNS, CDN, and as a security proxy (WAF).
-*   **Web Server**: Caddy as a reverse proxy on the host machine, handling automatic HTTPS, HTTP/2, and HSTS.
+*   **Web Server**: Caddy as a reverse proxy on the host machine, handling automatic HTTPS, HTTP/2, and HSTS. We will use Cloudflare's DNS-01 provider (via the `caddy-dns/cloudflare` plugin) to issue certificates so that TLS succeeds even when Cloudflare is proxying the origin. As a fallback, Cloudflare origin certificates can be provisioned during bootstrap.
 *   **Admin Access**: Tailscale for secure SSH access and private networking, eliminating the need for a public SSH port.
 
 ### Application & API

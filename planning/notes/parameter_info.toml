@@ -1,90 +1,131 @@
+# Canonical parameter dictionary for the sapflux pipeline.
+# Each entry defines the code stored in the database, its meaning,
+# measurement unit, data type, and the default value shipped in seed data.
+
 [parameters]
-    [parameters.wnd_diam]
-    name = "wound diameter"
-    def = "diameter of drilled-out hole for probe"
-    unit = "cm"
-    value = 0.2
 
-    [parameters.sw_gw]
-    name = "sapwood green/fresh/wet weight"
-    def = "wet weight of a sapwood core"
-    unit = "kg"
-    value = 0.001
+  [parameters.parameter_thermal_diffusivity_k_cm2_s]
+  name = "Thermal diffusivity (k)"
+  description = "Bulk thermal diffusivity of the sapwood matrix used by both HRM and Tmax methods."
+  unit = "cm^2 s^-1"
+  data_type = "float"
+  default = 0.002409611
 
-    [parameters.sw_dw]
-    name = "sapwood dry weight"
-    def = "dry weight of a sapwood core"
-    unit = "kg"
-    value = 0.005 
+  [parameters.parameter_probe_distance_downstream_cm]
+  name = "Downstream probe distance"
+  description = "Distance from the heater to the downstream thermistor centreline."
+  unit = "cm"
+  data_type = "float"
+  default = 0.6
 
-    [parameters.k]
-    name = "k"
-    def = "The rate of diffusion of heat in the wood and sap matrix as calculated from Vandegehuchte & Steppe (2012). "
-    unit = "cm^2/s"
-    value = 0.002409611
+  [parameters.parameter_probe_distance_upstream_cm]
+  name = "Upstream probe distance"
+  description = "Distance from the heater to the upstream thermistor centreline."
+  unit = "cm"
+  data_type = "float"
+  default = 0.6
 
-    [parameters.xd]
-    name = "downstream probe distance"
-    def = "how far away the downstream (upper) probe is from the heater"
-    unit = "cm"
-    value = 0.6
+  [parameters.parameter_heat_pulse_duration_s]
+  name = "Heat pulse duration"
+  description = "Duration of the heater activation for a single pulse."
+  unit = "s"
+  data_type = "float"
+  default = 3.0
 
-    [parameters.xu]
-    name = "upstream probe distance"
-    def  = "how far away the downstream (upper) probe is from the heater"
-    unit = "cm"
-    value = 0.6
+  [parameters.parameter_wound_correction_a]
+  name = "Wound correction coefficient a"
+  description = "First-order coefficient in the polynomial wound correction applied to heat velocity."
+  unit = "dimensionless"
+  data_type = "float"
+  default = 1.8905
 
-    [parameters.hpd]
-    name = "heat pulse duration"
-    def = "how long the heater is doing its thing"
-    unit = "sec"
-    value = 3
+  [parameters.parameter_wound_correction_b]
+  name = "Wound correction coefficient b"
+  description = "Second-order coefficient in the polynomial wound correction applied to heat velocity."
+  unit = "dimensionless"
+  data_type = "float"
+  default = 0.0
 
-    [parameters.woundcorr]
-    name = "b"
-    def = "some stupid empirical magic number"
-    unit = "fuck if I know"
-    value = 1.8905
+  [parameters.parameter_wound_correction_c]
+  name = "Wound correction coefficient c"
+  description = "Third-order coefficient in the polynomial wound correction applied to heat velocity."
+  unit = "dimensionless"
+  data_type = "float"
+  default = 0.0
 
-    [parameters.t]
-    name = "time since heat pulse emission"
-    def = "see name"
-    unit = "seconds"
-    value = 60
+  [parameters.parameter_wood_density_kg_m3]
+  name = "Dry wood density"
+  description = "Basic density of oven-dry sapwood."
+  unit = "kg m^-3"
+  data_type = "float"
+  default = 500.0
 
-    [parameters.sph]
-    name = "seconds per hour"
-    def = "see name. rate quantity. super exciting."
-    unit = "seconds/hour"
-    value = 3600
+  [parameters.parameter_wood_specific_heat_j_kg_c]
+  name = "Wood specific heat capacity"
+  description = "Specific heat capacity of the dry wood matrix at 20 °C."
+  unit = "J kg^-1 °C^-1"
+  data_type = "float"
+  default = 1000.0
 
-    [parameters.pd]
-    name = "wood density"
-    def = "basic density of dry wood"
-    unit = "kg/m3"
-    value = 500
+  [parameters.parameter_water_content_g_g]
+  name = "Gravimetric water content"
+  description = "Gravimetric water content of sapwood (wet mass to dry mass ratio)."
+  unit = "g g^-1"
+  data_type = "float"
+  default = 1.0
 
-    [parameters.cd]
-    name = "wood matrix specific heat capacity"
-    def = ""
-    unit = "J/kg/°C at 20 °C"
-    value = 1000
+  [parameters.parameter_water_specific_heat_j_kg_c]
+  name = "Sap specific heat capacity"
+  description = "Specific heat capacity of sap at 20 °C."
+  unit = "J kg^-1 °C^-1"
+  data_type = "float"
+  default = 4182.0
 
-    [parameters.mc]
-    name = "gravimetric water content of sapwood"
-    def = ""
-    unit = "kg/kg"
-    value = 1
+  [parameters.parameter_water_density_kg_m3]
+  name = "Water density"
+  description = "Density of liquid water at 20 °C."
+  unit = "kg m^-3"
+  data_type = "float"
+  default = 1000.0
 
-    [parameters.cw]
-    name = "specific heat capacity of sap"
-    def = ""
-    unit = "J/kg/°C at 20 °C"
-    value = 4182
+  [parameters.quality_max_flux_cm_hr]
+  name = "Maximum acceptable sap flux density"
+  description = "Flux values above this magnitude are flagged as suspect."
+  unit = "cm hr^-1"
+  data_type = "float"
+  default = 40.0
 
-    [parameters.pw]
-    name = "density of water"
-    def = ""
-    unit = "kg/m3"
-    value = 1000
+  [parameters.quality_min_flux_cm_hr]
+  name = "Minimum acceptable sap flux density"
+  description = "Flux values below this magnitude are flagged as suspect."
+  unit = "cm hr^-1"
+  data_type = "float"
+  default = -15.0
+
+  [parameters.quality_gap_years]
+  name = "Maximum allowable record gap"
+  description = "Number of years allowed between consecutive record numbers before flagging time-travel."
+  unit = "years"
+  data_type = "float"
+  default = 2.0
+
+  [parameters.quality_deployment_start_grace_minutes]
+  name = "Deployment start grace period"
+  description = "Minutes a timestamp may precede deployment.start before it is flagged."
+  unit = "minutes"
+  data_type = "float"
+  default = 0.0
+
+  [parameters.quality_deployment_end_grace_minutes]
+  name = "Deployment end grace period"
+  description = "Minutes a timestamp may exceed deployment.end (or current time) before it is flagged."
+  unit = "minutes"
+  data_type = "float"
+  default = 0.0
+
+  [parameters.quality_future_lead_minutes]
+  name = "Future timestamp lead window"
+  description = "Maximum minutes into the future (relative to ingestion time) allowed before rows are flagged."
+  unit = "minutes"
+  data_type = "float"
+  default = 5.0

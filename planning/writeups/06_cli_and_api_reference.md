@@ -25,13 +25,13 @@ The API is the unified entry point for both the CLI and the web GUI.
 This is the single, powerful endpoint for all data and metadata changes.
 
 *   **Endpoint**: `POST /transactions`
-*   **Description**: Submits a Transaction Manifest for processing. The entire operation is atomic: it will either be fully `ACCEPTED` or fully `REJECTED`. The API handles file ingestion, validation of all operations, and committing the changes.
+*   **Description**: Submits a Transaction Manifest for processing. The entire operation is atomic: it will either be fully `ACCEPTED` (possibly with partial file success) or fully `REJECTED`. The API handles file ingestion, validation of all operations, and committing the changes.
 *   **Query Parameters**:
-    *   `?dry_run=true` (optional): If present, the API will perform a full validation of the manifest and all its files, and return a detailed receipt as if the transaction were run. However, it guarantees that no changes will be committed to the database. This is the primary mechanism for testing and validating a transaction.
+    *   `?dry_run=true` (optional): Runs the entire validation pipeline (including parsing) but skips all database mutations. Dry runs return a full receipt and structured log entries, yet they do **not** insert records into the immutable `transactions` table.
 *   **Request Body**: The request must be `multipart/form-data` to handle both the manifest and associated file uploads.
     *   `manifest`: The content of the `manifest.toml` file.
     *   `file_1`, `file_2`, ...: The raw content of each data file referenced in the manifest. The CLI will map the file paths from the manifest to these form fields.
-*   **Success Response**: Returns `200 OK` with a JSON body containing the detailed Transaction Receipt. The `outcome` field in the receipt will be `ACCEPTED`.
+*   **Success Response**: Returns `200 OK` with a JSON body containing the detailed Transaction Receipt. The `outcome` field in the receipt will be `ACCEPTED`. When individual files fail, the receipt's `summary.status` is `PARTIAL_SUCCESS`, and each entry in `rejected_files` includes the `file_hash`, `parser_attempts`, and `first_error_line` fields to aid triage.
 *   **Error Response**: Returns a `400 Bad Request` (for validation errors) or `500 Internal Server Error`. The response body will still be the JSON Transaction Receipt, but the `outcome` field will be `REJECTED`, and an `error` field will provide details.
 
 ---
@@ -46,9 +46,8 @@ This is the single, powerful endpoint for all data and metadata changes.
     *   `?include_cartridge=true` (optional): If `true`, the response will be a `.zip` archive containing both the `.parquet` data file and its corresponding "Reproducibility Cartridge." If `false` or omitted, only the `.parquet` file is returned.
 *   **Authentication**: Requires Bearer Token.
 *   **Success Response**:
-    *   If downloading only the data, the response body will be the raw Parquet file with a `Content-Type` of `application/vnd.apache.parquet`.
-    *   If including the cartridge, the body will be a zip archive with a `Content-Type` of `application/zip`.
-    *   The `Content-Disposition` header will be set to suggest a useful filename.
+    *   Returns `200 OK` with a JSON payload describing the pre-signed URL, or a `302 Found` redirect to Cloudflare R2. The link expires after 15 minutes and can be regenerated on demand.
+    *   Clients download the object directly from R2, keeping the bucket private and avoiding credential distribution.
 
 ---
 

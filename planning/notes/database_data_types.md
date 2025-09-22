@@ -2,3 +2,4 @@ All timestamps are stored as TIMESTAMPTZ and are handled as UTC within the Rust 
 
 Geospatial data uses GEOMETRY and requires PostGIS.
 High-precision measurements should use NUMERIC to avoid floating-point inaccuracies.
+Parameter overrides and other structured configuration values are stored in JSONB so that numeric and boolean types survive round-trips without loss.

@@ -69,7 +69,7 @@ pub struct LoggerColumns {
     pub record: Vec<i64>,
     pub battery_voltage: Option<Vec<Option<f64>>>,
     pub panel_temperature: Option<Vec<Option<f64>>>,
-    pub logger_id: Option<Vec<Option<i64>>>,
+    pub logger_id: Option<Vec<Option<String>>>,
 }
 
 impl LoggerColumns {
@@ -97,7 +97,7 @@ impl LoggerColumns {
         self.panel_temperature.as_mut().unwrap()
     }
 
-    pub(crate) fn logger_id_mut(&mut self) -> &mut Vec<Option<i64>> {
+    pub(crate) fn logger_id_mut(&mut self) -> &mut Vec<Option<String>> {
         if self.logger_id.is_none() {
             self.logger_id = Some(Vec::with_capacity(self.timestamp.capacity()));
         }
@@ -326,7 +326,8 @@ pub(crate) fn build_logger_dataframe(
     }
 
     if let Some(values) = columns.logger_id.take() {
-        cols.push(Series::new("logger_id".into(), values).into());
+        let utf8: Vec<Option<&str>> = values.iter().map(|v| v.as_deref()).collect();
+        cols.push(Series::new("logger_id", utf8).into());
     }
 
     DataFrame::new(cols).map_err(|err| ParserError::Validation {
@@ -479,4 +480,28 @@ pub(crate) fn parse_sdi12_address(
 
 pub(crate) fn make_logger_data(df: DataFrame, sensors: Vec<SensorData>) -> LoggerData {
     LoggerData { df, sensors }
+}
+
+pub(crate) fn derive_logger_id_from_header(
+    parser: &'static str,
+    metadata: &FileMetadata,
+) -> Result<String, ParserError> {
+    let raw = metadata.logger_name.trim();
+    let digits: String = raw
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    if digits.is_empty() {
+        return Err(ParserError::Validation {
+            parser,
+            message: format!("unable to derive logger_id from header '{raw}'"),
+        });
+    }
+
+    Ok(digits)
 }

@@ -44,7 +44,7 @@ fn parses_sapflow_all_multi_sensor() {
 
 #[test]
 fn parses_cr300_table_file() {
-    let content = fixture("CR300Series_401_Table1.dat");
+    let content = fixture("CR300Series_402_Table2.dat");
     let parsed = parse_sapflow_file(&content).expect("CR300 table parse failed");
 
     assert!(
@@ -75,6 +75,13 @@ fn parses_cr300_table_file() {
             .null_count()
             > 0
     );
+
+    let logger_id_col = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing");
+    assert_eq!(logger_id_col.str().unwrap().get(0), Some("402"));
 }
 
 #[test]
@@ -131,7 +138,7 @@ fn sapflow_all_rejects_wrong_table_name() {
 
 #[test]
 fn cr300_rejects_row_with_missing_columns() {
-    let content = fixture("CR300Series_401_Table1.dat");
+    let content = fixture("CR300Series_402_Table2.dat");
     let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
     if let Some((prefix, _)) = lines[4].rsplit_once(',') {
         lines[4] = prefix.to_string();
@@ -151,7 +158,7 @@ fn cr300_rejects_row_with_missing_columns() {
 
 #[test]
 fn cr300_invalid_units_row_triggers_invalid_header() {
-    let content = fixture("CR300Series_401_Table1.dat");
+    let content = fixture("CR300Series_402_Table2.dat");
     let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
     lines[2] = lines[2].replacen("literPerHour", "litersPerHour", 1);
     let invalid_content = lines.join("\r\n") + "\r\n";
@@ -208,7 +215,7 @@ fn build_logger_dataframe_detects_mismatched_lengths() {
 
 #[test]
 fn cr300_empty_data_triggers_empty_error() {
-    let content = fixture("CR300Series_401_Table1.dat");
+    let content = fixture("CR300Series_402_Table2.dat");
     let header_only = content.lines().take(4).collect::<Vec<_>>().join("\r\n") + "\r\n";
 
     let parser = Cr300TableParser::default();
@@ -228,5 +235,39 @@ fn parse_unknown_format_returns_no_matching_parser() {
             assert!(!attempts.is_empty());
         }
         other => panic!("expected NoMatchingParser error, got {other:?}"),
+    }
+}
+
+#[test]
+fn sapflow_all_derives_logger_id_from_header() {
+    let content = fixture("CR300Series_420_SapFlowAll.dat");
+    let parsed = parse_sapflow_file(&content).expect("SapFlowAll parse failed");
+
+    let logger_id_col = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing");
+
+    let values = logger_id_col.str().unwrap();
+    assert_eq!(values.get(0), Some("420"));
+    assert!(values.into_iter().all(|opt| opt == Some("420")));
+}
+
+#[test]
+fn non_sequential_records_are_rejected() {
+    let content = fixture("CR300Series_402_Table2.dat");
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    if let Some(line) = lines.get_mut(5) {
+        // Replace the record value "1" with "3" while leaving the rest of the row intact.
+        *line = line.replacen("\",1,12.73", "\",3,12.73", 1);
+    }
+    let mutated = lines.join("\r\n") + "\r\n";
+
+    match parse_sapflow_file(&mutated) {
+        Err(ParserError::DataRow { message, .. }) => {
+            assert!(message.contains("record column must increment"));
+        }
+        other => panic!("expected DataRow error, got {other:?}"),
     }
 }

@@ -98,6 +98,7 @@ use serde::{Deserialize, Serialize};
 // This is the top-level container for the parsed data.
 // It implements the `ParsedData` trait, declaring its format name.
 pub struct ParsedFileData {
+    pub file_hash: String,
     pub raw_text: String,
     pub file_metadata: FileMetadata,
     pub logger: LoggerData,
@@ -157,3 +158,14 @@ pub struct ThermistorPairData {
     pub df: DataFrame,
 }
 ```
+
+The ingestion engine is responsible for computing `file_hash` and populating it after the parser returns. Parsers must not attempt to hash their inputs.
+
+### Parser Validation Guarantees
+
+To make downstream processing deterministic, active parsers must provide the following guarantees:
+
+*   **Sequential Records**: The `record` column must increment by exactly one for each row. Parsers enforce this and reject a file the moment the sequence breaks.
+*   **Logger ID Normalisation**: Every output `logger.df` contains a `logger_id` column. When a raw file lacks an `id` column, the parser derives the identifier from `file_metadata.logger_name` (e.g., splitting `CR300Series_420` → `"420"`). If any per-row `id` values disagree with one another, parsing fails.
+*   **All Columns Extracted**: Parsers hydrate every measurement available in the source file—even when the default calculator does not reference a column today—ensuring future pipelines require no historical re-parsing.
+*   **Strict SDI-12 Validation**: Addresses must be single ASCII alphanumerics; any deviation ejects the file with a helpful error.

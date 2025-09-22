@@ -41,7 +41,9 @@ The journey of data through the pipeline is a clear, sequential process:
 3.  **Processing**: The data is handed to an active `Processing Pipeline`, which executes a series of steps:
     *   **Timestamp Correction**: The algorithm corrects for unreliable clocks and DST using the "implied visit" chunking method.
     *   **Metadata Enrichment**: The data is joined with the full metadata hierarchy from the database.
-    *   **Calculation**: The final scientific calculations are performed using a hierarchical parameter cascade.
+    *   **Parameter Resolution**: The parameter cascade fills every `parameter_*` column and records provenance.
+    *   **Calculation**: The final scientific calculations are performed using the DMA Péclet workflow.
+    *   **Quality Filtering**: Canonical quality checks flag suspect records and populate `quality` + `quality_explanation` columns.
 4.  **Output**: The pipeline produces a final `.parquet` data file and its corresponding `Reproducibility Cartridge`, which are stored in the object store.
 
 ### How to Learn More

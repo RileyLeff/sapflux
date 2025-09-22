@@ -5,9 +5,10 @@ The transaction is the fundamental unit of change for all data and metadata with
 ### Core Principles
 
 1.  **History is Immutable**: No records are ever truly deleted. The history of every state change is preserved forever.
-2.  **Atomicity**: A transaction is an "all-or-nothing" operation. It is either **ACCEPTED**, and all its valid changes are committed, or it is **REJECTED**, and the database remains untouched.
+2.  **Atomicity**: A transaction is an "all-or-nothing" operation for metadata and every successfully parsed file. If a file fails to parse it is excluded, but the metadata updates and the files that did succeed are committed atomically. If validation fails, no changes land.
 3.  **Declarative Manifest**: Users define the *desired state* of changes in a human-readable "Transaction Manifest" (in TOML format). They describe *what* they want, not *how* to achieve it.
 4.  **Auditability**: Every attempt to change the system state, successful or not, is recorded as a permanent transaction with a detailed receipt.
+5.  **Serialized Execution**: Transactions are processed sequentially; the orchestrator runs exactly one manifest at a time to avoid race conditions.
 
 ---
 
@@ -57,18 +58,19 @@ A single API endpoint is the gateway for all changes. The logic behind this endp
 
 #### API Processing (Atomic)
 
-1.  **Begin DB Transaction**: A new database transaction is initiated. All subsequent database operations will be part of this single transaction.
-2.  **Validate All Operations**: The API performs a full validation of the entire manifest *before* committing any changes. Operations are validated in a dependency-aware order (e.g., sites before zones, adds before updates).
-    *   For each `add`: Checks if a record with the given unique key(s) already exists. If so, the transaction is rejected. Checks that foreign key relationships (e.g., `site_code`) are valid.
-    *   For each `update`: Uses the `selector` to find the target record. If exactly one record is not found, the transaction is rejected.
-    *   For each new `file`: Calculates its content hash, checks for duplicates in the `raw_files` table, and performs a test-parse in memory. If a file fails to parse, we discard it, keeping only files that parse successfully. We should later report out to the end user about which files were rejected, of course.
-3.  **Determine Outcome**: If any validation step fails, the entire transaction is marked for `REJECTION`. Otherwise, it's marked for `ACCEPTANCE`.
-4.  **Record and Commit/Rollback**:
-    *   A detailed **receipt** is generated based on the validation results.
-    *   A new record is inserted into the `transactions` table with the final outcome and the receipt.
-    *   **If the transaction was marked for `REJECTION`, or if `?dry_run=true`**: The database transaction is **ROLLED BACK**. No changes are saved, except for the new record in the `transactions` table itself.
-    *   **If the transaction was marked for `ACCEPTANCE` and it is not a dry run**: All valid changes (new metadata records, new `raw_files` records, etc.) are applied, and the database transaction is **COMMITTED**.
-5.  **Return Receipt**: The detailed JSON receipt is returned to the client, providing immediate feedback.
+1.  **Acquire the Queue Lock**: The orchestrator guarantees serialized execution by taking an advisory lock before any work begins.
+2.  **Preflight Validation (Read-Only)**: The manifest is parsed and validated in dependency order without opening a database transaction.
+    *   For each `add`/`update`: The system checks selectors, uniqueness, foreign keys, and overlap constraints. Failures short-circuit with an immediate `REJECTED` outcome and no database mutations.
+    *   For each new `file`: The engine computes its `blake3` hash, checks for duplicates, and executes every active parser in memory. Parser failures are recorded per attempt. A file that never parses is marked for rejection but does not invalidate the manifest if metadata remains valid.
+3.  **Mutating Phase**: If preflight succeeds, the engine opens a database transaction.
+    *   All metadata inserts/updates execute first.
+    *   Each successfully parsed file is inserted into `raw_files` and uploaded to object storage as part of the same database transaction.
+    *   Files that failed parsing are omitted entirely.
+4.  **Finalize Outcome**:
+    *   On success, the database transaction commits and a `transactions` row is inserted in autocommit mode with `outcome = ACCEPTED` and the final receipt payload.
+    *   If any mutation fails, the database transaction rolls back; a `transactions` row is still written in autocommit mode with `outcome = REJECTED` and the failure details.
+    *   Dry runs do not perform any mutations or inserts. They return a receipt and durably log the attempt via application logs only.
+5.  **Return Receipt**: The detailed JSON receipt is returned to the client. It includes a `summary.status` of either `COMPLETE` or `PARTIAL_SUCCESS` and lists any rejected files.
 
 ---
 
@@ -111,7 +113,13 @@ Every transaction attempt, whether `ACCEPTED` or `REJECTED`, produces a detailed
   ],
   "rejected_files": [
     {
+      "file_hash": "24d0...",
       "ingest_context": { "original_path": "/Users/riley/data/corrupt_file.dat" },
+      "parser_attempts": [
+        { "parser": "sapflow_all_v1", "reason": "DataRow invalid on line 112: expected 14 columns but found 13" },
+        { "parser": "cr300_table_v1", "reason": "Format mismatch: table name \"SapFlowAll\"" }
+      ],
+      "first_error_line": 112,
       "reason": "ParserError: DataRow invalid on line 112: expected 14 columns but found 13"
     }
   ]

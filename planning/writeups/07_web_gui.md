@@ -52,6 +52,8 @@ The Web GUI is a primary client of the same API used by the CLI. It will make au
 
 To optimize the dashboard experience, a few specific, read-only API endpoints may be created. For example, instead of having the frontend download the entire outputs list to calculate a statistic, a dedicated endpoint like `GET /stats/summary` could provide pre-aggregated data. These endpoints would be guarded with the same Clerk authentication and would be considered an internal implementation detail supporting the GUI.
 
+Static assets (site/species icons) live in the private R2 bucket. The GUI retrieves them through an authenticated API that issues short-lived pre-signed URLs; the assets are never world-readable.
+
 ### Relevant Links
 
 We will use shadcn svelte components. You can find those [here](https://www.shadcn-svelte.com/) The github repo is [here](https://github.com/huntabyte/shadcn-svelte).

@@ -130,6 +130,7 @@ impl FileMetadata {
 
 #[derive(Debug, Clone)]
 pub struct ParsedFileData {
+    pub file_hash: String,
     pub raw_text: String,
     pub file_metadata: FileMetadata,
     pub logger: LoggerData,
@@ -172,6 +173,7 @@ pub enum ArchiveError {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Manifest {
+    file_hash: String,
     file_metadata: FileMetadata,
     structure: ManifestLogger,
 }
@@ -276,6 +278,7 @@ impl ParsedFileData {
             .collect();
 
         Manifest {
+            file_hash: self.file_hash.clone(),
             file_metadata: self.file_metadata.clone(),
             structure: ManifestLogger {
                 logger_df_path: "logger.parquet".to_string(),
@@ -343,6 +346,7 @@ impl ParsedFileData {
         }
 
         Ok(ParsedFileData {
+            file_hash: manifest.file_hash,
             raw_text,
             file_metadata: manifest.file_metadata,
             logger: LoggerData {

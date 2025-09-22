@@ -13,6 +13,7 @@ The schema requires the **PostGIS** extension for geospatial data support. This 
 ```sql
 -- Connect to your 'sapflux' database and run this command
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 ```
 
 ## 2. Object Storage Bucket Layout
@@ -200,6 +201,8 @@ CREATE TABLE IF NOT EXISTS outputs (
 );
 ```
 
+**Download Semantics**: The API never streams large objects directly. When `GET /outputs/{id}/download` is called, it issues a short-lived pre-signed URL (15 minute expiry) or a 302 redirect to Cloudflare R2. This keeps the bucket private while enabling clients to download the file without shipping credentials.
+
 ### Project & Geographic Hierarchy
 
 These tables model the real-world physical and organizational structure of the research.
@@ -303,7 +306,7 @@ CREATE TABLE IF NOT EXISTS stems (
 
 These tables define the types and specific units of hardware used in the field.
 
-**PostgreSQL Schemas (`datalogger_types`, `dataloggers`, `sensor_types`, `sensor_thermistor_pairs`)**
+**PostgreSQL Schemas (`datalogger_types`, `dataloggers`, `datalogger_aliases`, `sensor_types`, `sensor_thermistor_pairs`)**
 ```sql
 CREATE TABLE IF NOT EXISTS datalogger_types (
     datalogger_type_id UUID PRIMARY KEY,
@@ -315,8 +318,19 @@ CREATE TABLE IF NOT EXISTS datalogger_types (
 CREATE TABLE IF NOT EXISTS dataloggers (
     datalogger_id      UUID PRIMARY KEY,
     datalogger_type_id UUID NOT NULL REFERENCES datalogger_types(datalogger_type_id),
-    code               TEXT UNIQUE NOT NULL,
-    aliases            TEXT[]
+    code               TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS datalogger_aliases (
+    datalogger_alias_id UUID PRIMARY KEY,
+    datalogger_id       UUID NOT NULL REFERENCES dataloggers(datalogger_id) ON DELETE CASCADE,
+    alias               TEXT NOT NULL,
+    active_during       TSTZRANGE NOT NULL,
+    CONSTRAINT uq_datalogger_alias UNIQUE (datalogger_id, alias, active_during),
+    CONSTRAINT uq_alias_no_overlap EXCLUDE USING gist (
+        alias WITH =,
+        active_during WITH &&
+    )
 );
 
 CREATE TABLE IF NOT EXISTS sensor_types (
@@ -333,6 +347,8 @@ CREATE TABLE IF NOT EXISTS sensor_thermistor_pairs (
     CONSTRAINT uq_sensor_thermistor_pair_name UNIQUE (sensor_type_id, name)
 );
 ```
+
+**Logger Alias Resolution**: `datalogger_aliases` maintains every alternate ID ever observed in the raw files. Aliases are stored with a `TSTZRANGE`, letting the system fail fast if two active deployments claim the same alias during overlapping periods. During metadata enrichment the engine first matches on `dataloggers.code`, then on any alias whose range covers the measurement timestamp. If multiple matches exist (which is prevented by the exclusion constraint) the transaction is rejected.
 
 ### The Linking Table
 
@@ -357,7 +373,19 @@ CREATE TABLE IF NOT EXISTS deployments (
     include_in_pipeline BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uq_deployment_sensor_time UNIQUE (datalogger_id, sdi_address, start_timestamp_utc)
 );
+
+ALTER TABLE deployments
+    ADD COLUMN active_during TSTZRANGE GENERATED ALWAYS AS (
+        tstzrange(start_timestamp_utc, end_timestamp_utc, '[)')
+    ) STORED,
+    ADD CONSTRAINT uq_deployment_no_overlap EXCLUDE USING gist (
+        datalogger_id WITH =,
+        sdi_address WITH =,
+        active_during WITH &&
+    );
 ```
+
+The generated `active_during` range ensures there is never more than one active deployment for a `(datalogger, sdi_address)` pair at the same instant. Boundary equality (e.g., one deployment ending exactly when another begins) is also treated as an overlap and will be rejected during manifest validation.
 
 **Rust Struct (`sapflux-repository::metadata`)**
 ```rust
@@ -407,7 +435,7 @@ Stores all context-specific override rules. The most specific (lowest in the lis
 CREATE TABLE IF NOT EXISTS parameter_overrides (
     override_id         UUID PRIMARY KEY,
     parameter_id        UUID NOT NULL REFERENCES parameters(parameter_id),
-    value               TEXT NOT NULL,
+    value               JSONB NOT NULL,
     
     -- Foreign keys to specify the context of the override.
     site_id             UUID REFERENCES sites(site_id) ON DELETE CASCADE,
@@ -425,3 +453,5 @@ CREATE TABLE IF NOT EXISTS parameter_overrides (
     )
 );
 ```
+
+`value` stores a strongly-typed JSON payload (numeric, boolean, or structured) so the cascade can deserialize without lossy string parsing. Examples of canonical payloads are described in `notes/parameter_info.toml`.

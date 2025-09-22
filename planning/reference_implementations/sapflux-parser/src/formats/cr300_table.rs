@@ -6,8 +6,9 @@ use crate::registry::SapflowParser;
 
 use super::{
     ColumnRole, LoggerColumnKind, LoggerColumns, SensorFrameBuilder, SensorMetric,
-    ThermistorMetric, build_logger_dataframe, make_logger_data, parse_metadata, parse_optional_f64,
-    parse_optional_i64, parse_required_i64, parse_sdi12_address, parse_timestamp,
+    ThermistorMetric, build_logger_dataframe, derive_logger_id_from_header, make_logger_data,
+    parse_metadata, parse_optional_f64, parse_optional_i64, parse_required_i64,
+    parse_sdi12_address, parse_timestamp,
 };
 
 pub struct Cr300TableParser;
@@ -297,6 +298,9 @@ impl SapflowParser for Cr300TableParser {
         let mut sensor_builder = SensorFrameBuilder::new();
         let mut row_count = 0usize;
 
+        let mut previous_record: Option<i64> = None;
+        let mut canonical_logger_id: Option<String> = None;
+
         for (row_idx, record) in records.enumerate() {
             let record = record.map_err(|err| ParserError::Csv {
                 parser: Self::NAME,
@@ -329,6 +333,21 @@ impl SapflowParser for Cr300TableParser {
                         LoggerColumnKind::Record => {
                             let record_value =
                                 parse_required_i64(Self::NAME, value, line_index, header_name)?;
+
+                            if let Some(prev) = previous_record {
+                                if record_value != prev + 1 {
+                                    return Err(ParserError::DataRow {
+                                        parser: Self::NAME,
+                                        line_index,
+                                        message: format!(
+                                            "record column must increment by 1 (expected {}, found {})",
+                                            prev + 1,
+                                            record_value
+                                        ),
+                                    });
+                                }
+                            }
+                            previous_record = Some(record_value);
                             logger_columns.record.push(record_value);
                         }
                         LoggerColumnKind::BatteryVoltage => {
@@ -344,7 +363,30 @@ impl SapflowParser for Cr300TableParser {
                         LoggerColumnKind::LoggerId => {
                             let parsed =
                                 parse_optional_i64(Self::NAME, value, line_index, header_name)?;
-                            logger_columns.logger_id_mut().push(parsed);
+
+                            let value = parsed.ok_or_else(|| ParserError::DataRow {
+                                parser: Self::NAME,
+                                line_index,
+                                message: "logger id column contained NULL".to_string(),
+                            })?;
+
+                            let value_str = value.to_string();
+                            if let Some(existing) = canonical_logger_id.as_ref() {
+                                if existing != &value_str {
+                                    return Err(ParserError::Validation {
+                                        parser: Self::NAME,
+                                        message: format!(
+                                            "logger id column contained inconsistent values ({} != {})",
+                                            existing,
+                                            value_str
+                                        ),
+                                    });
+                                }
+                            } else {
+                                canonical_logger_id = Some(value_str.clone());
+                            }
+
+                            logger_columns.logger_id_mut().push(Some(value_str));
                         }
                     },
                     ColumnRole::SensorAddress { address } => {
@@ -386,11 +428,17 @@ impl SapflowParser for Cr300TableParser {
             return Err(ParserError::EmptyData { parser: Self::NAME });
         }
 
+        if logger_columns.logger_id.is_none() {
+            let derived = derive_logger_id_from_header(Self::NAME, &metadata)?;
+            logger_columns.logger_id = Some(vec![Some(derived); row_count]);
+        }
+
         let logger_df = build_logger_dataframe(Self::NAME, logger_columns)?;
         let sensors = sensor_builder.build(Self::NAME, row_count)?;
         let logger = make_logger_data(logger_df, sensors);
 
         Ok(ParsedFileData {
+            file_hash: String::new(),
             raw_text: content.to_string(),
             file_metadata: metadata,
             logger,
