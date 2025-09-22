@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::ingestion::{self, FileInput, FileReport, IngestionBatch};
+use crate::object_store::ObjectStore;
 use crate::pipelines::{all_pipelines, ExecutionContext};
 
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct TransactionRequest {
     pub files: Vec<TransactionFile>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PipelineStatus {
     Skipped,
@@ -51,6 +52,7 @@ pub struct TransactionReceipt {
 
 pub async fn execute_transaction(
     pool: &DbPool,
+    object_store: &ObjectStore,
     request: TransactionRequest,
 ) -> Result<TransactionReceipt> {
     let TransactionRequest {
@@ -113,6 +115,10 @@ pub async fn execute_transaction(
         }
     };
 
+    if pipeline_summary.status != PipelineStatus::Failed {
+        upload_new_raw_files(object_store, &files, &ingestion_batch).await?;
+    }
+
     if !dry_run {
         if let Some(id) = transaction_id {
             let outcome = match pipeline_summary.status {
@@ -121,7 +127,7 @@ pub async fn execute_transaction(
             };
 
             if outcome == "ACCEPTED" {
-                persist_ingestion(pool, id, &ingestion_batch.new_hashes).await?;
+                persist_ingestion(pool, id, &ingestion_batch).await?;
             }
 
             let receipt = TransactionReceipt {
@@ -173,11 +179,11 @@ async fn load_existing_hashes(pool: &DbPool) -> Result<HashSet<String>> {
 async fn persist_ingestion(
     pool: &DbPool,
     transaction_id: Uuid,
-    hashes: &[String],
+    batch: &IngestionBatch,
 ) -> Result<()> {
     let mut db_tx = pool.begin().await?;
 
-    for hash in hashes {
+    for parsed in batch.parsed.iter() {
         sqlx::query(
             r#"
                 INSERT INTO raw_files (file_hash, ingesting_transaction_id, ingest_context, include_in_pipeline)
@@ -185,7 +191,7 @@ async fn persist_ingestion(
                 ON CONFLICT (file_hash) DO NOTHING
             "#,
         )
-        .bind(hash)
+        .bind(&parsed.hash)
         .bind(transaction_id)
         .execute(&mut *db_tx)
         .await?;
@@ -235,4 +241,29 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
             error: Some("no pipeline registered for data format".into()),
         }
     }
+}
+
+async fn upload_new_raw_files(
+    object_store: &ObjectStore,
+    files: &[TransactionFile],
+    batch: &IngestionBatch,
+) -> Result<()> {
+    use crate::ingestion::FileStatus;
+    use std::collections::HashMap;
+
+    let path_map: HashMap<&str, &[u8]> = files
+        .iter()
+        .map(|file| (file.path.as_str(), file.contents.as_slice()))
+        .collect();
+
+    for report in batch.reports.iter() {
+        if let FileStatus::Parsed = report.status {
+            if let Some(contents) = path_map.get(report.path.as_str()) {
+                let key = ObjectStore::raw_file_key(&report.hash);
+                object_store.put_raw_file(&key, contents).await?;
+            }
+        }
+    }
+
+    Ok(())
 }

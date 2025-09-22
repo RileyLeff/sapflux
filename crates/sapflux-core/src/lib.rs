@@ -5,6 +5,7 @@ pub mod db;
 pub mod flatten;
 pub mod ingestion;
 pub mod metadata_enricher;
+pub mod object_store;
 pub mod parameter_resolver;
 pub mod parsers;
 pub mod pipelines;

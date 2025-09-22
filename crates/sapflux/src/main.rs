@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use axum::{
     extract::{Json, State},
     http::StatusCode,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
@@ -9,14 +10,16 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use clap::{Parser, Subcommand};
 use sapflux_core::{
-    db, seed,
+    db,
+    object_store::ObjectStore,
+    seed,
     transactions::{
         execute_transaction, PipelineStatus, TransactionFile, TransactionReceipt,
         TransactionRequest as CoreTransactionRequest,
     },
 };
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -43,6 +46,7 @@ struct ServeArgs {
 #[derive(Clone)]
 struct AppState {
     pool: db::DbPool,
+    object_store: Arc<ObjectStore>,
 }
 
 #[tokio::main]
@@ -69,7 +73,8 @@ async fn connect_pool() -> Result<db::DbPool> {
 
 async fn run_server(args: ServeArgs) -> Result<()> {
     let pool = connect_pool().await?;
-    let state = AppState { pool };
+    let object_store = Arc::new(ObjectStore::noop());
+    let state = AppState { pool, object_store };
 
     let app = Router::new()
         .route("/health", get(health_check))
@@ -145,24 +150,27 @@ struct TransactionResponse {
 async fn handle_transaction(
     State(state): State<AppState>,
     Json(req): Json<TransactionRequest>,
-) -> Result<Json<TransactionResponse>, (StatusCode, &'static str)> {
+) -> Response {
     if req.files.is_empty() {
-        return Err((
+        return (
             StatusCode::BAD_REQUEST,
             "transaction requires at least one file",
-        ));
+        )
+            .into_response();
     }
 
     let mut files = Vec::with_capacity(req.files.len());
     for file in req.files {
-        let bytes = BASE64_STANDARD
-            .decode(file.contents_base64.as_bytes())
-            .map_err(|_| {
-                (
+        let bytes = match BASE64_STANDARD.decode(file.contents_base64.as_bytes()) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return (
                     StatusCode::BAD_REQUEST,
                     "file contents must be base64 encoded",
                 )
-            })?;
+                    .into_response();
+            }
+        };
 
         files.push(TransactionFile {
             path: file.path,
@@ -177,16 +185,16 @@ async fn handle_transaction(
         files,
     };
 
-    let receipt = execute_transaction(&state.pool, core_req)
-        .await
-        .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "transaction processing failed",
-            )
-        })?;
-
-    let status = receipt.pipeline.status.clone();
-
-    Ok(Json(TransactionResponse { status, receipt }))
+    match execute_transaction(&state.pool, &state.object_store, core_req).await {
+        Ok(receipt) => {
+            let status = receipt.pipeline.status.clone();
+            let body = TransactionResponse { status, receipt };
+            (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "transaction processing failed",
+        )
+            .into_response(),
+    }
 }

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use sapflux_parser::{parse_sapflow_file, ParsedFileData as ExternalParsedFileData};
 
-pub trait ParsedData: Any + Send {
+pub trait ParsedData: Any + Send + Sync {
     fn data_format_name(&self) -> &'static str;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

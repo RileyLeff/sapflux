@@ -70,7 +70,10 @@ impl ExecutionContext {
                 .parse()
                 .with_context(|| format!("unknown timezone {}", timezone))?;
             site_tz_map.insert(site_id, tz);
-            timestamp_sites.push(TsSiteMetadata { site_id, timezone: tz });
+            timestamp_sites.push(TsSiteMetadata {
+                site_id,
+                timezone: tz,
+            });
         }
 
         let deployment_rows = sqlx::query(
