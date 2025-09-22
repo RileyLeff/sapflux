@@ -1,0 +1,1 @@
+Green light. Your latest edits resolve the last blocker (transactions row inserted as PENDING before FK uses) and align the pipeline around batch processing. The plan is coherent and internally consistent. You can start implementation.
