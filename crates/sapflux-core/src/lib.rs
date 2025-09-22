@@ -7,6 +7,8 @@ pub mod flatten;
 pub mod ingestion;
 pub mod metadata_enricher;
 #[cfg(feature = "runtime")]
+pub mod metadata_manifest;
+#[cfg(feature = "runtime")]
 pub mod object_gc;
 pub mod object_store;
 #[cfg(feature = "runtime")]

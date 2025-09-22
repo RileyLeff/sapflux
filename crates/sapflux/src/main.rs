@@ -146,6 +146,8 @@ struct TransactionRequest {
     #[serde(default)]
     pub dry_run: bool,
     pub files: Vec<TransactionFilePayload>,
+    #[serde(default)]
+    pub metadata_manifest: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -170,7 +172,14 @@ async fn handle_transaction(
     State(state): State<AppState>,
     Json(req): Json<TransactionRequest>,
 ) -> Response {
-    if req.files.is_empty() {
+    let TransactionRequest {
+        message,
+        dry_run,
+        files: file_payloads,
+        metadata_manifest,
+    } = req;
+
+    if file_payloads.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
             "transaction requires at least one file",
@@ -178,8 +187,8 @@ async fn handle_transaction(
             .into_response();
     }
 
-    let mut files = Vec::with_capacity(req.files.len());
-    for file in req.files {
+    let mut files = Vec::with_capacity(file_payloads.len());
+    for file in file_payloads {
         let bytes = match BASE64_STANDARD.decode(file.contents_base64.as_bytes()) {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -199,9 +208,10 @@ async fn handle_transaction(
 
     let core_req = CoreTransactionRequest {
         user_id: "anonymous".to_string(),
-        message: req.message,
-        dry_run: req.dry_run,
+        message,
+        dry_run,
         files,
+        metadata_manifest,
     };
 
     match execute_transaction(&state.pool, &state.object_store, core_req).await {

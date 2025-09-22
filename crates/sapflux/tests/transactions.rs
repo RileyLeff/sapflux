@@ -186,6 +186,7 @@ fn execute_transaction_roundtrip() -> Result<()> {
                     path: "CR300Series_420_SapFlowAll.dat".into(),
                     contents: file_bytes.as_bytes().to_vec(),
                 }],
+                metadata_manifest: None,
             },
         )
         .await?;
@@ -211,6 +212,7 @@ fn execute_transaction_roundtrip() -> Result<()> {
             receipt_quality.total_rows
         );
         assert!(receipt.artifacts.is_none());
+        assert!(receipt.metadata_summary.is_none());
         let receipt_record = receipt
             .pipeline
             .record_summary
@@ -236,6 +238,7 @@ fn execute_transaction_roundtrip() -> Result<()> {
                     path: "CR300Series_420_SapFlowAll.dat".into(),
                     contents: file_bytes.as_bytes().to_vec(),
                 }],
+                metadata_manifest: None,
             },
         )
         .await?;
@@ -269,6 +272,7 @@ fn execute_transaction_roundtrip() -> Result<()> {
             .cartridge_key
             .starts_with("repro-cartridges/"));
         assert!(committed_artifacts.cartridge_key.ends_with(".zip"));
+        assert!(committed.metadata_summary.is_none());
         let committed_record = committed
             .pipeline
             .record_summary

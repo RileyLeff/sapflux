@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::db::DbPool;
 use crate::ingestion::{self, FileInput, FileReport, FileStatus, IngestionBatch};
+use crate::metadata_manifest;
 use crate::object_store::ObjectStore;
 use crate::outputs::publish_output;
 use crate::pipelines::{all_pipelines, ExecutionContext};
@@ -28,6 +29,7 @@ pub struct TransactionRequest {
     pub message: Option<String>,
     pub dry_run: bool,
     pub files: Vec<TransactionFile>,
+    pub metadata_manifest: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -58,6 +60,8 @@ pub struct TransactionReceipt {
     pub pipeline: PipelineSummary,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<PipelineArtifacts>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_summary: Option<crate::metadata_manifest::MetadataSummary>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -141,6 +145,7 @@ async fn execute_transaction_locked(
         message,
         dry_run,
         files,
+        metadata_manifest,
     } = request;
 
     if files.is_empty() {
@@ -165,6 +170,22 @@ async fn execute_transaction_locked(
         Some(id)
     };
     let mut artifacts: Option<PipelineArtifacts> = None;
+
+    let mut metadata_summary: Option<metadata_manifest::MetadataSummary> = None;
+
+    if let Some(manifest_str) = metadata_manifest.as_deref() {
+        let manifest = metadata_manifest::parse_manifest(manifest_str)?;
+        if !manifest.is_empty() {
+            let (plan, summary) = metadata_manifest::preflight_manifest(pool, &manifest).await?;
+            if !dry_run {
+                let id = transaction_id.ok_or_else(|| {
+                    anyhow!("transaction id missing while applying metadata manifest")
+                })?;
+                metadata_manifest::apply_manifest(pool, &plan, id).await?;
+            }
+            metadata_summary = Some(summary);
+        }
+    }
 
     let existing_hashes = load_existing_hashes(pool).await?;
 
@@ -244,6 +265,7 @@ async fn execute_transaction_locked(
                         ingestion_summary: ingestion_summary.clone(),
                         pipeline: pipeline_run.summary.clone(),
                         artifacts: None,
+                        metadata_summary: metadata_summary.clone(),
                     };
 
                     sqlx::query(
@@ -297,6 +319,7 @@ async fn execute_transaction_locked(
                                     ingestion_summary: ingestion_summary.clone(),
                                     pipeline: pipeline_run.summary.clone(),
                                     artifacts: None,
+                                    metadata_summary: metadata_summary.clone(),
                                 };
 
                                 sqlx::query(
@@ -335,6 +358,7 @@ async fn execute_transaction_locked(
                 ingestion_summary: ingestion_summary.clone(),
                 pipeline: pipeline_run.summary.clone(),
                 artifacts: artifacts.clone(),
+                metadata_summary: metadata_summary.clone(),
             };
 
             sqlx::query(
@@ -362,6 +386,7 @@ async fn execute_transaction_locked(
         ingestion_summary,
         pipeline: pipeline_run.summary,
         artifacts,
+        metadata_summary,
     })
 }
 
