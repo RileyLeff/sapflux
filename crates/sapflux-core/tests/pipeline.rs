@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chrono::{NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
+use std::collections::{HashMap, HashSet};
 use sapflux_core::{
     flatten::flatten_parsed_files,
     metadata_enricher::DeploymentRow,
@@ -121,6 +122,60 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     assert!(output.column("quality").is_ok());
 
     assert!(output.height() > 0);
+
+    let records = output.column("record")?.i64()?;
+    let loggers = output.column("logger_id")?.str()?;
+    let depths = output.column("thermistor_depth")?.str()?;
+    let addresses = output.column("sdi12_address")?.str()?;
+    let signatures = output.column("file_set_signature")?.str()?;
+    let mut unique_pairs: HashSet<(String, i64, String, String, String)> = HashSet::new();
+    for idx in 0..output.height() {
+        let logger = loggers
+            .get(idx)
+            .expect("logger_id should be present in pipeline output");
+        let record = records
+            .get(idx)
+            .expect("record should be present in pipeline output");
+        let depth = depths
+            .get(idx)
+            .expect("thermistor_depth should be present in pipeline output");
+        let address = addresses
+            .get(idx)
+            .expect("sdi12_address should be present in pipeline output");
+        let signature = signatures
+            .get(idx)
+            .expect("file_set_signature should be present in pipeline output");
+        unique_pairs.insert((
+            logger.to_string(),
+            record,
+            depth.to_string(),
+            address.to_string(),
+            signature.to_string(),
+        ));
+    }
+    assert_eq!(unique_pairs.len() * 2, output.height());
+
+    let mut duplicate_counts: HashMap<(String, i64, String, String), usize> = HashMap::new();
+    for idx in 0..output.height() {
+        let key = (
+            loggers
+                .get(idx)
+                .expect("logger_id")
+                .to_string(),
+            records.get(idx).expect("record"),
+            depths
+                .get(idx)
+                .expect("thermistor_depth")
+                .to_string(),
+            addresses
+                .get(idx)
+                .expect("sdi12_address")
+                .to_string(),
+        );
+        *duplicate_counts.entry(key).or_default() += 1;
+    }
+
+    assert!(duplicate_counts.values().all(|&count| count == 2));
 
     Ok(())
 }

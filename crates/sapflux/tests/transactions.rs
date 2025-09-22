@@ -195,6 +195,16 @@ fn execute_transaction_roundtrip() -> Result<()> {
         assert_eq!(receipt.ingestion_summary.failed, 0);
         assert_eq!(receipt.pipeline.status, PipelineStatus::Success);
         assert!(receipt.pipeline.row_count.unwrap_or_default() > 0);
+        let receipt_quality = receipt
+            .pipeline
+            .quality_summary
+            .as_ref()
+            .expect("quality summary present for dry-run pipeline");
+        assert_eq!(
+            receipt_quality.total_rows,
+            receipt.pipeline.row_count.unwrap_or_default()
+        );
+        assert!(receipt_quality.suspect_rows <= receipt_quality.total_rows);
 
         let committed = execute_transaction(
             &pool,
@@ -215,6 +225,16 @@ fn execute_transaction_roundtrip() -> Result<()> {
             .transaction_id
             .context("expected committed transaction id")?;
         assert_eq!(committed.pipeline.status, PipelineStatus::Success);
+        let committed_quality = committed
+            .pipeline
+            .quality_summary
+            .as_ref()
+            .expect("quality summary present for committed pipeline");
+        assert_eq!(
+            committed_quality.total_rows,
+            committed.pipeline.row_count.unwrap_or_default()
+        );
+        assert!(committed_quality.suspect_rows <= committed_quality.total_rows);
 
         let outcome: String = sqlx::query_scalar(
             "SELECT outcome::text FROM transactions WHERE transaction_id = $1",

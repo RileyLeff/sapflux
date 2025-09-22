@@ -1,6 +1,6 @@
 #![cfg(feature = "runtime")]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{anyhow, Result};
 use serde::Serialize;
@@ -12,6 +12,7 @@ use crate::db::DbPool;
 use crate::ingestion::{self, FileInput, FileReport, FileStatus, IngestionBatch};
 use crate::object_store::ObjectStore;
 use crate::pipelines::{all_pipelines, ExecutionContext};
+use polars::prelude::DataFrame;
 
 #[derive(Debug)]
 pub struct TransactionFile {
@@ -41,6 +42,8 @@ pub struct PipelineSummary {
     pub status: PipelineStatus,
     pub row_count: Option<usize>,
     pub error: Option<String>,
+    pub quality_summary: Option<QualitySummary>,
+    pub provenance_summary: Option<ProvenanceSummary>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,6 +61,33 @@ pub struct IngestionSummary {
     pub parsed: usize,
     pub duplicates: usize,
     pub failed: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct QualitySummary {
+    pub total_rows: usize,
+    pub suspect_rows: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub top_reasons: Vec<QualityReasonCount>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct QualityReasonCount {
+    pub reason: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProvenanceSummary {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub top_overrides: Vec<ParameterProvenanceEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParameterProvenanceEntry {
+    pub parameter: String,
+    pub source: String,
+    pub count: usize,
 }
 
 const TRANSACTION_LOCK_KEY: i64 = 0x5350464C5558; // "SPFLUX"
@@ -144,6 +174,8 @@ async fn execute_transaction_locked(
             status: PipelineStatus::Skipped,
             row_count: None,
             error: None,
+            quality_summary: None,
+            provenance_summary: None,
         }
     } else {
         match ExecutionContext::load_from_db(pool).await {
@@ -153,6 +185,8 @@ async fn execute_transaction_locked(
                 status: PipelineStatus::Failed,
                 row_count: None,
                 error: Some(err.to_string()),
+                quality_summary: None,
+                provenance_summary: None,
             },
         }
     };
@@ -163,10 +197,9 @@ async fn execute_transaction_locked(
                 if let Err(err) = upload_new_raw_files(object_store, &files, &ingestion_batch).await
                 {
                     pipeline_summary = PipelineSummary {
-                        pipeline: pipeline_summary.pipeline.clone(),
                         status: PipelineStatus::Failed,
-                        row_count: pipeline_summary.row_count,
                         error: Some(format!("object store upload failed: {err}")),
+                        ..pipeline_summary.clone()
                     };
 
                     let receipt = TransactionReceipt {
@@ -283,6 +316,8 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
             status: PipelineStatus::Skipped,
             row_count: None,
             error: None,
+            quality_summary: None,
+            provenance_summary: None,
         };
     }
 
@@ -300,12 +335,16 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
                 status: PipelineStatus::Success,
                 row_count: Some(df.height()),
                 error: None,
+                quality_summary: compute_quality_summary(&df),
+                provenance_summary: compute_provenance_summary(&df),
             },
             Err(err) => PipelineSummary {
                 pipeline: Some(pipeline.code_identifier().to_string()),
                 status: PipelineStatus::Failed,
                 row_count: None,
                 error: Some(err.to_string()),
+                quality_summary: None,
+                provenance_summary: None,
             },
         }
     } else {
@@ -314,8 +353,98 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineS
             status: PipelineStatus::Skipped,
             row_count: None,
             error: Some("no pipeline registered for data format".into()),
+            quality_summary: None,
+            provenance_summary: None,
         }
     }
+}
+
+fn compute_quality_summary(df: &DataFrame) -> Option<QualitySummary> {
+    let quality_series = df.column("quality").ok()?.str().ok()?;
+    let suspect_rows = quality_series
+        .iter()
+        .filter(|value| matches!(value, Some("SUSPECT")))
+        .count();
+
+    let mut reason_counts: HashMap<String, usize> = HashMap::new();
+    if let Ok(explanation_series) = df.column("quality_explanation") {
+        if let Ok(explanations) = explanation_series.str() {
+            for value in explanations.iter().flatten() {
+                for reason in value.split('|').filter(|segment| !segment.is_empty()) {
+                    *reason_counts.entry(reason.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    let mut reason_entries: Vec<(String, usize)> = reason_counts.into_iter().collect();
+    reason_entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let top_reasons = reason_entries
+        .into_iter()
+        .take(5)
+        .map(|(reason, count)| QualityReasonCount { reason, count })
+        .collect();
+
+    Some(QualitySummary {
+        total_rows: df.height(),
+        suspect_rows,
+        top_reasons,
+    })
+}
+
+fn compute_provenance_summary(df: &DataFrame) -> Option<ProvenanceSummary> {
+    let mut entries: Vec<ParameterProvenanceEntry> = Vec::new();
+
+    for column_name in df.get_column_names() {
+        if !column_name.starts_with("parameter_source_") {
+            continue;
+        }
+
+        let series = match df.column(column_name) {
+            Ok(series) => series,
+            Err(_) => continue,
+        };
+
+        let values = match series.str() {
+            Ok(values) => values,
+            Err(_) => continue,
+        };
+
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for value in values.iter().flatten() {
+            if value.is_empty() {
+                continue;
+            }
+            if value.eq_ignore_ascii_case("default") || value.contains("default") {
+                continue;
+            }
+            *counts.entry(value.to_string()).or_insert(0) += 1;
+        }
+
+        if counts.is_empty() {
+            continue;
+        }
+
+        let mut overrides: Vec<(String, usize)> = counts.into_iter().collect();
+        overrides.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let (source, count) = overrides[0].clone();
+        entries.push(ParameterProvenanceEntry {
+            parameter: column_name.trim_start_matches("parameter_source_").to_string(),
+            source,
+            count,
+        });
+    }
+
+    if entries.is_empty() {
+        return None;
+    }
+
+    entries.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.parameter.cmp(&b.parameter)));
+    entries.truncate(3);
+
+    Some(ProvenanceSummary {
+        top_overrides: entries,
+    })
 }
 
 async fn upload_new_raw_files(
@@ -342,6 +471,62 @@ async fn upload_new_raw_files(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use polars::prelude::*;
+
+    #[test]
+    fn compute_quality_summary_counts_suspect_rows() {
+        let df = df![
+            "quality" => [Some("SUSPECT"), None, Some("SUSPECT"), None],
+            "quality_explanation" => [
+                Some("timestamp_before_deployment|timestamp_future"),
+                None,
+                Some("sap_flux_density_above_quality_max_flux_cm_hr"),
+                None
+            ]
+        ]
+        .expect("construct dataframe");
+
+        let summary = compute_quality_summary(&df).expect("quality summary");
+        assert_eq!(summary.total_rows, 4);
+        assert_eq!(summary.suspect_rows, 2);
+        assert!(!summary.top_reasons.is_empty());
+        assert!(summary
+            .top_reasons
+            .iter()
+            .any(|entry| entry.reason == "timestamp_future"));
+    }
+
+    #[test]
+    fn compute_provenance_summary_skips_defaults() {
+        let df = df![
+            "parameter_source_parameter_heat_pulse_duration_s" => [
+                Some("default"),
+                Some("stem_override"),
+                Some("stem_override")
+            ],
+            "parameter_source_parameter_wood_density_kg_m3" => [
+                Some("default"),
+                Some("deployment_override"),
+                Some("default")
+            ]
+        ]
+        .expect("construct provenance frame");
+
+        let summary = compute_provenance_summary(&df).expect("provenance summary");
+        assert_eq!(summary.top_overrides.len(), 2);
+        assert_eq!(summary.top_overrides[0].parameter, "parameter_heat_pulse_duration_s");
+        assert_eq!(summary.top_overrides[0].source, "stem_override");
+        assert_eq!(summary.top_overrides[0].count, 2);
+        assert!(summary
+            .top_overrides
+            .iter()
+            .any(|entry| entry.source == "deployment_override"));
+    }
 }
 
 struct AdvisoryLock {

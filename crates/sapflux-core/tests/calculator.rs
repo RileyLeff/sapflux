@@ -62,3 +62,43 @@ fn calculator_populates_columns() {
     let j_hrm = df.column("j_hrm_cm_hr").unwrap().f64().unwrap();
     assert!((sap_flux.get(0).unwrap() - j_hrm.get(0).unwrap()).abs() < 1e-9);
 }
+
+#[test]
+fn tmax_branch_requires_tm_exceeding_heat_pulse() -> PolarsResult<()> {
+    let mut base = df_with_params();
+    let df = base.with_column(Series::new(
+        "time_to_max_temp_downstream_s".into(),
+        vec![2.0f64, 90.0f64],
+    ))?;
+
+    let result = apply_dma_peclet(&df)?;
+    let vh_tmax = result.column("vh_tmax_cm_hr")?.f64()?;
+
+    assert!(vh_tmax.get(0).is_none());
+    assert!(vh_tmax.get(1).is_some());
+
+    Ok(())
+}
+
+#[test]
+fn tmax_branch_returns_none_when_inside_negative() -> PolarsResult<()> {
+    let mut base = df_with_params();
+    let df_step = base.with_column(Series::new(
+        "time_to_max_temp_downstream_s".into(),
+        vec![3.01f64, 90.0f64],
+    ))?;
+    let df = df_step.with_column(Series::new(
+        "parameter_probe_distance_downstream_cm".into(),
+        vec![0.0f64, 0.6f64],
+    ))?;
+
+    let result = apply_dma_peclet(&df)?;
+    let vh_tmax = result.column("vh_tmax_cm_hr")?.f64()?;
+    let j_tmax = result.column("j_tmax_cm_hr")?.f64()?;
+
+    assert!(vh_tmax.get(0).is_none());
+    assert!(j_tmax.get(0).is_none());
+    assert!(vh_tmax.get(1).is_some());
+
+    Ok(())
+}
