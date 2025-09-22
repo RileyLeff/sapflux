@@ -4,15 +4,20 @@ use polars::prelude::DataFrame;
 
 use crate::{
     flatten::flatten_parsed_files,
+    metadata_enricher::{self, DeploymentRow as EnrichmentDeploymentRow},
+    parameter_resolver::{self, ParameterDefinition, ParameterOverride},
     parsers::ParsedData,
-    timestamp_fixer::{self, DeploymentMetadata, SiteMetadata},
+    timestamp_fixer::{self, DeploymentMetadata as TsDeploymentMetadata, SiteMetadata as TsSiteMetadata},
 };
 use sapflux_parser::ParsedFileData;
 
 #[derive(Debug, Default)]
 pub struct ExecutionContext {
-    pub deployments: Vec<DeploymentMetadata>,
-    pub sites: Vec<SiteMetadata>,
+    pub timestamp_sites: Vec<TsSiteMetadata>,
+    pub timestamp_deployments: Vec<TsDeploymentMetadata>,
+    pub enrichment_deployments: Vec<EnrichmentDeploymentRow>,
+    pub parameter_definitions: Vec<ParameterDefinition>,
+    pub parameter_overrides: Vec<ParameterOverride>,
 }
 
 pub trait ProcessingPipeline: Send + Sync {
@@ -76,7 +81,7 @@ impl ProcessingPipeline for StandardPipelineStub {
         context: &ExecutionContext,
         _parsed_batch: &[&dyn ParsedData],
     ) -> Result<DataFrame> {
-        if context.deployments.is_empty() || context.sites.is_empty() {
+        if context.timestamp_deployments.is_empty() || context.timestamp_sites.is_empty() {
             return Err(anyhow!(
                 "standard_v1_dst_fix requires deployment/site metadata"
             ));
@@ -93,10 +98,25 @@ impl ProcessingPipeline for StandardPipelineStub {
         let flattened = flatten_parsed_files(&typed_files)?;
         let corrected = timestamp_fixer::correct_timestamps(
             &flattened,
-            &context.sites,
-            &context.deployments,
+            &context.timestamp_sites,
+            &context.timestamp_deployments,
         )?;
 
-        Ok(corrected)
+        let enriched = metadata_enricher::enrich_with_metadata(
+            &corrected,
+            &context.enrichment_deployments,
+        )?;
+
+        let resolved = if context.parameter_definitions.is_empty() {
+            enriched
+        } else {
+            parameter_resolver::resolve_parameters(
+                &enriched,
+                &context.parameter_definitions,
+                &context.parameter_overrides,
+            )?
+        };
+
+        Ok(resolved)
     }
 }
