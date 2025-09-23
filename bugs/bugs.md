@@ -35,3 +35,21 @@
 **Suggested fix:** Scope the stem uniqueness check to `(plant_code, stem_code)` instead of a single string key.
 
 **Status:** Reproduced.
+
+## 2025-09-23 — Parsers emit raw `total_sap_flow_lph` column
+**Context:** The CR300 table parser maps the `sapflwtot` column to `total_sap_flow_lph`, so the ingestion pipeline sees a “computed” total sap flow before any downstream calculations. When mixed with files that omit the column (or emit the raw thermistor series), this breaks the canonical schema and causes the pipeline to fail. More pressingly, this column contains incorrect information that conflicts with the correct information added later in the pipeline.
+
+**Impact:** Keeps legacy “total sap flow” values alive and prevents the pipeline from stacking frames with and without that column.
+
+**Suggested fix:** Drop `sapflwtot` during parsing (or emit it under a `raw_…` name) so canonical logger-level columns stay limited to timestamp, record, battery_voltage, optional panel temperature, and logger ID. Sensor/thermistor values should only live under their per-sensor/per-depth columns. Perform a more thorough investigation into the parsers and how they convert data into a dataformat. This should be reliable.
+
+**Status:** Reproduced.
+
+## 2025-09-23 — Ingest deduplication skips duplicates within the same transaction
+**Context:** `ingest_files` only checks hashes against those already in the database (`existing_hashes`). New hashes collected within a single batch aren’t compared against each other, so submitting the same file twice in the same transaction marks both as “Parsed”.
+
+**Impact:** Allows duplicate uploads in the same request; downstream, the pipeline sees the duplicate rows twice.
+
+**Suggested fix:** Track hashes seen within `ingest_files` (seeded with `existing_hashes`) so duplicates in the same transaction return `FileStatus::Duplicate` immediately.
+
+**Status:** Reproduced.
