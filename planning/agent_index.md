@@ -83,7 +83,7 @@ API download endpoint: crates/sapflux/src/main.rs (GET /outputs/:id/download; in
 Local dev stack (compose + smoke)
 
 Compose harness: docker-compose.yaml (db + MinIO + API)
-One-command smoke: scripts/smoke.sh (migrate/seed → multipart transaction → publish → presigned download)
+One-command smoke: integration_tests/smoke.sh (migrate/seed → multipart transaction → publish → presigned download and save parquet under integration_tests/output)
 Dev notes: docs/dev-compose.md
 Data flow overview (end-to-end)
 

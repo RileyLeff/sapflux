@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 COMPOSE="${COMPOSE:-docker compose}"
 STACK_NAME="sapflux-dev"
+OUTPUT_DIR="$REPO_ROOT/integration_tests/output"
+
+mkdir -p "$OUTPUT_DIR"
 
 cleanup() {
   $COMPOSE -p "$STACK_NAME" down -v >/dev/null 2>&1 || true
@@ -126,9 +130,14 @@ echo "==> Downloading output parquet"
 download=$(curl -sf "http://localhost:8080/outputs/$output_id/download")
 echo "$download" | jq '.' >/dev/null
 parquet_key=$(echo "$response" | jq -r '.receipt.artifacts.parquet_key')
+timestamp=$(date +%Y%m%d_%H%M%S)
+output_path="$OUTPUT_DIR/smoke_output_${timestamp}.parquet"
+
 $COMPOSE -p "$STACK_NAME" run --rm --entrypoint '' minio-init \
   sh -c "mc alias set --api s3v4 local http://minio:9000 minio miniosecret >/dev/null && mc cat local/sapflux/$parquet_key" \
-  > "$TMP_DIR/output.parquet"
+  > "$output_path"
 
-echo "Parquet saved to $TMP_DIR/output.parquet"
+echo "Parquet saved to $output_path"
 echo "Smoke test completed successfully"
+
+rm -rf "$TMP_DIR"

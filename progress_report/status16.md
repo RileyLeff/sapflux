@@ -2,7 +2,7 @@
 
 ## Highlights Since Last Update
 - Added a full docker-compose harness (Postgres + MinIO + API) and build Dockerfile so the entire pipeline can run locally without manual setup.
-- Wrote `scripts/smoke.sh` to exercise the multipart manifest ingestion → pipeline publish → output download flow end-to-end, including seed/migrate and presigned parquet retrieval.
+- Wrote the smoke test harness (now `integration_tests/smoke.sh`) to exercise the multipart manifest ingestion → pipeline publish → output download flow end-to-end, including seed/migrate and presigned parquet retrieval.
 - Documented the workflow in `docs/dev-compose.md` covering startup, smoke test usage, and bucket layout.
 
 ## Next Focus

@@ -4,7 +4,7 @@ This stack brings up Postgres, MinIO, and the Sapflux API so you can exercise th
 
 ```bash
 docker compose up --build
-./scripts/smoke.sh
+./integration_tests/smoke.sh
 ```
 
 `smoke.sh` will:
