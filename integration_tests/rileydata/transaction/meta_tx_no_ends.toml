@@ -1,0 +1,2099 @@
+# Example manifest.toml
+# Note: Send your human-friendly commit message in the multipart field `message`
+# when POSTing to /transactions. Do not put it inside this TOML.
+
+# 1) Project
+[[projects.add]]
+code = "MONITORING"
+name = "Sap Flow Monitoring Project"
+description = "Long-running installations across coastal forests in the delmarva region."
+
+[[projects.add]]
+code = "STEMFLOW"
+name = "Stemflow Project"
+description = "Analysis of sap flow in trees with and without stemflow exclusion collars."
+
+# 2) Site
+[[sites.add]]
+code = "BRNV"
+name = "Brownsville Preserve"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+[[sites.add]]
+code = "MONB"
+name = "Monie Bay"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+[[sites.add]]
+code = "MILN"
+name = "Milford Neck"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+# 3) Zone (unique within site)
+[[zones.add]]
+site_code = "BRNV"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Reference Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+# 4) Plot (unique within zone)
+# Brownsville Plots
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H7"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M7"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L7"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "High Forest"
+name = "HStemflow"
+
+# Monie Bay Plots
+[[plots.add]]
+site_code = "MONB"
+zone_name = "High Forest"
+name = "H0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Mid Forest"
+name = "M0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Low Forest"
+name = "L0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Low Forest"
+name = "L1"
+
+# Milford Neck Plots
+[[plots.add]]
+site_code = "MILN"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "High Forest"
+name = "H2"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Mid Forest"
+name = "M2"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Low Forest"
+name = "L1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Low Forest"
+name = "L2"
+
+# 5) Species
+[[species.add]]
+code = "PINTAE"
+latin_name = { full = "Pinus taeda" }
+common_name = { en = "Loblolly pine" }
+# icon_path = "assets/icons/species/SPEC1.svg"
+
+[[species.add]]
+code = "NYSSYL"
+latin_name = { full = "Nyssa sylvatica" }
+common_name = { en = "Black tupelo" }
+# icon_path = "assets/icons/species/SPEC1.svg"
+
+[[species.add]]
+code = "LIQSTY"
+latin_name = { full = "Liquidambar styraciflua" }
+common_name = { en = "American sweetgum" }
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H5"
+species_code = "PINTAE"
+code         = "560"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "560"
+code = "560_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H5"
+species_code = "PINTAE"
+code         = "562"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "562"
+code = "562_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M2"
+species_code = "PINTAE"
+code         = "2431"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "2431"
+code = "2431_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M2"
+species_code = "PINTAE"
+code         = "501"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "501"
+code = "501_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L6"
+species_code = "PINTAE"
+code         = "85"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "85"
+code = "85_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L6"
+species_code = "PINTAE"
+code         = "95"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "95"
+code = "95_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L6"
+species_code = "NYSSYL"
+code         = "2"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "2"
+code = "2_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L6"
+species_code = "NYSSYL"
+code         = "1"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "1"
+code = "1_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H7"
+species_code = "PINTAE"
+code         = "891"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "891"
+code = "891_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H7"
+species_code = "PINTAE"
+code         = "892"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "892"
+code = "892_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "831"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "831"
+code = "831_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "830"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "830"
+code = "830_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "NYSSYL"
+code         = "8"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "8"
+code = "8_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "NYSSYL"
+code         = "7"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "7"
+code = "7_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "147"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "147"
+code = "147_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "149"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "149"
+code = "149_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "NYSSYL"
+code         = "4"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "4"
+code = "4_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "NYSSYL"
+code         = "3"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "3"
+code = "3_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "54911"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "54911"
+code = "54911_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "5495"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5495"
+code = "5495_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "H0"
+species_code = "PINTAE"
+code         = "127"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "127"
+code = "127_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "H0"
+species_code = "PINTAE"
+code         = "129"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "129"
+code = "129_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Low Forest"
+plot_name    = "L1"
+species_code = "PINTAE"
+code         = "145"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "145"
+code = "145_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Low Forest"
+plot_name    = "L1"
+species_code = "PINTAE"
+code         = "143"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "143"
+code = "143_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "H1"
+species_code = "PINTAE"
+code         = "134"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "134"
+code = "134_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "H1"
+species_code = "PINTAE"
+code         = "135"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "135"
+code = "135_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "140"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "140"
+code = "140_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "139"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "139"
+code = "139_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Low Forest"
+plot_name    = "L0"
+species_code = "PINTAE"
+code         = "120"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "120"
+code = "120_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Low Forest"
+plot_name    = "L0"
+species_code = "PINTAE"
+code         = "119"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "119"
+code = "119_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Mid Forest"
+plot_name    = "M0"
+species_code = "PINTAE"
+code         = "122"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "122"
+code = "122_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "Mid Forest"
+plot_name    = "M0"
+species_code = "PINTAE"
+code         = "121"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "121"
+code = "121_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "High Forest"
+plot_name    = "H1"
+species_code = "PINTAE"
+code         = "5402"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5402"
+code = "5402_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "High Forest"
+plot_name    = "H1"
+species_code = "PINTAE"
+code         = "5498"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5498"
+code = "5498_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "5491"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5491"
+code = "5491_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Low Forest"
+plot_name    = "L2"
+species_code = "PINTAE"
+code         = "54955"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "54955"
+code = "54955_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "High Forest"
+plot_name    = "H2"
+species_code = "PINTAE"
+code         = "5500"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5500"
+code = "5500_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "High Forest"
+plot_name    = "H2"
+species_code = "PINTAE"
+code         = "5401"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5401"
+code = "5401_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Low Forest"
+plot_name    = "L1"
+species_code = "PINTAE"
+code         = "5494"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5494"
+code = "5494_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Low Forest"
+plot_name    = "L1"
+species_code = "PINTAE"
+code         = "5496"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5496"
+code = "5496_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "5493"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5493"
+code = "5493_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Mid Forest"
+plot_name    = "M1"
+species_code = "PINTAE"
+code         = "5492"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5492"
+code = "5492_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Mid Forest"
+plot_name    = "M2"
+species_code = "PINTAE"
+code         = "5497"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5497"
+code = "5497_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MILN"
+zone_name    = "Mid Forest"
+plot_name    = "M2"
+species_code = "PINTAE"
+code         = "5403"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5403"
+code = "5403_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H5"
+species_code = "NYSSYL"
+code         = "9"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "9"
+code = "9_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "BRNV"
+zone_name    = "High Forest"
+plot_name    = "H5"
+species_code = "NYSSYL"
+code         = "10"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "10"
+code = "10_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5270"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5270"
+code = "5270_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "153"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "153"
+code = "153_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5382"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5382"
+code = "5382_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "778"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "778"
+code = "778_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5275"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5275"
+code = "5275_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5277"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5277"
+code = "5277_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5278"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5278"
+code = "5278_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5279"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5279"
+code = "5279_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5276"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5276"
+code = "5276_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5280"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5280"
+code = "5280_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5281"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5281"
+code = "5281_STEM1"
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code    = "MONB"
+zone_name    = "High Forest"
+plot_name    = "HStemflow"
+species_code = "LIQSTY"
+code         = "5282"
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "5282"
+code = "5282_STEM1"
+
+# 8) Datalogger type
+[[datalogger_types.add]]
+code = "CR300"
+name = "CR300 Series"
+
+[[datalogger_types.add]]
+code = "CR200"
+name = "CR200 Series"
+
+# 9) Datalogger (canonical logger_id lives in `code`)
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "1"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "100"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "301"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "302"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "303"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "304"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "305"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "306"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "310"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "311"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "401"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "402"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "403"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "404"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "405"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "406"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "410"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "411"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR300"
+code = "420"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR300"
+code = "421"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR300"
+code = "422"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR300"
+code = "423"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "424"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "501"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "502"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "503"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "505"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "506"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "510"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "511"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "601"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "701"
+
+[[dataloggers.add]]
+datalogger_type_code = "CR200"
+code = "999"
+
+# 10) Datalogger alias (optional; must not overlap or touch another alias with the same alias string)
+[[datalogger_aliases.add]]
+datalogger_code = "501"
+alias = "1"
+start_timestamp_utc = "2024-07-01T00:00:00Z"
+end_timestamp_utc   = "2024-12-31T23:59:59Z"
+
+# 11) Sensor type
+[[sensor_types.add]]
+code = "implexx_old"
+description = "Implexx Sap Flow Sensor (Old Model)"
+
+[[sensor_types.add]]
+code = "implexx_new"
+description = "Implexx Sap Flow Sensor (New Model)"
+
+# 12) Sensor thermistor pair (optional catalog entry)
+[[sensor_thermistor_pairs.add]]
+sensor_type_code = "implexx_old"
+name = "inner"
+depth_mm = 20
+
+[[sensor_thermistor_pairs.add]]
+sensor_type_code = "implexx_old"
+name = "outer"
+depth_mm = 10
+
+[[sensor_thermistor_pairs.add]]
+sensor_type_code = "implexx_new"
+name = "inner"
+depth_mm = 20
+
+[[sensor_thermistor_pairs.add]]
+sensor_type_code = "implexx_new"
+name = "outer"
+depth_mm = 10
+
+# 13) Deployment (ties the hierarchy together)
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "560"
+stem_code         = "560_STEM1"
+datalogger_code   = "301"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "562"
+stem_code         = "562_STEM1"
+datalogger_code   = "301"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "2431"
+stem_code         = "2431_STEM1"
+datalogger_code   = "302"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "501"
+stem_code         = "501_STEM1"
+datalogger_code   = "302"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "2431"
+stem_code         = "2431_STEM1"
+datalogger_code   = "302"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-06-11T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "501"
+stem_code         = "501_STEM1"
+datalogger_code   = "302"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2024-07-10T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "85"
+stem_code         = "85_STEM1"
+datalogger_code   = "303"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "95"
+stem_code         = "95_STEM1"
+datalogger_code   = "303"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "85"
+stem_code         = "85_STEM1"
+datalogger_code   = "303"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-06-11T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "2"
+stem_code         = "2_STEM1"
+datalogger_code   = "303"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-10-25T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "1"
+stem_code         = "1_STEM1"
+datalogger_code   = "303"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2022-10-25T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "891"
+stem_code         = "891_STEM1"
+datalogger_code   = "304"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "892"
+stem_code         = "892_STEM1"
+datalogger_code   = "304"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "892"
+stem_code         = "892_STEM1"
+datalogger_code   = "304"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2024-07-10T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "831"
+stem_code         = "831_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "830"
+stem_code         = "830_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "831"
+stem_code         = "831_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-06-11T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "8"
+stem_code         = "8_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-11-10T16:30:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "7"
+stem_code         = "7_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2022-11-10T16:30:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "831"
+stem_code         = "831_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-01-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "830"
+stem_code         = "830_STEM1"
+datalogger_code   = "305"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-01-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "147"
+stem_code         = "147_STEM1"
+datalogger_code   = "306"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "149"
+stem_code         = "149_STEM1"
+datalogger_code   = "306"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-01-30T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "147"
+stem_code         = "147_STEM1"
+datalogger_code   = "306"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-06-11T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "4"
+stem_code         = "4_STEM1"
+datalogger_code   = "306"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-12-10T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "3"
+stem_code         = "3_STEM1"
+datalogger_code   = "306"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2022-12-10T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "85"
+stem_code         = "85_STEM1"
+datalogger_code   = "310"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2024-06-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "95"
+stem_code         = "95_STEM1"
+datalogger_code   = "310"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-06-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5491"
+stem_code         = "5491_STEM1"
+datalogger_code   = "311"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-06-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5495"
+stem_code         = "5495_STEM1"
+datalogger_code   = "311"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-06-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "127"
+stem_code         = "127_STEM1"
+datalogger_code   = "401"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "129"
+stem_code         = "129_STEM1"
+datalogger_code   = "401"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "145"
+stem_code         = "145_STEM1"
+datalogger_code   = "402"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "143"
+stem_code         = "143_STEM1"
+datalogger_code   = "402"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "134"
+stem_code         = "134_STEM1"
+datalogger_code   = "403"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "135"
+stem_code         = "135_STEM1"
+datalogger_code   = "403"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "134"
+stem_code         = "134_STEM1"
+datalogger_code   = "403"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2024-07-10T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "140"
+stem_code         = "140_STEM1"
+datalogger_code   = "404"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "139"
+stem_code         = "139_STEM1"
+datalogger_code   = "404"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "120"
+stem_code         = "120_STEM1"
+datalogger_code   = "405"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "119"
+stem_code         = "119_STEM1"
+datalogger_code   = "405"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "120"
+stem_code         = "120_STEM1"
+datalogger_code   = "405"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2024-01-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "122"
+stem_code         = "122_STEM1"
+datalogger_code   = "406"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "121"
+stem_code         = "121_STEM1"
+datalogger_code   = "406"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-05-26T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "140"
+stem_code         = "140_STEM1"
+datalogger_code   = "410"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-05-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "139"
+stem_code         = "139_STEM1"
+datalogger_code   = "410"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-05-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "122"
+stem_code         = "122_STEM1"
+datalogger_code   = "411"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-06-19T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "121"
+stem_code         = "121_STEM1"
+datalogger_code   = "411"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2024-06-19T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5402"
+stem_code         = "5402_STEM1"
+datalogger_code   = "501"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5498"
+stem_code         = "5498_STEM1"
+datalogger_code   = "501"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "54911"
+stem_code         = "54911_STEM1"
+datalogger_code   = "502"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "54955"
+stem_code         = "54955_STEM1"
+datalogger_code   = "502"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5500"
+stem_code         = "5500_STEM1"
+datalogger_code   = "503"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5401"
+stem_code         = "5401_STEM1"
+datalogger_code   = "503"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5494"
+stem_code         = "5494_STEM1"
+datalogger_code   = "504"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5496"
+stem_code         = "5496_STEM1"
+datalogger_code   = "504"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5493"
+stem_code         = "5493_STEM1"
+datalogger_code   = "505"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5492"
+stem_code         = "5492_STEM1"
+datalogger_code   = "505"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5497"
+stem_code         = "5497_STEM1"
+datalogger_code   = "506"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5403"
+stem_code         = "5403_STEM1"
+datalogger_code   = "506"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2021-12-17T00:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5493"
+stem_code         = "5493_STEM1"
+datalogger_code   = "510"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-06-16T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5492"
+stem_code         = "5492_STEM1"
+datalogger_code   = "510"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-06-16T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5494"
+stem_code         = "5494_STEM1"
+datalogger_code   = "511"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-06-16T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5496"
+stem_code         = "5496_STEM1"
+datalogger_code   = "511"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-06-16T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "5496"
+stem_code         = "5496_STEM1"
+datalogger_code   = "511"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2024-08-01T01:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "9"
+stem_code         = "9_STEM1"
+datalogger_code   = "601"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2022-06-06T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "10"
+stem_code         = "10_STEM1"
+datalogger_code   = "601"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2022-06-06T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "560"
+stem_code         = "560_STEM1"
+datalogger_code   = "601"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-01-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "562"
+stem_code         = "562_STEM1"
+datalogger_code   = "601"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-01-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "560"
+stem_code         = "560_STEM1"
+datalogger_code   = "701"
+sensor_type_code  = "implexx_old"
+sdi_address       = "1"
+start_timestamp_utc = "2024-09-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "MONITORING"
+plant_code        = "562"
+stem_code         = "562_STEM1"
+datalogger_code   = "701"
+sensor_type_code  = "implexx_old"
+sdi_address       = "0"
+start_timestamp_utc = "2024-09-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5270"
+stem_code         = "5270_STEM1"
+datalogger_code   = "423"
+sensor_type_code  = "implexx_new"
+sdi_address       = "2"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "153"
+stem_code         = "153_STEM1"
+datalogger_code   = "423"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5382"
+stem_code         = "5382_STEM1"
+datalogger_code   = "423"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "778"
+stem_code         = "778_STEM1"
+datalogger_code   = "420"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5275"
+stem_code         = "5275_STEM1"
+datalogger_code   = "420"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5277"
+stem_code         = "5277_STEM1"
+datalogger_code   = "422"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5278"
+stem_code         = "5278_STEM1"
+datalogger_code   = "422"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5279"
+stem_code         = "5279_STEM1"
+datalogger_code   = "421"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5276"
+stem_code         = "5276_STEM1"
+datalogger_code   = "421"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5280"
+stem_code         = "5280_STEM1"
+datalogger_code   = "424"
+sensor_type_code  = "implexx_new"
+sdi_address       = "1"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5281"
+stem_code         = "5281_STEM1"
+datalogger_code   = "424"
+sensor_type_code  = "implexx_new"
+sdi_address       = "2"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+[[deployments]]
+project_code      = "STEMFLOW"
+plant_code        = "5282"
+stem_code         = "5282_STEM1"
+datalogger_code   = "424"
+sensor_type_code  = "implexx_new"
+sdi_address       = "0"
+start_timestamp_utc = "2025-03-01T12:00:00Z"
+include_in_pipeline = true
+
+# 14) Parameter overrides (now associated directly with sensor types)
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_downstream_cm"
+value = 0.6
+sensor_type_code = "implexx_old"
+
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_upstream_cm"
+value = 0.6
+sensor_type_code = "implexx_old"
+
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_downstream_cm"
+value = 0.8
+sensor_type_code = "implexx_new"
+
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_upstream_cm"
+value = 0.8
+sensor_type_code = "implexx_new"
