@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 COMPOSE="${COMPOSE:-docker compose}"
 STACK_NAME="sapflux-dev"
-OUTPUT_DIR="$REPO_ROOT/integration_tests/output"
+OUTPUT_DIR="$REPO_ROOT/integration_tests/smoke1/output"
 
 mkdir -p "$OUTPUT_DIR"
 
