@@ -159,7 +159,7 @@ async fn execute_transaction_locked(
         sqlx::query(
             r#"
                 INSERT INTO transactions (transaction_id, user_id, message, outcome)
-                VALUES ($1, $2, $3, 'PENDING')
+                VALUES ($1, $2, $3, 'PENDING'::transaction_outcome)
             "#,
         )
         .bind(id)
@@ -325,7 +325,7 @@ async fn execute_transaction_locked(
                                 sqlx::query(
                                     r#"
                                         UPDATE transactions
-                                    SET outcome = 'REJECTED',
+                                    SET outcome = 'REJECTED'::transaction_outcome,
                                         receipt = $1
                                     WHERE transaction_id = $2
                                 "#,
@@ -364,7 +364,7 @@ async fn execute_transaction_locked(
             sqlx::query(
                 r#"
                     UPDATE transactions
-                    SET outcome = $1,
+                    SET outcome = $1::transaction_outcome,
                         receipt = $2
                     WHERE transaction_id = $3
                 "#,

@@ -25,6 +25,55 @@ echo "==> Running migrations and seed"
 curl -sf -X POST http://localhost:8080/admin/migrate >/dev/null
 curl -sf -X POST http://localhost:8080/admin/seed >/dev/null
 
+echo "==> Seeding lookup metadata"
+$COMPOSE -p "$STACK_NAME" exec -T db psql -U sapflux -d sapflux <<'SQL'
+INSERT INTO projects (project_id, code, name)
+VALUES ('00000000-0000-0000-0000-000000000101', 'TEST', 'Test Project')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO species (species_id, code)
+VALUES ('00000000-0000-0000-0000-000000000501', 'SPEC')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO sites (site_id, code, name, timezone)
+VALUES ('00000000-0000-0000-0000-000000000201', 'TEST_SITE', 'Test Site', 'UTC')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO zones (zone_id, site_id, name)
+VALUES ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', 'Zone A')
+ON CONFLICT (site_id, name) DO NOTHING;
+
+INSERT INTO plots (plot_id, zone_id, name)
+VALUES ('00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000301', 'Plot 1')
+ON CONFLICT (zone_id, name) DO NOTHING;
+
+INSERT INTO plants (plant_id, plot_id, species_id, code)
+VALUES ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000501', 'PLANT')
+ON CONFLICT (plot_id, code) DO NOTHING;
+
+INSERT INTO stems (stem_id, plant_id, code)
+VALUES
+    ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000601', 'STEM_OUT'),
+    ('00000000-0000-0000-0000-000000000603', '00000000-0000-0000-0000-000000000601', 'STEM_IN')
+ON CONFLICT (plant_id, code) DO NOTHING;
+
+INSERT INTO datalogger_types (datalogger_type_id, code, name)
+VALUES ('00000000-0000-0000-0000-000000000701', 'CR300', 'CR300 Series')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO dataloggers (datalogger_id, datalogger_type_id, code)
+VALUES ('00000000-0000-0000-0000-000000000801', '00000000-0000-0000-0000-000000000701', '420')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO sensor_types (sensor_type_id, code, description)
+VALUES ('00000000-0000-0000-0000-000000000901', 'sapflux_probe', 'Sapflux thermal sensor')
+ON CONFLICT (code) DO NOTHING;
+SQL
+
+echo "==> Ensuring object-store bucket"
+$COMPOSE -p "$STACK_NAME" run --rm --entrypoint '' minio-init \
+  sh -c "mc alias set --api s3v4 local http://minio:9000 minio miniosecret >/dev/null && mc mb --ignore-existing local/sapflux >/dev/null && mc anonymous set download local/sapflux >/dev/null"
+
 echo "==> Preparing manifest and sample payload"
 TMP_DIR=$(mktemp -d)
 cat >"$TMP_DIR/manifest.toml" <<'EOF'
@@ -75,8 +124,11 @@ fi
 
 echo "==> Downloading output parquet"
 download=$(curl -sf "http://localhost:8080/outputs/$output_id/download")
-url=$(echo "$download" | jq -r '.url')
-curl -sf "$url" -o "$TMP_DIR/output.parquet"
+echo "$download" | jq '.' >/dev/null
+parquet_key=$(echo "$response" | jq -r '.receipt.artifacts.parquet_key')
+$COMPOSE -p "$STACK_NAME" run --rm --entrypoint '' minio-init \
+  sh -c "mc alias set --api s3v4 local http://minio:9000 minio miniosecret >/dev/null && mc cat local/sapflux/$parquet_key" \
+  > "$TMP_DIR/output.parquet"
 
 echo "Parquet saved to $TMP_DIR/output.parquet"
 echo "Smoke test completed successfully"

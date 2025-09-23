@@ -21,7 +21,7 @@ use aws_sdk_s3::{
     Client as S3Client,
 };
 #[cfg(feature = "runtime")]
-use tokio::{fs, runtime::Handle};
+use tokio::fs;
 #[cfg(feature = "runtime")]
 use tracing::warn;
 
@@ -52,14 +52,41 @@ pub struct S3Store {
 impl ObjectStore {
     /// Construct an object store from environment variables or fall back to a no-op store.
     pub fn from_env() -> Result<Self> {
-        let kind_env = std::env::var("SAPFLUX_OBJECT_STORE_KIND").ok();
-        let dir_env = std::env::var("SAPFLUX_OBJECT_STORE_DIR").ok();
+        let (kind, dir_env) = Self::env_kind_and_dir();
 
-        let kind = kind_env
-            .as_ref()
-            .map(|s| s.to_lowercase())
-            .or_else(|| dir_env.as_ref().map(|_| "local".to_string()))
-            .unwrap_or_else(|| "noop".to_string());
+        match kind.as_str() {
+            "noop" => Ok(Self::noop()),
+            "local" => {
+                let dir = dir_env.clone().ok_or_else(|| {
+                    anyhow!("SAPFLUX_OBJECT_STORE_DIR must be set for local store")
+                })?;
+                Ok(Self::LocalDir(LocalDirStore::new(dir.into())?))
+            }
+            "s3" => {
+                #[cfg(feature = "runtime")]
+                {
+                    Err(anyhow!(
+                        "S3 object store requires async initialization; call ObjectStore::from_env_async().await"
+                    ))
+                }
+                #[cfg(not(feature = "runtime"))]
+                {
+                    Err(anyhow!(
+                        "S3 object store requested but sapflux-core built without runtime feature"
+                    ))
+                }
+            }
+            other => Err(anyhow!(
+                "unsupported SAPFLUX_OBJECT_STORE_KIND '{}'; expected noop, local, or s3",
+                other
+            )),
+        }
+    }
+
+    #[cfg(feature = "runtime")]
+    /// Async constructor that supports S3 initialization inside an existing Tokio runtime.
+    pub async fn from_env_async() -> Result<Self> {
+        let (kind, dir_env) = Self::env_kind_and_dir();
 
         match kind.as_str() {
             "noop" => Ok(Self::noop()),
@@ -70,17 +97,8 @@ impl ObjectStore {
                 Ok(Self::LocalDir(LocalDirStore::new(dir.into())?))
             }
             "s3" => {
-                #[cfg(feature = "runtime")]
-                {
-                    let store = S3Store::from_env()?;
-                    Ok(Self::S3(store))
-                }
-                #[cfg(not(feature = "runtime"))]
-                {
-                    Err(anyhow!(
-                        "S3 object store requested but sapflux-core built without runtime feature"
-                    ))
-                }
+                let store = S3Store::from_env_async().await?;
+                Ok(Self::S3(store))
             }
             other => Err(anyhow!(
                 "unsupported SAPFLUX_OBJECT_STORE_KIND '{}'; expected noop, local, or s3",
@@ -157,6 +175,19 @@ impl ObjectStore {
             ObjectStore::LocalDir(store) => store.delete(key).await,
             ObjectStore::S3(store) => store.delete(key).await,
         }
+    }
+
+    fn env_kind_and_dir() -> (String, Option<String>) {
+        let kind_env = std::env::var("SAPFLUX_OBJECT_STORE_KIND").ok();
+        let dir_env = std::env::var("SAPFLUX_OBJECT_STORE_DIR").ok();
+
+        let kind = kind_env
+            .as_ref()
+            .map(|s| s.to_lowercase())
+            .or_else(|| dir_env.as_ref().map(|_| "local".to_string()))
+            .unwrap_or_else(|| "noop".to_string());
+
+        (kind, dir_env)
     }
 }
 
@@ -244,11 +275,9 @@ impl std::fmt::Debug for S3Store {
 
 #[cfg(feature = "runtime")]
 impl S3Store {
-    fn from_env() -> Result<Self> {
+    pub async fn from_env_async() -> Result<Self> {
         let config = S3Config::from_env()?;
-        let handle = Handle::try_current()
-            .map_err(|_| anyhow!("S3 object store requires a running Tokio runtime"))?;
-        handle.block_on(Self::from_config(config))
+        Self::from_config(config).await
     }
 
     async fn from_config(config: S3Config) -> Result<Self> {
@@ -442,20 +471,20 @@ impl S3Config {
 
 #[cfg(feature = "runtime")]
 fn map_head_err(err: SdkError<HeadObjectError>, key: &str) -> anyhow::Error {
-    anyhow!("failed to check existence of '{key}' in object store: {err}")
+    anyhow!("failed to check existence of '{key}' in object store: {err:?}")
 }
 
 #[cfg(feature = "runtime")]
 fn map_put_err(err: SdkError<PutObjectError>, key: &str) -> anyhow::Error {
-    anyhow!("failed to upload '{key}' to object store: {err}")
+    anyhow!("failed to upload '{key}' to object store: {err:?}")
 }
 
 #[cfg(feature = "runtime")]
 fn map_list_err(err: SdkError<ListObjectsV2Error>, prefix: &str) -> anyhow::Error {
-    anyhow!("failed to list objects under prefix '{prefix}': {err}")
+    anyhow!("failed to list objects under prefix '{prefix}': {err:?}")
 }
 
 #[cfg(feature = "runtime")]
 fn map_delete_err(err: SdkError<DeleteObjectError>, key: &str) -> anyhow::Error {
-    anyhow!("failed to delete '{key}' from object store: {err}")
+    anyhow!("failed to delete '{key}' from object store: {err:?}")
 }

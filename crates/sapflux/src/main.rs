@@ -19,7 +19,7 @@ use sapflux_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc, time::Duration};
-use tracing::info;
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
@@ -73,7 +73,9 @@ async fn connect_pool() -> Result<db::DbPool> {
 
 async fn run_server(args: ServeArgs) -> Result<()> {
     let pool = connect_pool().await?;
-    let store = ObjectStore::from_env().context("failed to configure object store")?;
+    let store = ObjectStore::from_env_async()
+        .await
+        .context("failed to configure object store")?;
     info!(?store, "configured object store");
     let state = AppState {
         pool,
@@ -85,7 +87,7 @@ async fn run_server(args: ServeArgs) -> Result<()> {
         .route("/admin/migrate", post(run_migrations))
         .route("/admin/seed", post(run_seed))
         .route("/transactions", post(handle_transaction))
-        .route("/outputs/:id/download", get(download_output))
+        .route("/outputs/{id}/download", get(download_output))
         .with_state(state);
 
     let addr = args.addr;
@@ -244,11 +246,14 @@ async fn handle_transaction(State(state): State<AppState>, mut multipart: Multip
             let body = TransactionResponse { status, receipt };
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "transaction processing failed",
-        )
-            .into_response(),
+        Err(err) => {
+            error!(error = ?err, "transaction execution failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "transaction processing failed",
+            )
+                .into_response()
+        }
     }
 }
 

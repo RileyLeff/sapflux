@@ -86,7 +86,9 @@ async fn handle_object_store_gc(args: ObjectStoreGcArgs) -> Result<()> {
         db::run_migrations(&pool).await?;
     }
 
-    let store = ObjectStore::from_env().context("failed to configure object store")?;
+    let store = ObjectStore::from_env_async()
+        .await
+        .context("failed to configure object store")?;
     let report = object_gc::plan_gc(&pool, &store).await?;
 
     if report.total_orphaned() == 0 {

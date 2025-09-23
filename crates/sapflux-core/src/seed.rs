@@ -1,5 +1,6 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sqlx::postgres::PgQueryResult;
+use sqlx::types::Json;
 use tracing::info;
 use uuid::Uuid;
 
@@ -18,6 +19,14 @@ pub async fn run(pool: &DbPool) -> Result<()> {
 
 async fn seed_data_formats(pool: &DbPool) -> Result<()> {
     for descriptor in all_data_formats() {
+        let schema_json = descriptor
+            .schema_json
+            .map(|raw| {
+                serde_json::from_str::<serde_json::Value>(raw)
+                    .context("invalid data format schema JSON")
+            })
+            .transpose()?;
+
         let result: PgQueryResult = sqlx::query::<sqlx::Postgres>(
             r#"
             INSERT INTO data_formats (data_format_id, code_identifier, schema_definition)
@@ -28,7 +37,7 @@ async fn seed_data_formats(pool: &DbPool) -> Result<()> {
         )
         .bind(Uuid::new_v4())
         .bind(descriptor.code)
-        .bind(descriptor.schema_json)
+        .bind(schema_json.map(Json))
         .execute(pool)
         .await?;
 

@@ -24,7 +24,9 @@ async fn s3_object_store_upload_and_presign() -> Result<()> {
 
     let _guard = EnvGuard::apply(&config)?;
 
-    let store = ObjectStore::from_env().context("failed to build S3 object store")?;
+    let store = ObjectStore::from_env_async()
+        .await
+        .context("failed to build S3 object store")?;
     let key = ObjectStore::raw_file_key(&Uuid::new_v4().to_string());
     let payload = b"sapflux integration test";
 
