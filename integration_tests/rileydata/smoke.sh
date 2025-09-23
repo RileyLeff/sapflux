@@ -111,6 +111,11 @@ if [ "$parsed_json" = true ]; then
   fi
 fi
 
+timestamp=$(date +%Y%m%d_%H%M%S)
+receipt_path="$OUTPUT_DIR/metadata_smoke_${timestamp}.json"
+echo "$response" | jq '.' >"$receipt_path"
+echo "Receipt saved to $receipt_path"
+
 echo "Smoke rileydata test completed successfully"
 
 printf '==> Tearing down stack\n'

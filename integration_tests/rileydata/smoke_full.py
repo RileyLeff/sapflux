@@ -182,7 +182,10 @@ def main() -> None:
             "http://localhost:8080/transactions", tmp_manifest_path, raw_files
         )
 
-        print(json.dumps(response.json, indent=2))
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        receipt_path = output_dir / f"full_smoke_{timestamp}.json"
+        receipt_path.write_text(json.dumps(response.json, indent=2))
+        print(f"Receipt saved to {receipt_path}")
 
         if response.status != "success":
             raise RuntimeError(f"Transaction failed with status '{response.status}'")
@@ -190,7 +193,6 @@ def main() -> None:
         artifacts = response.json.get("receipt", {}).get("artifacts")
         if artifacts and artifacts.get("parquet_key") and artifacts.get("output_id"):
             parquet_key = artifacts["parquet_key"]
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
             destination = output_dir / f"full_smoke_{timestamp}.parquet"
             print(f"Downloading parquet to {destination}")
             download_parquet(compose_cmd, stack, parquet_key, destination)
