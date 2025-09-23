@@ -95,6 +95,23 @@ if [ "$parsed_json" = true ]; then
     echo "Metadata summary:"
     echo "$summary" | jq '.'
   fi
+
+  artifacts=$(echo "$response" | jq '.receipt.artifacts')
+  if [ "$artifacts" != "null" ]; then
+    output_id=$(echo "$artifacts" | jq -r '.output_id // empty')
+    parquet_key=$(echo "$artifacts" | jq -r '.parquet_key // empty')
+    if [ -n "$output_id" ] && [ -n "$parquet_key" ] && [ "$output_id" != "null" ] && [ "$parquet_key" != "null" ]; then
+      timestamp=$(date +%Y%m%d_%H%M%S)
+      output_path="$OUTPUT_DIR/metadata_smoke_${timestamp}.parquet"
+      printf '==> Downloading output parquet to %s\n' "$output_path"
+      $COMPOSE -p "$STACK_NAME" run --rm --entrypoint '' minio-init \
+        sh -c "mc alias set --api s3v4 local http://minio:9000 minio miniosecret >/dev/null && mc cat local/sapflux/$parquet_key" \
+        > "$output_path"
+    fi
+  fi
 fi
 
 echo "Smoke rileydata test completed successfully"
+
+printf '==> Tearing down stack\n'
+$COMPOSE -p "$STACK_NAME" down -v >/dev/null 2>&1 || true
