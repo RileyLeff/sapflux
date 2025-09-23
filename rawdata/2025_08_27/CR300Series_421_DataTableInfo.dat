@@ -1,5 +1,0 @@
-"TOA5","CR300Series_421","CR300","27030","CR300-RF407.Std.10.03","CPU:sapflux_2sensor_CR300_30min.cr300","60975","DataTableInfo"
-"TIMESTAMP","RECORD","DataTableName(1)","SkippedRecord","DataRecordSize","SecsPerRecord","DataFillDays","DataFilled(1,1)"
-"TS","RN","","","records","","days",""
-"","","","","","","",""
-"2025-08-27 13:55:59.051",2,"SapFlowAll",0,174512,1800,3635.667," 2.3 percent filled"

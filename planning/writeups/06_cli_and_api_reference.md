@@ -29,8 +29,42 @@ This is the single, powerful endpoint for all data and metadata changes.
 *   **Query Parameters**:
     *   `?dry_run=true` (optional): Runs the entire validation pipeline (including parsing) but skips all database mutations. Dry runs return a full receipt and structured log entries, yet they do **not** insert records into the immutable `transactions` table.
 *   **Request Body**: The request must be `multipart/form-data` to handle both the manifest and associated file uploads.
-    *   `manifest`: The content of the `manifest.toml` file.
-    *   `file_1`, `file_2`, ...: The raw content of each data file referenced in the manifest. The CLI will map the file paths from the manifest to these form fields.
+    *   `manifest`: The content of the `manifest.toml` file. Add blocks currently exist for `projects`, `sites`, `zones`, `plots`, `species`, `plants`, `stems`, `datalogger_types`, `dataloggers`, `datalogger_aliases`, `sensor_types`, `sensor_thermistor_pairs`, plus the existing `deployments` and `parameter_overrides`. Geometry-bearing fields expect GeoJSON; site timezones must be valid IANA identifiers.
+    *   `file_1`, `file_2`, ...: The raw content of each data file referenced in the manifest. These parts are optional — metadata-only transactions simply omit file fields. The CLI maps the relative file paths declared in the manifest to these form entries.
+
+**Example manifest payload (abridged):**
+
+```toml
+message = "Seed TEST site and register CR300 logger"
+
+[[projects.add]]
+code = "TEST"
+name = "Example Project"
+
+[[sites.add]]
+code = "TEST_SITE"
+timezone = "America/New_York"
+boundary = { type = "Polygon", coordinates = [[[ -105.0, 39.0 ], [ -105.0, 39.1 ], [ -104.9, 39.1 ], [ -104.9, 39.0 ], [ -105.0, 39.0 ]]] }
+
+[[plants.add]]
+site_code = "TEST_SITE"
+zone_name = "Zone A"
+plot_name = "Plot 1"
+species_code = "SPEC"
+code = "PLANT1"
+location = { type = "Point", coordinates = [ -104.98, 39.02 ] }
+
+[[datalogger_aliases.add]]
+datalogger_code = "LOGGER42"
+alias = "ALIAS42"
+start_timestamp_utc = "2024-01-01T00:00:00Z"
+end_timestamp_utc = "2024-12-31T00:00:00Z"
+
+[[parameter_overrides]]
+parameter_code = "parameter_heat_pulse_duration_s"
+value = 3.0
+site_code = "TEST_SITE"
+```
 *   **Success Response**: Returns `200 OK` with a JSON body containing the detailed Transaction Receipt. The `outcome` field in the receipt will be `ACCEPTED`. When individual files fail, the receipt's `summary.status` is `PARTIAL_SUCCESS`, and each entry in `rejected_files` includes the `file_hash`, `parser_attempts`, and `first_error_line` fields to aid triage.
 *   **Error Response**: Returns a `400 Bad Request` (for validation errors) or `500 Internal Server Error`. The response body will still be the JSON Transaction Receipt, but the `outcome` field will be `REJECTED`, and an `error` field will provide details.
 

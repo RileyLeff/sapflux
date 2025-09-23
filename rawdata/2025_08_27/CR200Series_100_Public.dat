@@ -1,6 +1,0 @@
-"TOA5","CR200Series_100","CR200X","No_SN","CR200X.Std.00","sapflux_2sensor_CR200X_30min.cr2","43664","Public"
-"TIMESTAMP","RECORD","BattV","id","SapFlwTot0","VhOuter0","VhInner0","AlphaOut0","AlphaIn0","BetaOut0","BetaIn0","tMaxTout0","tMaxTin0","SensorAddress0","SapFlwTot1","VhOuter1","VhInner1","AlphaOut1","AlphaIn1","BetaOut1","BetaIn1","tMaxTout1","tMaxTin1","SensorAddress1"
-"TS","RN","Volts","","literPerHo","heatVeloci","heatVeloci","logTRatio","logTRatio","logTRatio","logTRatio","second","second","","literPerHo","heatVeloci","heatVeloci","logTRatio","logTRatio","logTRatio","logTRatio","second","second",""
-"","","","","","","","","","","","","","","","","","","","","","","",""
-"2025-08-27 17:58:28",968,12.40271,100,3.871,18.48,12.33,1.13789,1.09138,1.04962,0.67136,46.701,45.765,0,0.17,1.12,3.91,0.09954,0.34616,0.05888,0.22271,59.662,39.876,1
-"2025-08-27 18:03:24",969,12.39431,100,2.94,12.19,11.37,1.07901,1.006,0.98136,0.60806,47.42,47.315,0,0.135,0.79,3.25,0.06996,0.28766,0.03662,0.18498,59.308,40.522,1

@@ -148,8 +148,15 @@ async fn execute_transaction_locked(
         metadata_manifest,
     } = request;
 
-    if files.is_empty() {
-        return Err(anyhow!("transaction must include at least one file"));
+    let manifest = metadata_manifest
+        .as_deref()
+        .map(metadata_manifest::parse_manifest)
+        .transpose()?;
+
+    if files.is_empty() && manifest.as_ref().map_or(true, |m| m.is_empty()) {
+        return Err(anyhow!(
+            "transaction must include at least one file or metadata entries"
+        ));
     }
 
     let transaction_id = if dry_run {
@@ -173,8 +180,7 @@ async fn execute_transaction_locked(
 
     let mut metadata_summary: Option<metadata_manifest::MetadataSummary> = None;
 
-    if let Some(manifest_str) = metadata_manifest.as_deref() {
-        let manifest = metadata_manifest::parse_manifest(manifest_str)?;
+    if let Some(manifest) = manifest {
         if !manifest.is_empty() {
             let (plan, summary) = metadata_manifest::preflight_manifest(pool, &manifest).await?;
             if !dry_run {

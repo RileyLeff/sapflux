@@ -1,5 +1,0 @@
-"TOA5","CR200Series_999","CR2xx","","v05","sapflux_1senso.","28508","Public"
-"TIMESTAMP","RECORD","BattV","id","SapFlwTot0","VhOuter0","VhInner0","AlphaOut0","AlphaIn0","BetaOut0","BetaIn0","tMaxTout0","tMaxTin0","SensorAddress0"
-"TS","RN","Volts","","literPerHo","heatVeloci","heatVeloci","logTRatio","logTRatio","logTRatio","logTRatio","second","second",""
-"","","","","","","","","","","","","",""
-"2025-08-22 11:35:56",1,13.36639,999,1.619,4.05,1.92,0.31197,0.1483,0.35954,0.12716,43.105,52.719,0

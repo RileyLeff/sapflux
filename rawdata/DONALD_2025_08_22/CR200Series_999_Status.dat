@@ -1,5 +1,0 @@
-"TOA5","CR200Series_999","CR2xx","","v05","sapflux_1senso.","28508","Status"
-"TIMESTAMP","RECORD","OSversion","OSDate","ProgName","ProgSig","CalOffset","PakBusAddress","RfInstalled","RfNetAddr","RfAddress","RfHopSeq","RfPwrMode","Rf_ForceOn","Rf_Protocol","RfSignalLevel","RfRxPakBusCnt","VarOutOfBounds","SkipScan","TrapCode","WatchDogCnt","ResetTables","BattVoltage"
-"TS","RN","","","","","","","","","","","","","","","","","","","","",""
-"","","","","","","","","","","","","","","","","","","","","","",""
-"2025-08-22 11:35:56",0,"v05","010306","sapflux_1senso.",28508,2.375,999,0,0,0,0,"NO_RF",0,1,0,0,0,0,0,0,0,13.30762

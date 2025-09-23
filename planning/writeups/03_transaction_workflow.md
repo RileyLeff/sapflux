@@ -20,6 +20,8 @@ The primary way a user initiates change is by creating a Transaction Manifest. T
 
 The manifest consists of a top-level `message`, optional arrays of tables for `add` and `update` operations, and an optional list of `files`.
 
+Supported `add` blocks now cover the full metadata graph: `projects`, `sites`, `zones`, `plots`, `species`, `plants`, `stems`, `datalogger_types`, `dataloggers`, `datalogger_aliases`, `sensor_types`, `sensor_thermistor_pairs`, the existing `deployments`, and `parameter_overrides`. Geometry-aware fields (site/zone/plot boundaries and plant locations) accept GeoJSON shapes, and site timezones are validated against the IANA catalogue. A transaction may include only metadata, only files, or both — at least one of those sections must be present.
+
 **Example `new_site_setup.toml`:**
 ```toml
 # A user-provided "commit message" that will be stored with the transaction record.
@@ -61,7 +63,7 @@ A single API endpoint is the gateway for all changes. The logic behind this endp
 1.  **Acquire the Queue Lock**: The orchestrator guarantees serialized execution by taking an advisory lock before any work begins.
 2.  **Register the Attempt**: A fresh `transaction_id` is generated and a row is inserted into `transactions` with `outcome = 'PENDING'` and a stub receipt (e.g., manifest digest). This happens outside of any explicit DB transaction so the ID is immediately usable as a foreign key.
 3.  **Preflight Validation (Read-Only)**: The manifest is parsed and validated in dependency order without opening a database transaction.
-    *   For each `add`/`update`: The system checks selectors, uniqueness, foreign keys, and overlap constraints. Failures short-circuit with an immediate `REJECTED` outcome and no database mutations.
+    *   For each `add`/`update`: The system checks selectors, uniqueness, foreign keys, time-range overlap/adjacency (for deployments and datalogger aliases), GeoJSON validity, and timezone correctness. Failures short-circuit with an immediate `REJECTED` outcome and no database mutations.
     *   For each new `file`: The engine computes its `blake3` hash, checks for duplicates, and executes every active parser in memory. Parser failures are recorded per attempt. A file that never parses is marked for rejection but does not invalidate the manifest if metadata remains valid.
 4.  **Mutating Phase**: If preflight succeeds, the engine opens a database transaction.
     *   All metadata inserts/updates execute first.

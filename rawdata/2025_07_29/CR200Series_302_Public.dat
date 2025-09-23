@@ -1,5 +1,0 @@
-"TOA5","CR300Series_411","CR300","4370","CR300-RF407.Std.11.00","CPU:CR300_sapflow.CR300","32345","Table1"
-"TIMESTAMP","RECORD","BattV_Min","id","SDI0","SapFlwTot0","VhOuter0","VhInner0","AlphaOut0","AlphaIn0","BetaOut0","BetaIn0","tMaxTout0","tMaxTin0"
-"TS","RN","Volts","","","literPerHour","heatVelocity","heatVelocity","logTRatio","logTRatio","logTRatio","logTRatio","second","second"
-"","","Min","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp"
-"2025-07-18 11:30:00",15110,0,411,0,"NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN"

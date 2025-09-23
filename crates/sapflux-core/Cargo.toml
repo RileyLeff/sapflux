@@ -26,6 +26,7 @@ aws-sdk-s3 = { version = "1.22.0", optional = true }
 aws-credential-types = { version = "1.2.1", optional = true }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 toml = { workspace = true }
+geojson = "0.24"
 
 [features]
 default = []

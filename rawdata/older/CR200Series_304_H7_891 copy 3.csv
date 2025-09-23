@@ -1,5 +1,0 @@
-"TOA5","CR200Series_304","CR2xx","","v05","Sapflux2sensor.","63887","Table2"
-"TIMESTAMP","RECORD","BattV_Min","id","SDI1","SapFlwTot1","VhOut1","VhIn1","AlphaOut1","AlphaIn1","BetaOut1","BetaIn1","tMaxTout1","tMaxTin1"
-"TS","RN","Volts","","","unit","unit","unit","unit","unit","unit","unit","unit","unit"
-"","","Min","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp","Smp"
-"2021-12-08 14:30:00",15827,12.64447,304,1,"NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN","NAN"

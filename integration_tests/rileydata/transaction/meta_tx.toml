@@ -1,0 +1,416 @@
+# Example manifest.toml
+# Note: Send your human-friendly commit message in the multipart field `message`
+# when POSTing to /transactions. Do not put it inside this TOML.
+
+# 1) Project
+[[projects.add]]
+code = "MONITORING"
+name = "Sap Flow Monitoring Project"
+description = "Long-running installations across coastal forests in the delmarva region."
+
+[[projects.add]]
+code = "STEMFLOW"
+name = "Stemflow Project"
+description = "Analysis of sap flow in trees with and without stemflow exclusion collars."
+
+# 2) Site
+[[sites.add]]
+code = "BRNV"
+name = "Brownsville Preserve"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+[[sites.add]]
+code = "MONB"
+name = "Monie Bay"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+[[sites.add]]
+code = "MILN"
+name = "Milford Neck"
+timezone = "America/New_York"
+# icon_path = "assets/icons/sites/SITE1.png"           # optional
+# boundary = { type = "Polygon", coordinates = [] }     # optional, future-friendly
+
+# 3) Zone (unique within site)
+[[zones.add]]
+site_code = "BRNV"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "BRNV"
+name = "Reference Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MONB"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "High Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "Mid Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+[[zones.add]]
+site_code = "MILN"
+name = "Low Forest"
+# boundary = { type = "Polygon", coordinates = [] }     # optional
+
+# 4) Plot (unique within zone)
+# Brownsville Plots
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Reference Forest"
+name = "R4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "High Forest"
+name = "H7"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Mid Forest"
+name = "M7"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L0"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L1"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L2"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L3"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L4"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L5"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L6"
+
+[[plots.add]]
+site_code = "BRNV"
+zone_name = "Low Forest"
+name = "L7"
+
+# Monie Bay Plots
+[[plots.add]]
+site_code = "MONB"
+zone_name = "High Forest"
+name = "H0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Mid Forest"
+name = "M0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Low Forest"
+name = "L0"
+
+[[plots.add]]
+site_code = "MONB"
+zone_name = "Low Forest"
+name = "L1"
+
+# Milford Neck Plots
+[[plots.add]]
+site_code = "MILN"
+zone_name = "High Forest"
+name = "H1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "High Forest"
+name = "H2"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Mid Forest"
+name = "M1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Mid Forest"
+name = "M2"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Low Forest"
+name = "L1"
+
+[[plots.add]]
+site_code = "MILN"
+zone_name = "Low Forest"
+name = "L2"
+
+# 5) Species
+[[species.add]]
+code = "PINTAE"
+latin_name = { full = "Pinus taeda" }
+common_name = { en = "Loblolly pine" }
+# icon_path = "assets/icons/species/SPEC1.svg"
+
+[[species.add]]
+code = "NYSSYL"
+latin_name = { full = "Nyssa sylvatica" }
+common_name = { en = "Black tupelo" }
+# icon_path = "assets/icons/species/SPEC1.svg"
+
+[[species.add]]
+code = "LIQSTY"
+latin_name = { full = "Liquidambar styraciflua" }
+common_name = { en = "American sweetgum" }
+
+# 6) Plant (unique code within plot)
+[[plants.add]]
+site_code   = "SITE1"
+zone_name   = "Zone 1"
+plot_name   = "Plot 1"
+species_code = "SPEC1"
+code        = "PLANT1"
+# location = { type = "Point", coordinates = [-76.0000, 38.5000] }  # optional
+
+# 7) Stem (unique code within plant)
+[[stems.add]]
+plant_code = "PLANT1"
+code = "STEM1"
+# dbh_cm = 20.0                                         # optional
+
+# 8) Datalogger type
+[[datalogger_types.add]]
+code = "CR300"
+name = "CR300 Series"
+
+# 9) Datalogger (canonical logger_id lives in `code`)
+[[dataloggers.add]]
+datalogger_type_code = "CR300"
+code = "420"
+
+# 10) Datalogger alias (optional; must not overlap or touch another alias with the same alias string)
+[[datalogger_aliases.add]]
+datalogger_code = "420"
+alias = "LOGGER_420"
+start_timestamp_utc = "2025-07-01T00:00:00Z"
+end_timestamp_utc   = "2025-12-31T23:59:59Z"
+
+# 11) Sensor type
+[[sensor_types.add]]
+code = "sapflux_probe"
+description = "Sapflux thermal sensor"
+
+# 12) Sensor thermistor pair (optional catalog entry)
+[[sensor_thermistor_pairs.add]]
+sensor_type_code = "sapflux_probe"
+name = "inner"
+depth_mm = 10
+
+# 13) Deployment (ties the hierarchy together; single example)
+[[deployments.add]]
+project_code      = "PROJ1"
+plant_code        = "PLANT1"
+stem_code         = "STEM1"
+datalogger_code   = "420"
+sensor_type_code  = "sapflux_probe"
+sdi_address       = "0"                          # single ASCII alphanumeric (SDI-12)
+start_timestamp_utc = "2025-07-28T00:00:00Z"
+# end_timestamp_utc   = "2025-12-31T23:59:59Z"   # optional
+include_in_pipeline = true
+
+# 14) Parameter overrides (typed values; cascade applies most-specific match)
+[[parameter_overrides]]
+parameter_code = "parameter_heat_pulse_duration_s"
+value = 3.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_downstream_cm"
+value = 0.6
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "parameter_probe_distance_upstream_cm"
+value = 0.6
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "parameter_wood_density_kg_m3"
+value = 550.0
+species_code = "SPEC1"
+
+# Quality thresholds (recommended site-wide defaults)
+[[parameter_overrides]]
+parameter_code = "quality_max_flux_cm_hr"
+value = 40.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "quality_min_flux_cm_hr"
+value = -15.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "quality_gap_years"
+value = 2.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "quality_deployment_start_grace_minutes"
+value = 0.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "quality_deployment_end_grace_minutes"
+value = 0.0
+site_code = "SITE1"
+
+[[parameter_overrides]]
+parameter_code = "quality_future_lead_minutes"
+value = 5.0
+site_code = "SITE1"
