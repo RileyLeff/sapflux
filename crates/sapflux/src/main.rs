@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use axum::{
-    extract::{Json, Multipart, Path, Query, State},
+    extract::{DefaultBodyLimit, Json, Multipart, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -88,6 +88,7 @@ async fn run_server(args: ServeArgs) -> Result<()> {
         .route("/admin/seed", post(run_seed))
         .route("/transactions", post(handle_transaction))
         .route("/outputs/{id}/download", get(download_output))
+        .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024))
         .with_state(state);
 
     let addr = args.addr;
