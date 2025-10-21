@@ -7,25 +7,22 @@ use crate::registry::SapflowParser;
 use super::{
     build_logger_dataframe, derive_logger_id_from_header, make_logger_data, parse_metadata,
     parse_optional_f64, parse_optional_i64, parse_required_i64, parse_sdi12_address,
-    parse_timestamp, ColumnRole, LoggerColumnKind, LoggerColumns, SensorFrameBuilder, SensorMetric,
-    ThermistorMetric,
+    parse_timestamp, ColumnRole, LoggerColumnKind, LoggerColumns, SensorFrameBuilder,
+    SensorMetric, ThermistorMetric,
 };
 
-pub struct Cr300TableParser;
+pub struct Cr200TableParser;
 
-impl Default for Cr300TableParser {
+impl Default for Cr200TableParser {
     fn default() -> Self {
         Self
     }
 }
 
-impl Cr300TableParser {
-    const NAME: &'static str = "CR300_TABLE";
+impl Cr200TableParser {
+    const NAME: &'static str = "CR200_TABLE";
 
     fn classify_columns(columns: &StringRecord) -> Result<Vec<ColumnRole>, ParserError> {
-        // NOTE: This reference implementation performs exact column matching for the test
-        // fixtures. Production parsers should relax this logic to pattern-based checks so
-        // benign column order variations or firmware updates do not cause unnecessary rejects.
         columns.iter().map(Self::classify_column).collect()
     }
 
@@ -62,56 +59,56 @@ impl Cr300TableParser {
                         metric: SensorMetric::TotalSapFlow,
                     });
                 }
-                "vhouter" | "vhout" => {
+                "vhout" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Outer,
                         metric: ThermistorMetric::SapFluxDensity,
                     });
                 }
-                "vhinner" | "vhin" => {
+                "vhin" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Inner,
                         metric: ThermistorMetric::SapFluxDensity,
                     });
                 }
-                "alphaout" | "alphaouter" => {
+                "alphaout" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Outer,
                         metric: ThermistorMetric::Alpha,
                     });
                 }
-                "alphain" | "alphainner" => {
+                "alphain" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Inner,
                         metric: ThermistorMetric::Alpha,
                     });
                 }
-                "betaout" | "betaouter" => {
+                "betaout" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Outer,
                         metric: ThermistorMetric::Beta,
                     });
                 }
-                "betain" | "betainner" => {
+                "betain" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Inner,
                         metric: ThermistorMetric::Beta,
                     });
                 }
-                "tmaxtout" | "tmxtout" => {
+                "tmaxtout" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Outer,
                         metric: ThermistorMetric::TimeToMaxDownstream,
                     });
                 }
-                "tmaxtin" | "tmxtin" => {
+                "tmaxtin" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Inner,
@@ -137,10 +134,14 @@ impl Cr300TableParser {
         if name.is_empty() {
             return None;
         }
-        let addr_char = name.chars().last()?;
-        let address = Sdi12Address::new(addr_char).ok()?;
-        let base = &name[..name.len() - addr_char.len_utf8()];
-        Some((base, address))
+        let mut chars = name.chars();
+        let addr = chars.next_back()?;
+        let address = Sdi12Address::new(addr).ok()?;
+        let base_len = name.len() - addr.len_utf8();
+        if base_len == 0 {
+            return None;
+        }
+        Some((&name[..base_len], address))
     }
 
     fn validate_table_name(metadata: &crate::model::FileMetadata) -> Result<(), ParserError> {
@@ -151,26 +152,13 @@ impl Cr300TableParser {
             Err(ParserError::FormatMismatch {
                 parser: Self::NAME,
                 reason: format!(
-                    "table name '{}' does not match expected CR300 table formats",
+                    "table name '{}' does not match expected CR200 tables",
                     metadata.table_name
                 ),
             })
         }
     }
-    fn validate_logger_type(metadata: &crate::model::FileMetadata) -> Result<(), ParserError> {
-        let lower = metadata.logger_type.to_ascii_lowercase();
-        if lower.starts_with("cr3") {
-            Ok(())
-        } else {
-            Err(ParserError::FormatMismatch {
-                parser: Self::NAME,
-                reason: format!(
-                    "logger type '{}' does not match expected CR300 family",
-                    metadata.logger_type
-                ),
-            })
-        }
-    }
+
     fn validate_units(units: &StringRecord) -> Result<(), ParserError> {
         const EXPECTED: &[&str] = &[
             "TS",
@@ -178,15 +166,15 @@ impl Cr300TableParser {
             "Volts",
             "",
             "",
-            "literPerHour",
-            "heatVelocity",
-            "heatVelocity",
-            "logTRatio",
-            "logTRatio",
-            "logTRatio",
-            "logTRatio",
-            "second",
-            "second",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
+            "unit",
         ];
         if units.len() != EXPECTED.len() {
             return Err(ParserError::InvalidHeader {
@@ -213,7 +201,19 @@ impl Cr300TableParser {
 
     fn validate_measurements(characteristics: &StringRecord) -> Result<(), ParserError> {
         const EXPECTED: &[&str] = &[
-            "", "", "Min", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
+            "",
+            "",
+            "Min",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
+            "Smp",
             "Smp",
         ];
         if characteristics.len() != EXPECTED.len() {
@@ -232,7 +232,9 @@ impl Cr300TableParser {
                 return Err(ParserError::InvalidHeader {
                     parser: Self::NAME,
                     row_index: 4,
-                    message: format!("unexpected value '{found}' at measurement column {idx}"),
+                    message: format!(
+                        "unexpected value '{found}' at measurement column {idx}"
+                    ),
                 });
             }
         }
@@ -240,7 +242,7 @@ impl Cr300TableParser {
     }
 }
 
-impl SapflowParser for Cr300TableParser {
+impl SapflowParser for Cr200TableParser {
     fn name(&self) -> &'static str {
         Self::NAME
     }
@@ -264,7 +266,6 @@ impl SapflowParser for Cr300TableParser {
                 source: err,
             })?;
         let metadata = parse_metadata(Self::NAME, &header)?;
-        Self::validate_logger_type(&metadata)?;
         Self::validate_table_name(&metadata)?;
 
         let columns = records
@@ -315,7 +316,6 @@ impl SapflowParser for Cr300TableParser {
         let mut logger_columns = LoggerColumns::new(0);
         let mut sensor_builder = SensorFrameBuilder::new();
         let mut row_count = 0usize;
-
         let mut previous_record: Option<i64> = None;
         let mut canonical_logger_id: Option<String> = None;
 
@@ -337,7 +337,7 @@ impl SapflowParser for Cr300TableParser {
                 });
             }
 
-            let line_index = row_idx + 5; // account for four header rows (1-indexed)
+            let line_index = row_idx + 5;
 
             for (idx, role) in column_roles.iter().enumerate() {
                 let header_name = columns.get(idx).unwrap_or("");
@@ -381,7 +381,6 @@ impl SapflowParser for Cr300TableParser {
                         LoggerColumnKind::LoggerId => {
                             let parsed =
                                 parse_optional_i64(Self::NAME, value, line_index, header_name)?;
-
                             let value = parsed.ok_or_else(|| ParserError::DataRow {
                                 parser: Self::NAME,
                                 line_index,

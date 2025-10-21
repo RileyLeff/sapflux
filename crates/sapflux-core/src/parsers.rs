@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use sapflux_parser::{
     formats::{
-        Cr300TableParser as ExternalCr300TableParser, SapFlowAllParser as ExternalSapFlowAllParser,
+        Cr200TableParser as ExternalCr200TableParser,
+        Cr300LegacyParser as ExternalCr300LegacyParser,
+        Cr300TableParser as ExternalCr300TableParser,
+        SapFlowAllParser as ExternalSapFlowAllParser,
     },
     ParsedFileData as ExternalParsedFileData,
 };
@@ -71,6 +74,20 @@ static PARSERS: Lazy<Vec<ParserDescriptor>> = Lazy::new(|| {
             include_in_pipeline: true,
             description: "Parses CR300 Table-based TOA5 exports",
         },
+        ParserDescriptor {
+            code: "cr300_legacy_table_v1",
+            version: "0.1.0",
+            output_format: "sapflow_toa5_hierarchical_v1",
+            include_in_pipeline: true,
+            description: "Parses legacy CR300 TOA5 exports with *Out/*In columns",
+        },
+        ParserDescriptor {
+            code: "cr200_table_v1",
+            version: "0.1.0",
+            output_format: "sapflow_toa5_hierarchical_v1",
+            include_in_pipeline: true,
+            description: "Parses CR200 two-sensor Sapflux table exports",
+        },
     ]
 });
 
@@ -81,7 +98,9 @@ pub fn all_parser_descriptors() -> &'static [ParserDescriptor] {
 static PARSER_IMPLEMENTATIONS: Lazy<Vec<&'static dyn SapflowParser>> = Lazy::new(|| {
     vec![
         &SapFlowAllParserV1 as &dyn SapflowParser,
+        &Cr300LegacyParserV1 as &dyn SapflowParser,
         &Cr300TableParserV1 as &dyn SapflowParser,
+        &Cr200TableParserV1 as &dyn SapflowParser,
     ]
 });
 
@@ -131,6 +150,52 @@ impl SapflowParser for Cr300TableParserV1 {
         let parser = ExternalCr300TableParser;
         let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
             .context("cr300_table_v1 parser failed")?;
+        Ok(Box::new(parsed))
+    }
+}
+
+struct Cr300LegacyParserV1;
+
+impl SapflowParser for Cr300LegacyParserV1 {
+    fn code_identifier(&self) -> &'static str {
+        "cr300_legacy_table_v1"
+    }
+
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
+    fn output_data_format(&self) -> &'static str {
+        "sapflow_toa5_hierarchical_v1"
+    }
+
+    fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
+        let parser = ExternalCr300LegacyParser;
+        let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
+            .context("cr300_legacy_table_v1 parser failed")?;
+        Ok(Box::new(parsed))
+    }
+}
+
+struct Cr200TableParserV1;
+
+impl SapflowParser for Cr200TableParserV1 {
+    fn code_identifier(&self) -> &'static str {
+        "cr200_table_v1"
+    }
+
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
+    fn output_data_format(&self) -> &'static str {
+        "sapflow_toa5_hierarchical_v1"
+    }
+
+    fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
+        let parser = ExternalCr200TableParser;
+        let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
+            .context("cr200_table_v1 parser failed")?;
         Ok(Box::new(parsed))
     }
 }

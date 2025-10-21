@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use crate::errors::ParserError;
 use crate::formats::schema::{required_thermistor_metrics, LOGGER_COLUMNS};
-use crate::formats::{build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser};
+use crate::formats::{
+    build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser,
+};
 use crate::model::{ParsedFileData, ThermistorDepth};
 use crate::parse_sapflow_file;
 use crate::registry::SapflowParser;
@@ -85,6 +87,101 @@ fn parses_cr300_table_file() {
         .column("logger_id")
         .expect("logger_id column missing");
     assert_eq!(logger_id_col.str().unwrap().get(0), Some("402"));
+}
+
+#[test]
+fn parses_cr300_legacy_table_file() {
+    let content = fixture("CR300Series_502_Legacy.dat");
+    let parsed = parse_sapflow_file(&content).expect("CR300 legacy parse failed");
+
+    assert!(parsed
+        .file_metadata
+        .table_name
+        .to_ascii_lowercase()
+        .starts_with("table"));
+    assert_eq!(parsed.logger.sensors.len(), 1);
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+
+    let sensor = &parsed.logger.sensors[0];
+    assert!(sensor.sensor_df.is_none());
+
+    let inner = sensor
+        .thermistor_pairs
+        .iter()
+        .find(|pair| pair.depth == ThermistorDepth::Inner)
+        .expect("missing inner thermistor data");
+    let outer = sensor
+        .thermistor_pairs
+        .iter()
+        .find(|pair| pair.depth == ThermistorDepth::Outer)
+        .expect("missing outer thermistor data");
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
+
+    assert_eq!(inner.df.get_column_names(), expected_columns);
+    assert_eq!(outer.df.get_column_names(), expected_columns);
+    assert!(inner.df.column("sap_flux_density_cmh").is_err());
+    assert!(outer.df.column("sap_flux_density_cmh").is_err());
+
+    let logger_id_col = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing");
+    assert_eq!(logger_id_col.str().unwrap().get(0), Some("502"));
+}
+
+#[test]
+fn parses_cr200_table_file() {
+    let content = fixture("CR200Series_304_Table2.dat");
+    let parsed = parse_sapflow_file(&content).expect("CR200 table parse failed");
+
+    assert!(parsed
+        .file_metadata
+        .table_name
+        .to_ascii_lowercase()
+        .starts_with("table"));
+    assert_eq!(parsed.logger.sensors.len(), 1);
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+
+    let panel_col = parsed
+        .logger
+        .df
+        .column("panel_temperature_c")
+        .expect("panel_temperature_c column missing");
+    assert!(panel_col.f64().unwrap().into_iter().all(|entry| entry.is_none()));
+
+    let sensor = &parsed.logger.sensors[0];
+    assert!(sensor.sensor_df.is_none());
+
+    let inner = sensor
+        .thermistor_pairs
+        .iter()
+        .find(|pair| pair.depth == ThermistorDepth::Inner)
+        .expect("missing inner thermistor data");
+    let outer = sensor
+        .thermistor_pairs
+        .iter()
+        .find(|pair| pair.depth == ThermistorDepth::Outer)
+        .expect("missing outer thermistor data");
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
+
+    assert_eq!(inner.df.get_column_names(), expected_columns);
+    assert_eq!(outer.df.get_column_names(), expected_columns);
+    assert!(inner.df.column("sap_flux_density_cmh").is_err());
+    assert!(outer.df.column("sap_flux_density_cmh").is_err());
+
+    let logger_id_col = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing");
+    assert_eq!(logger_id_col.str().unwrap().get(0), Some("304"));
 }
 
 #[test]
