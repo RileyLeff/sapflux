@@ -318,6 +318,7 @@ fn select_alias<'a>(
     Ok(first)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_none(
     deployment_ids: &mut Vec<Option<String>>,
     datalogger_ids: &mut Vec<Option<String>>,

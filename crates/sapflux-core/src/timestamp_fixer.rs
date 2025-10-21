@@ -49,6 +49,9 @@ pub enum SkippedChunkReason {
     MissingUtcOffset,
 }
 
+type ChunkOffsets = HashMap<(String, String), i32>;
+type ChunkSkipDetails = Vec<(String, String, NaiveDateTime, SkippedChunkReason)>;
+
 #[derive(Debug, Clone)]
 pub struct SiteMetadata {
     pub site_id: Uuid,
@@ -263,7 +266,7 @@ fn populate_records_map(
             })?;
         let timestamp_micros = timestamps
             .get(idx)
-            .ok_or_else(|| TimestampFixerError::InvalidAnchor(0))?;
+            .ok_or(TimestampFixerError::InvalidAnchor(0))?;
         let file_hash = file_hashes.get(idx).unwrap_or("").to_string();
 
         map.entry((logger_id.clone(), record))
@@ -302,13 +305,7 @@ fn compute_chunk_offsets(
     entries: &[RecordRow],
     site_map: &HashMap<Uuid, &SiteMetadata>,
     deployments: &HashMap<&str, Vec<&DeploymentMetadata>>,
-) -> Result<
-    (
-        HashMap<(String, String), i32>,
-        Vec<(String, String, NaiveDateTime, SkippedChunkReason)>,
-    ),
-    TimestampFixerError,
-> {
+) -> Result<(ChunkOffsets, ChunkSkipDetails), TimestampFixerError> {
     let mut anchor_map: HashMap<(String, String), (i64, i64)> = HashMap::new();
 
     for row in entries.iter() {
@@ -355,7 +352,7 @@ fn find_offset_for_chunk(
     let deployment_opt = deployments.get(logger_id).and_then(|deps| {
         deps.iter().find(|d| {
             anchor_time >= d.start_timestamp_local
-                && d.end_timestamp_local.map_or(true, |end| anchor_time < end)
+                && d.end_timestamp_local.is_none_or(|end| anchor_time < end)
         })
     });
 
@@ -392,7 +389,7 @@ fn naive_from_micros(value: i64) -> Result<NaiveDateTime, TimestampFixerError> {
     let micros = value.rem_euclid(1_000_000) as u32;
     chrono::DateTime::<Utc>::from_timestamp(secs, micros * 1_000)
         .map(|dt| dt.naive_utc())
-        .ok_or_else(|| TimestampFixerError::InvalidAnchor(value))
+        .ok_or(TimestampFixerError::InvalidAnchor(value))
 }
 
 fn naive_to_micros(value: NaiveDateTime) -> i64 {

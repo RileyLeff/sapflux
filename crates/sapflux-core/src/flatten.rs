@@ -54,7 +54,7 @@ pub fn flatten_parsed_files(files: &[&ParsedFileData]) -> Result<DataFrame, Flat
                     });
                 }
 
-                let mut columns: Vec<Column> = logger_df.get_columns().iter().cloned().collect();
+                let mut columns: Vec<Column> = logger_df.get_columns().to_vec();
 
                 let file_hash =
                     Series::new("file_hash".into(), vec![file.file_hash.as_str(); rows]);

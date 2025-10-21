@@ -105,6 +105,7 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         file_format: impl Into<String>,
         logger_name: impl Into<String>,

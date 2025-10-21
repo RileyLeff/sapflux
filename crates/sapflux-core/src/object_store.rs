@@ -1,9 +1,12 @@
 use anyhow::{anyhow, Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use uuid::Uuid;
 
 #[cfg(feature = "runtime")]
 use std::time::Duration;
+
+#[cfg(feature = "runtime")]
+use std::path::Path;
 
 #[cfg(feature = "runtime")]
 use aws_config::BehaviorVersion;
@@ -38,6 +41,7 @@ pub enum ObjectStore {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub struct LocalDirStore {
     root: PathBuf,
 }

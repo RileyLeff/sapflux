@@ -57,7 +57,7 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
 
     let now_micros = now.timestamp_micros();
 
-    for idx in 0..len {
+    for (idx, &has_gap) in record_gap_flags.iter().enumerate() {
         let ts = timestamp.get(idx);
         let mut reasons = Vec::new();
 
@@ -86,7 +86,7 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
             }
         }
 
-        if record_gap_flags[idx] {
+        if has_gap {
             reasons.push("record_gap_gt_quality_gap_years");
         }
 
@@ -128,7 +128,8 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
     );
 
     let mut output = df.clone();
-    output.hstack_mut(&mut [quality_series.into(), explanation_series.into()])?;
+    let mut columns = [quality_series.into(), explanation_series.into()];
+    output.hstack_mut(columns.as_mut_slice())?;
 
     Ok(output)
 }

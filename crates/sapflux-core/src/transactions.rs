@@ -1,5 +1,3 @@
-#![cfg(feature = "runtime")]
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{anyhow, Result};
@@ -165,7 +163,7 @@ async fn execute_transaction_locked(
         .map(metadata_manifest::parse_manifest)
         .transpose()?;
 
-    if files.is_empty() && manifest.as_ref().map_or(true, |m| m.is_empty()) {
+    if files.is_empty() && manifest.as_ref().is_none_or(|m| m.is_empty()) {
         return Err(anyhow!(
             "transaction must include at least one file or metadata entries"
         ));
@@ -517,14 +515,12 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 let error_message = err.to_string();
                 let mut status = PipelineStatus::Failed;
 
-                if let Some(tf_err) = err.downcast_ref::<TimestampFixerError>() {
-                    match tf_err {
-                        TimestampFixerError::NoActiveDeployment { .. }
-                        | TimestampFixerError::MissingUtcOffset { .. } => {
-                            status = PipelineStatus::Skipped;
-                        }
-                        _ => {}
-                    }
+                if let Some(
+                    TimestampFixerError::NoActiveDeployment { .. }
+                    | TimestampFixerError::MissingUtcOffset { .. },
+                ) = err.downcast_ref::<TimestampFixerError>()
+                {
+                    status = PipelineStatus::Skipped;
                 }
 
                 PipelineRun {

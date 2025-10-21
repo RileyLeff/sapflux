@@ -8,8 +8,8 @@ pub trait SapflowParser {
 }
 
 pub fn parse_sapflow_file(content: &str) -> Result<ParsedFileData, ParserError> {
-    let sap_flow_all = SapFlowAllParser::default();
-    let cr300_table = Cr300TableParser::default();
+    let sap_flow_all = SapFlowAllParser;
+    let cr300_table = Cr300TableParser;
     let parsers: [&dyn SapflowParser; 2] = [&sap_flow_all, &cr300_table];
     parse_with_parsers(content, &parsers)
 }

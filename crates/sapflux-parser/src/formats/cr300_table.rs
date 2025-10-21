@@ -134,7 +134,7 @@ impl Cr300TableParser {
     }
 
     fn split_address(name: &str) -> Option<(&str, Sdi12Address)> {
-        if name.len() < 1 {
+        if name.is_empty() {
             return None;
         }
         let addr_char = name.chars().last()?;

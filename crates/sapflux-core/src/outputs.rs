@@ -1,5 +1,3 @@
-#![cfg(feature = "runtime")]
-
 use std::io::{Cursor, Write};
 
 use anyhow::{anyhow, Context, Result};

@@ -105,7 +105,7 @@ impl SapflowParser for SapFlowAllParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parser = ExternalSapFlowAllParser::default();
+        let parser = ExternalSapFlowAllParser;
         let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
             .context("sapflow_all_v1 parser failed")?;
         Ok(Box::new(parsed))
@@ -128,7 +128,7 @@ impl SapflowParser for Cr300TableParserV1 {
     }
 
     fn parse(&self, content: &str) -> Result<Box<dyn ParsedData>> {
-        let parser = ExternalCr300TableParser::default();
+        let parser = ExternalCr300TableParser;
         let parsed = sapflux_parser::SapflowParser::parse(&parser, content)
             .context("cr300_table_v1 parser failed")?;
         Ok(Box::new(parsed))

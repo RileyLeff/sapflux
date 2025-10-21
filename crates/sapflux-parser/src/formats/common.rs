@@ -137,9 +137,7 @@ impl SensorAccumulator {
         if !self.sensor_metric_order.contains(&metric) {
             self.sensor_metric_order.push(metric);
         }
-        self.sensor_metric_values
-            .entry(metric)
-            .or_insert_with(Vec::new)
+        self.sensor_metric_values.entry(metric).or_default()
     }
 
     fn ensure_pair_metric(
@@ -150,13 +148,11 @@ impl SensorAccumulator {
         if !self.depth_order.contains(&depth) {
             self.depth_order.push(depth);
         }
-        let order = self.pair_metric_order.entry(depth).or_insert_with(Vec::new);
+        let order = self.pair_metric_order.entry(depth).or_default();
         if !order.contains(&metric) {
             order.push(metric);
         }
-        self.pair_metric_values
-            .entry((depth, metric))
-            .or_insert_with(Vec::new)
+        self.pair_metric_values.entry((depth, metric)).or_default()
     }
 }
 
@@ -174,12 +170,10 @@ impl SensorFrameBuilder {
     }
 
     fn ensure_sensor(&mut self, address: Sdi12Address) -> &mut SensorAccumulator {
-        if !self.order.iter().any(|addr| *addr == address) {
+        if !self.order.contains(&address) {
             self.order.push(address);
         }
-        self.sensors
-            .entry(address)
-            .or_insert_with(SensorAccumulator::default)
+        self.sensors.entry(address).or_default()
     }
 
     pub fn push_sensor_metric(

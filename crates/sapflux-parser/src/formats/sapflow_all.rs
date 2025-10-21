@@ -140,9 +140,7 @@ impl SapFlowAllParser {
         if !name.starts_with('S') {
             return None;
         }
-        let mut parts = name.splitn(2, '_');
-        let prefix = parts.next()?; // e.g. S0
-        let suffix = parts.next()?; // e.g. AlpOut
+        let (prefix, suffix) = name.split_once('_')?; // e.g. S0_AlpOut
         if prefix.len() != 2 {
             return None;
         }
