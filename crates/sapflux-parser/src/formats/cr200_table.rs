@@ -355,14 +355,13 @@ impl SapflowParser for Cr200TableParser {
                                 parse_required_i64(Self::NAME, value, line_index, header_name)?;
 
                             if let Some(prev) = previous_record {
-                                if record_value != prev + 1 {
+                                if record_value <= prev {
                                     return Err(ParserError::DataRow {
                                         parser: Self::NAME,
                                         line_index,
                                         message: format!(
-                                            "record column must increment by 1 (expected {}, found {})",
-                                            prev + 1,
-                                            record_value
+                                            "record column must be strictly increasing ({} >= {})",
+                                            prev, record_value
                                         ),
                                     });
                                 }

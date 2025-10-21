@@ -241,6 +241,36 @@ impl Cr300LegacyParser {
         }
         Ok(())
     }
+
+    fn update_canonical_logger_id(
+        line_index: usize,
+        canonical: &mut Option<String>,
+        observed_non_default: &mut Option<String>,
+        candidate: &str,
+    ) -> Result<(), ParserError> {
+        if candidate == "1" {
+            if canonical.is_none() {
+                *canonical = Some("1".to_string());
+            }
+            return Ok(());
+        }
+
+        if let Some(ref existing) = observed_non_default {
+            if existing != candidate {
+                return Err(ParserError::Validation {
+                    parser: Self::NAME,
+                    message: format!(
+                        "logger id column contained conflicting values '{existing}' and '{candidate}' (line {line_index})"
+                    ),
+                });
+            }
+        } else {
+            *observed_non_default = Some(candidate.to_string());
+        }
+
+        *canonical = Some(candidate.to_string());
+        Ok(())
+    }
 }
 
 impl SapflowParser for Cr300LegacyParser {
@@ -320,7 +350,9 @@ impl SapflowParser for Cr300LegacyParser {
         let mut row_count = 0usize;
         let mut previous_record: Option<i64> = None;
         let mut canonical_logger_id: Option<String> = None;
+        let mut observed_non_default_id: Option<String> = None;
         let mut logger_id_column_present = false;
+        let mut logger_id_values: Vec<Option<String>> = Vec::new();
 
         for (row_idx, record) in records.enumerate() {
             let record = record.map_err(|err| ParserError::Csv {
@@ -371,14 +403,13 @@ impl SapflowParser for Cr300LegacyParser {
                                 parse_required_i64(Self::NAME, value, line_index, header_name)?;
 
                             if let Some(prev) = previous_record {
-                                if record_value != prev + 1 {
+                                if record_value <= prev {
                                     return Err(ParserError::DataRow {
                                         parser: Self::NAME,
                                         line_index,
                                         message: format!(
-                                            "record column must increment by 1 (expected {}, found {})",
-                                            prev + 1,
-                                            record_value
+                                            "record column must be strictly increasing ({} >= {})",
+                                            prev, record_value
                                         ),
                                     });
                                 }
@@ -443,32 +474,25 @@ impl SapflowParser for Cr300LegacyParser {
                 continue;
             }
 
-            let timestamp = row_timestamp.ok_or_else(|| ParserError::DataRow {
-                parser: Self::NAME,
-                line_index,
-                message: "timestamp column missing".to_string(),
-            })?;
-            let record_value = row_record.ok_or_else(|| ParserError::DataRow {
-                parser: Self::NAME,
-                line_index,
-                message: "record column missing".to_string(),
-            })?;
+            let timestamp = match row_timestamp {
+                Some(value) => value,
+                None => continue,
+            };
+            let record_value = match row_record {
+                Some(value) => value,
+                None => continue,
+            };
 
-            if let Some(value_str) = row_logger_id.as_ref() {
-                if let Some(existing) = canonical_logger_id.as_ref() {
-                    if existing != value_str {
-                        return Err(ParserError::Validation {
-                            parser: Self::NAME,
-                            message: format!(
-                                "logger id column contained inconsistent values ({} != {})",
-                                existing, value_str
-                            ),
-                        });
-                    }
-                } else {
-                    canonical_logger_id = Some(value_str.clone());
-                }
+            if let Some(value_str) = row_logger_id.as_deref() {
+                Self::update_canonical_logger_id(
+                    line_index,
+                    &mut canonical_logger_id,
+                    &mut observed_non_default_id,
+                    value_str,
+                )?;
             }
+
+            logger_id_values.push(row_logger_id.clone());
 
             logger_columns.timestamp.push(timestamp);
             logger_columns.record.push(record_value);
@@ -478,17 +502,6 @@ impl SapflowParser for Cr300LegacyParser {
 
             let panel_value = row_panel.unwrap_or(None);
             logger_columns.panel_mut().push(panel_value);
-
-            if logger_id_column_present {
-                let value = row_logger_id
-                    .clone()
-                    .or_else(|| canonical_logger_id.clone())
-                    .ok_or_else(|| ParserError::Validation {
-                        parser: Self::NAME,
-                        message: "unable to determine logger id".to_string(),
-                    })?;
-                logger_columns.logger_id_mut().push(Some(value));
-            }
 
             for (address, metric, parsed) in pending_sensor_metrics {
                 sensor_builder.push_sensor_metric(address, metric, parsed);
@@ -504,7 +517,19 @@ impl SapflowParser for Cr300LegacyParser {
             return Err(ParserError::EmptyData { parser: Self::NAME });
         }
 
-        if logger_columns.logger_id.is_none() {
+        if logger_id_column_present {
+            let canonical = match canonical_logger_id {
+                Some(ref value) if value != "1" => value.clone(),
+                Some(ref value) => value.clone(),
+                None => derive_logger_id_from_header(Self::NAME, &metadata)?,
+            };
+
+            let filled: Vec<Option<String>> = logger_id_values
+                .into_iter()
+                .map(|_| Some(canonical.clone()))
+                .collect();
+            logger_columns.logger_id = Some(filled);
+        } else if logger_columns.logger_id.is_none() {
             let derived = derive_logger_id_from_header(Self::NAME, &metadata)?;
             logger_columns.logger_id = Some(vec![Some(derived); row_count]);
         }

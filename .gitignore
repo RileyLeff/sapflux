@@ -8,3 +8,4 @@ busteddata
 data
 dirgrab.txt
 integration_tests/rileydata/rawdata
+integration_tests/*

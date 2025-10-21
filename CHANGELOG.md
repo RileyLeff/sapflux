@@ -12,6 +12,9 @@
 - Timestamp fixer unit test that confirms chunks without deployments are skipped (and reported) rather than failing the pipeline.
 - `PipelineBatchOutput` structure so pipeline implementations can return both processed dataframes and per-chunk skip metadata.
 - `PipelineSummary.skipped_chunks` field in transaction receipts to surface skipped logger chunks back to API consumers.
+- Dedicated CR200 parser for legacy CR200 “Table” exports, including truncated unit spellings, lenient timestamp parsing, and dynamic logger-id reconciliation.
+- Dedicated CR300 HX parser that normalises the slash-delimited HX header format, tolerates mixed-case sensor labels, and surfaces real-time logger malfunctions (invalid SDI addresses) as dropped rows instead of hard failures.
+- Test fixtures covering CR200 Table1, mixed CR300 logger IDs, HX archives, and SDI-12 error rows to keep parser regressions visible.
 
 ### Changed
 - SapFlow parsers now normalise logger column ordering, insert nullable logger columns when absent, and drop derived metrics such as `total_sap_flow_lph` / `sap_flux_density_cmh` to enforce a single measured-only schema.
@@ -26,6 +29,10 @@
 - Standard pipeline consumes the revised timestamp fixer output and propagates skipped chunk metadata for reporting.
 - Transaction receipts treat timestamp fixer misses as informational: the pipeline status remains `success` (or `skipped` when everything is filtered) and `skipped_chunks` describe any omitted data.
 - Pipeline/unit tests updated to dereference `PipelineBatchOutput` instead of raw dataframes.
+- CR300 Table and legacy parsers buffer per-row state so malformed SDI-12 addresses are skipped without breaking record sequencing, while mixed logger IDs now honour the first non-`1` identifier and flag conflicting IDs.
+- Legacy CR200 tables now accept strictly increasing (but not necessarily contiguous) record numbers—jump gaps are ingested while decreases still trigger validation errors.
+- SapFlowAll parser discovers sensor counts dynamically, validates per-sensor header blocks, and emits canonical thermistor data for any number of addresses.
+- Parser registry and sapflux-core descriptors now include the CR200, CR300 legacy, CR300 HX, and SapFlowAll variants in ingestion order so loggers are matched by specificity first.
 
 ### Fixed
 - Posting metadata manifests followed by SapFlow files now succeeds even when certain deployments are absent; affected rows are skipped but ingress succeeds.

@@ -175,6 +175,95 @@ fn cr300_table_skips_rows_with_invalid_sdi() {
 }
 
 #[test]
+fn cr300_logger_id_prefers_non_default_over_one() {
+    let content = fixture("CR300Series_501_MixedId.csv");
+    let parsed = parse_sapflow_file(&content).expect("CR300 mixed logger id parse failed");
+
+    let ids = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing")
+        .str()
+        .expect("logger_id column not utf8")
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    assert!(ids.iter().all(|value| value == &Some("501")));
+}
+
+#[test]
+fn parses_cr300_hx_file() {
+    let content = fixture("CR300Series_403_HX_fixture.csv");
+    let parsed = parse_sapflow_file(&content).expect("CR300 HX parse failed");
+
+    assert_eq!(parsed.logger.df.height(), 5);
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+
+    let ids = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing")
+        .str()
+        .expect("logger_id column not utf8")
+        .into_iter()
+        .collect::<Vec<_>>();
+    assert!(ids.iter().all(|value| value == &Some("403")));
+}
+
+#[test]
+fn parses_cr300_hx_raw_fixture() {
+    use std::path::PathBuf;
+
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let path = base
+        .join("../../integration_tests/rileydata/rawdata/older/CR300Series_403_HX_134 copy.csv");
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+
+    let parsed = parse_sapflow_file(&content).expect("CR300 HX raw parse failed");
+    assert!(parsed.logger.df.height() > 0);
+}
+
+#[test]
+fn cr300_mixed_id_raw_file_prefers_non_default() {
+    use std::path::PathBuf;
+
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let path =
+        base.join("../../integration_tests/rileydata/rawdata/older/CR300Series_501_H2_5402.csv");
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+
+    let parsed = parse_sapflow_file(&content).expect("CR300 mixed id raw parse failed");
+    let ids = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id missing")
+        .str()
+        .expect("logger_id not utf8")
+        .into_iter()
+        .collect::<Vec<_>>();
+    assert!(ids.iter().all(|value| value == &Some("501")));
+}
+
+#[test]
+fn cr200_oldfile_with_record_gaps_parses() {
+    use std::path::PathBuf;
+
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let path = base
+        .join("../../integration_tests/rileydata/rawdata/older/oldfileCR200Series_506_Table1.csv");
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+
+    let parsed = parse_sapflow_file(&content).expect("CR200 oldfile parse failed");
+    assert!(parsed.logger.df.height() > 0);
+}
+
+#[test]
 fn parses_cr200_table_file() {
     let content = fixture("CR200Series_304_Table2.dat");
     let parsed = parse_sapflow_file(&content).expect("CR200 table parse failed");
@@ -480,7 +569,7 @@ fn non_sequential_records_are_rejected() {
 
     match parse_sapflow_file(&mutated) {
         Err(ParserError::DataRow { message, .. }) => {
-            assert!(message.contains("record column must increment"));
+            assert!(message.contains("record column must be strictly increasing"));
         }
         other => panic!("expected DataRow error, got {other:?}"),
     }
