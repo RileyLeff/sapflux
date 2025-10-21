@@ -1,6 +1,7 @@
 mod common;
 mod cr300_table;
 mod sapflow_all;
+pub(crate) mod schema;
 
 pub use cr300_table::Cr300TableParser;
 pub use sapflow_all::SapFlowAllParser;

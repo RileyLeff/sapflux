@@ -195,6 +195,360 @@ async fn metadata_manifest_adds_all_entities() -> Result<()> {
 }
 
 #[tokio::test]
+async fn plants_allow_same_code_in_different_plots() -> Result<()> {
+    let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("Skipping plant scoping test because SAPFLUX_TEST_DATABASE_URL is not set");
+            return Ok(());
+        }
+    };
+
+    let pool = db::connect(&database_url).await?;
+    db::run_migrations(&pool).await?;
+    seed::run(&pool).await?;
+
+    sqlx::query(
+        "TRUNCATE TABLE parameter_overrides, deployments, sensor_thermistor_pairs, sensor_types, datalogger_aliases, dataloggers, datalogger_types, stems, plants, plots, zones, sites, projects, species CASCADE",
+    )
+    .execute(&pool)
+    .await?;
+
+    let manifest = metadata_manifest::parse_manifest(
+        r#"
+[[projects.add]]
+code = "PLOT_TEST"
+
+[[sites.add]]
+code = "SITE"
+name = "Site"
+timezone = "UTC"
+
+[[zones.add]]
+site_code = "SITE"
+name = "ZONE"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotA"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotB"
+
+[[species.add]]
+code = "SPEC"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotB"
+species_code = "SPEC"
+code = "PLANT"
+"#,
+    )?;
+
+    let (_resolved, summary) = metadata_manifest::preflight_manifest(&pool, &manifest).await?;
+
+    assert_eq!(summary.plants_added, 2);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn plants_duplicate_in_same_plot_are_rejected() -> Result<()> {
+    let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("Skipping plant duplicate test because SAPFLUX_TEST_DATABASE_URL is not set");
+            return Ok(());
+        }
+    };
+
+    let pool = db::connect(&database_url).await?;
+    db::run_migrations(&pool).await?;
+    seed::run(&pool).await?;
+
+    sqlx::query(
+        "TRUNCATE TABLE parameter_overrides, deployments, sensor_thermistor_pairs, sensor_types, datalogger_aliases, dataloggers, datalogger_types, stems, plants, plots, zones, sites, projects, species CASCADE",
+    )
+    .execute(&pool)
+    .await?;
+
+    let manifest = metadata_manifest::parse_manifest(
+        r#"
+[[projects.add]]
+code = "PLOT_TEST"
+
+[[sites.add]]
+code = "SITE"
+name = "Site"
+timezone = "UTC"
+
+[[zones.add]]
+site_code = "SITE"
+name = "ZONE"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotA"
+
+[[species.add]]
+code = "SPEC"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT"
+"#,
+    )?;
+
+    let err = metadata_manifest::preflight_manifest(&pool, &manifest)
+        .await
+        .expect_err("expected duplicate plant error");
+
+    assert!(err.to_string().contains("already exists"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn stems_allow_same_code_in_different_plants() -> Result<()> {
+    let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("Skipping stem scoping test because SAPFLUX_TEST_DATABASE_URL is not set");
+            return Ok(());
+        }
+    };
+
+    let pool = db::connect(&database_url).await?;
+    db::run_migrations(&pool).await?;
+    seed::run(&pool).await?;
+
+    sqlx::query(
+        "TRUNCATE TABLE parameter_overrides, deployments, sensor_thermistor_pairs, sensor_types, datalogger_aliases, dataloggers, datalogger_types, stems, plants, plots, zones, sites, projects, species CASCADE",
+    )
+    .execute(&pool)
+    .await?;
+
+    let manifest = metadata_manifest::parse_manifest(
+        r#"
+[[projects.add]]
+code = "STEM_TEST"
+
+[[sites.add]]
+code = "SITE"
+name = "Site"
+timezone = "UTC"
+
+[[zones.add]]
+site_code = "SITE"
+name = "ZONE"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotA"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotB"
+
+[[species.add]]
+code = "SPEC"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT_A"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotB"
+species_code = "SPEC"
+code = "PLANT_B"
+
+[[stems.add]]
+plant_code = "PLANT_A"
+code = "STEM"
+
+[[stems.add]]
+plant_code = "PLANT_B"
+code = "STEM"
+"#,
+    )?;
+
+    let (_resolved, summary) = metadata_manifest::preflight_manifest(&pool, &manifest).await?;
+
+    assert_eq!(summary.stems_added, 2);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn stems_duplicate_in_same_plant_are_rejected() -> Result<()> {
+    let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("Skipping stem duplicate test because SAPFLUX_TEST_DATABASE_URL is not set");
+            return Ok(());
+        }
+    };
+
+    let pool = db::connect(&database_url).await?;
+    db::run_migrations(&pool).await?;
+    seed::run(&pool).await?;
+
+    sqlx::query(
+        "TRUNCATE TABLE parameter_overrides, deployments, sensor_thermistor_pairs, sensor_types, datalogger_aliases, dataloggers, datalogger_types, stems, plants, plots, zones, sites, projects, species CASCADE",
+    )
+    .execute(&pool)
+    .await?;
+
+    let manifest = metadata_manifest::parse_manifest(
+        r#"
+[[projects.add]]
+code = "STEM_TEST"
+
+[[sites.add]]
+code = "SITE"
+name = "Site"
+timezone = "UTC"
+
+[[zones.add]]
+site_code = "SITE"
+name = "ZONE"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotA"
+
+[[species.add]]
+code = "SPEC"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT"
+
+[[stems.add]]
+plant_code = "PLANT"
+code = "STEM"
+
+[[stems.add]]
+plant_code = "PLANT"
+code = "STEM"
+"#,
+    )?;
+
+    let err = metadata_manifest::preflight_manifest(&pool, &manifest)
+        .await
+        .expect_err("expected duplicate stem error");
+
+    assert!(err.to_string().contains("already exists"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn parameter_override_requires_plant_for_stem() -> Result<()> {
+    let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!(
+                "Skipping parameter override stem test because SAPFLUX_TEST_DATABASE_URL is not set"
+            );
+            return Ok(());
+        }
+    };
+
+    let pool = db::connect(&database_url).await?;
+    db::run_migrations(&pool).await?;
+    seed::run(&pool).await?;
+
+    sqlx::query(
+        "TRUNCATE TABLE parameter_overrides, deployments, sensor_thermistor_pairs, sensor_types, datalogger_aliases, dataloggers, datalogger_types, stems, plants, plots, zones, sites, projects, species CASCADE",
+    )
+    .execute(&pool)
+    .await?;
+
+    let manifest = metadata_manifest::parse_manifest(
+        r#"
+[[projects.add]]
+code = "PARAM_TEST"
+
+[[sites.add]]
+code = "SITE"
+name = "Site"
+timezone = "UTC"
+
+[[zones.add]]
+site_code = "SITE"
+name = "ZONE"
+
+[[plots.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+name = "PlotA"
+
+[[species.add]]
+code = "SPEC"
+
+[[plants.add]]
+site_code = "SITE"
+zone_name = "ZONE"
+plot_name = "PlotA"
+species_code = "SPEC"
+code = "PLANT"
+
+[[stems.add]]
+plant_code = "PLANT"
+code = "STEM"
+
+[[parameter_overrides]]
+parameter_code = "parameter_heat_pulse_duration_s"
+value = 3.0
+stem_code = "STEM"
+"#,
+    )?;
+
+    let err = metadata_manifest::preflight_manifest(&pool, &manifest)
+        .await
+        .expect_err("expected stem override error");
+
+    assert!(err.to_string().contains("requires plant_code"));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn metadata_manifest_rejects_alias_overlap() -> Result<()> {
     let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
         Ok(url) => url,

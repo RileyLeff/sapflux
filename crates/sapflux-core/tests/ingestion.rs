@@ -61,3 +61,28 @@ fn ingestion_sets_file_hash_on_parsed_data() {
     assert!(!parsed.hash.is_empty(), "hash should be populated");
     assert_eq!(parsed.hash, parsed_data.file_hash);
 }
+
+#[test]
+fn ingestion_marks_duplicate_within_same_batch() {
+    let content = fixture("CR300Series_420_SapFlowAll.dat");
+    let bytes = content.as_bytes();
+    let inputs = [
+        FileInput {
+            path: "first.dat",
+            contents: bytes,
+        },
+        FileInput {
+            path: "second.dat",
+            contents: bytes,
+        },
+    ];
+
+    let batch = ingest_files(&inputs, &HashSet::new());
+
+    assert_eq!(batch.reports.len(), 2);
+    assert_eq!(batch.reports[0].status, FileStatus::Parsed);
+    assert_eq!(batch.reports[1].status, FileStatus::Duplicate);
+    assert_eq!(batch.parsed.len(), 1);
+    assert_eq!(batch.new_hashes.len(), 1);
+    assert_eq!(batch.reports[0].hash, batch.reports[1].hash);
+}

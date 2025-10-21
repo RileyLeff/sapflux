@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::errors::ParserError;
+use crate::formats::schema::{required_thermistor_metrics, LOGGER_COLUMNS};
 use crate::formats::{build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser};
 use crate::model::{ParsedFileData, ThermistorDepth};
 use crate::parse_sapflow_file;
@@ -22,6 +23,7 @@ fn parses_sapflow_all_multi_sensor() {
 
     assert_eq!(parsed.file_metadata.table_name, "SapFlowAll");
     assert_eq!(parsed.logger.sensors.len(), 2);
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
 
     let sensor = &parsed.logger.sensors[0];
     assert!(sensor.sensor_df.is_none());
@@ -36,10 +38,16 @@ fn parses_sapflow_all_multi_sensor() {
         .iter()
         .find(|pair| pair.depth == ThermistorDepth::Outer)
         .expect("missing outer thermistor data");
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
 
-    assert!(inner.df.column("alpha").is_ok());
+    assert_eq!(inner.df.get_column_names(), expected_columns);
+    assert_eq!(outer.df.get_column_names(), expected_columns);
+    assert!(inner.df.column("sap_flux_density_cmh").is_err());
+    assert!(outer.df.column("sap_flux_density_cmh").is_err());
     assert_eq!(inner.df.height(), parsed.logger.df.height());
-    assert!(outer.df.column("alpha").is_ok());
 }
 
 #[test]
@@ -53,24 +61,23 @@ fn parses_cr300_table_file() {
         .to_ascii_lowercase()
         .starts_with("table"));
     assert_eq!(parsed.logger.sensors.len(), 1);
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
 
     let sensor = &parsed.logger.sensors[0];
-    let sensor_df = sensor.sensor_df.as_ref().expect("missing sensor dataframe");
-    assert!(sensor_df.column("total_sap_flow_lph").is_ok());
+    assert!(sensor.sensor_df.is_none());
 
     let outer = sensor
         .thermistor_pairs
         .iter()
         .find(|pair| pair.depth == ThermistorDepth::Outer)
         .expect("missing outer pair");
-    assert!(outer.df.column("sap_flux_density_cmh").is_ok());
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
+    assert_eq!(outer.df.get_column_names(), expected_columns);
     assert_eq!(outer.df.height(), parsed.logger.df.height());
-    assert!(outer
-        .df
-        .column("sap_flux_density_cmh")
-        .unwrap()
-        .f64()
-        .is_ok());
+    assert!(outer.df.column("sap_flux_density_cmh").is_err());
 
     let logger_id_col = parsed
         .logger
@@ -78,6 +85,43 @@ fn parses_cr300_table_file() {
         .column("logger_id")
         .expect("logger_id column missing");
     assert_eq!(logger_id_col.str().unwrap().get(0), Some("402"));
+}
+
+#[test]
+fn thermistor_schema_matches_between_formats() {
+    let sap_content = fixture("CR300Series_420_SapFlowAll.dat");
+    let sap_parsed = parse_sapflow_file(&sap_content).expect("SapFlowAll parse failed");
+
+    let cr_content = fixture("CR300Series_402_Table2.dat");
+    let cr_parsed = parse_sapflow_file(&cr_content).expect("CR300 parse failed");
+
+    assert_eq!(sap_parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+    assert_eq!(cr_parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
+
+    for depth in [ThermistorDepth::Inner, ThermistorDepth::Outer] {
+        let sap_pair = sap_parsed
+            .logger
+            .sensors
+            .iter()
+            .flat_map(|sensor| sensor.thermistor_pairs.iter())
+            .find(|pair| pair.depth == depth);
+        let cr_pair = cr_parsed
+            .logger
+            .sensors
+            .iter()
+            .flat_map(|sensor| sensor.thermistor_pairs.iter())
+            .find(|pair| pair.depth == depth);
+
+        if let (Some(sap_pair), Some(cr_pair)) = (sap_pair, cr_pair) {
+            assert_eq!(sap_pair.df.get_column_names(), expected_columns);
+            assert_eq!(cr_pair.df.get_column_names(), expected_columns);
+        }
+    }
 }
 
 #[test]

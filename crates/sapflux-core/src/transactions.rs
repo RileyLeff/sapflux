@@ -455,6 +455,21 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
         };
     }
 
+    if context.timestamp_sites.is_empty() || context.timestamp_deployments.is_empty() {
+        return PipelineRun {
+            summary: PipelineSummary {
+                pipeline: None,
+                status: PipelineStatus::Skipped,
+                row_count: None,
+                error: None,
+                quality_summary: None,
+                provenance_summary: None,
+                record_summary: None,
+            },
+            dataframe: None,
+        };
+    }
+
     let parsed_refs: Vec<&dyn crate::parsers::ParsedData> =
         batch.parsed.iter().map(|p| p.data.as_ref()).collect();
     let pipeline = all_pipelines()

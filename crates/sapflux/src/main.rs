@@ -225,14 +225,6 @@ async fn handle_transaction(State(state): State<AppState>, mut multipart: Multip
         }
     }
 
-    if files.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            "transaction requires at least one file",
-        )
-            .into_response();
-    }
-
     let core_req = CoreTransactionRequest {
         user_id: "anonymous".to_string(),
         message,
@@ -295,4 +287,87 @@ async fn download_output(
     let expires_at = (Utc::now() + ChronoDuration::from_std(expiry).unwrap()).to_rfc3339();
 
     Ok(Json(OutputDownloadResponse { url, expires_at }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request as AxumRequest};
+    use http_body_util::BodyExt;
+    use serde_json::Value;
+    use std::{env, sync::Arc};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn metadata_only_transaction_accepts() -> Result<()> {
+        let database_url = match env::var("SAPFLUX_TEST_DATABASE_URL") {
+            Ok(url) => url,
+            Err(_) => {
+                eprintln!(
+                    "Skipping metadata_only_transaction_accepts because SAPFLUX_TEST_DATABASE_URL is not set"
+                );
+                return Ok(());
+            }
+        };
+
+        let pool = db::connect(&database_url).await?;
+        db::run_migrations(&pool).await?;
+
+        sqlx::query(
+            "TRUNCATE TABLE raw_files, transactions, deployments, stems, plants, plots, zones, projects, species, datalogger_aliases, dataloggers, datalogger_types, sensor_types, sites CASCADE",
+        )
+        .execute(&pool)
+        .await?;
+
+        let state = AppState {
+            pool: pool.clone(),
+            object_store: Arc::new(ObjectStore::noop()),
+        };
+
+        let app = Router::new()
+            .route("/transactions", post(handle_transaction))
+            .with_state(state);
+
+        let manifest = r#"
+            [projects]
+            add = [
+              { code = "META_TEST", name = "Metadata Test Project" }
+            ]
+        "#
+        .trim();
+
+        let boundary = "metadata_boundary";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"manifest\"\r\n\r\n{manifest}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"dry_run\"\r\n\r\ntrue\r\n--{boundary}--\r\n"
+        );
+
+        let request = AxumRequest::builder()
+            .method("POST")
+            .uri("/transactions")
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={boundary}"),
+            )
+            .body(Body::from(body))?;
+
+        let response = app.oneshot(request).await?;
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let bytes = response.into_body().collect().await?.to_bytes();
+        let value: Value = serde_json::from_slice(bytes.as_ref())?;
+
+        assert_eq!(value["status"], "skipped");
+        assert_eq!(value["receipt"]["pipeline"]["status"], "skipped");
+
+        let metadata_summary = value["receipt"]["metadata_summary"]
+            .as_object()
+            .expect("metadata summary should be present for metadata-only transactions");
+        assert_eq!(
+            metadata_summary.get("projects_added"),
+            Some(&Value::from(1))
+        );
+
+        Ok(())
+    }
 }

@@ -515,8 +515,12 @@ pub async fn preflight_manifest(
             let species = context.lookup_species(&entry.species_code)?;
             species.id
         };
-        if context.plants.contains_key(&entry.code) {
-            return Err(anyhow!("plant '{}' already exists", entry.code));
+        if context.plant_exists_in_plot(plot_id, &entry.code) {
+            return Err(anyhow!(
+                "plant '{}' already exists in plot '{}'",
+                entry.code,
+                plot_id
+            ));
         }
         let location_geojson = value_to_geojson_string(
             entry.location.as_ref(),
@@ -524,7 +528,14 @@ pub async fn preflight_manifest(
             &format!("plant '{}' location", entry.code),
         )?;
         let id = Uuid::new_v4();
-        context.insert_plant(entry.code.clone(), PlantRecord { id });
+        context.insert_plant(
+            plot_id,
+            entry.code.clone(),
+            PlantRecord {
+                id,
+                code: entry.code.clone(),
+            },
+        );
         resolved.plants.push(ResolvedPlant {
             entry: entry.clone(),
             plant_id: id,
@@ -536,21 +547,17 @@ pub async fn preflight_manifest(
     }
 
     for entry in &manifest.stems.add {
-        let plant_id = {
-            let plant = context.lookup_plant(&entry.plant_code)?;
-            plant.id
-        };
-        if context.stems.contains_key(&entry.code) {
-            return Err(anyhow!("stem '{}' already exists", entry.code));
+        let plant = context.lookup_plant(&entry.plant_code)?;
+        let plant_id = plant.id;
+        if context.stem_exists_for_plant(plant_id, &entry.code) {
+            return Err(anyhow!(
+                "stem '{}' already exists for plant '{}'",
+                entry.code,
+                plant_id
+            ));
         }
         let id = Uuid::new_v4();
-        context.insert_stem(
-            entry.code.clone(),
-            StemRecord {
-                id,
-                plant_code: entry.plant_code.clone(),
-            },
-        );
+        context.insert_stem(plant_id, entry.code.clone(), StemRecord { id });
         resolved.stems.push(ResolvedStem {
             entry: entry.clone(),
             stem_id: id,
@@ -671,20 +678,10 @@ pub async fn preflight_manifest(
             let project = context.lookup_project(&entry.project_code)?;
             project.id
         };
-        let plant_id = {
-            let plant = context.lookup_plant(&entry.plant_code)?;
-            plant.id
-        };
-        let (stem_id, stem_plant_code) = {
-            let stem = context.lookup_stem(&entry.stem_code)?;
-            (stem.id, stem.plant_code.clone())
-        };
-        ensure!(
-            stem_plant_code == entry.plant_code,
-            "stem '{}' does not belong to plant '{}'",
-            entry.stem_code,
-            entry.plant_code
-        );
+        let plant = context.lookup_plant(&entry.plant_code)?;
+        let plant_id = plant.id;
+        let stem = context.lookup_stem_for_plant(plant_id, &entry.stem_code)?;
+        let stem_id = stem.id;
         let datalogger_id = {
             let datalogger = context.lookup_datalogger(&entry.datalogger_code)?;
             datalogger.id
@@ -750,12 +747,19 @@ pub async fn preflight_manifest(
             Some(name) => Some(context.lookup_plot_by_name(name)?),
             None => None,
         };
-        let plant_id = match entry.plant_code.as_deref() {
-            Some(code) => Some(context.lookup_plant(code)?.id),
-            None => None,
-        };
+        let plant = entry
+            .plant_code
+            .as_deref()
+            .map(|code| context.lookup_plant(code))
+            .transpose()?;
+        let plant_id = plant.map(|record| record.id);
         let stem_id = match entry.stem_code.as_deref() {
-            Some(code) => Some(context.lookup_stem(code)?.id),
+            Some(code) => {
+                let plant_id = plant_id.ok_or_else(|| {
+                    anyhow!("parameter override for stem '{}' requires plant_code", code)
+                })?;
+                Some(context.lookup_stem_for_plant(plant_id, code)?.id)
+            }
             None => None,
         };
 
@@ -1192,11 +1196,11 @@ struct SpeciesRecord {
 
 struct PlantRecord {
     id: Uuid,
+    code: String,
 }
 
 struct StemRecord {
     id: Uuid,
-    plant_code: String,
 }
 
 struct DataloggerTypeRecord {
@@ -1224,8 +1228,8 @@ struct PreflightContext {
     plots: HashMap<(String, String, String), PlotRecord>,
     plots_by_name: HashMap<String, Vec<Uuid>>,
     species: HashMap<String, SpeciesRecord>,
-    plants: HashMap<String, PlantRecord>,
-    stems: HashMap<String, StemRecord>,
+    plants: HashMap<(Uuid, String), PlantRecord>,
+    stems: HashMap<(Uuid, String), StemRecord>,
     datalogger_types: HashMap<String, DataloggerTypeRecord>,
     dataloggers: HashMap<String, DataloggerRecord>,
     sensor_types: HashMap<String, SensorTypeRecord>,
@@ -1355,32 +1359,28 @@ impl PreflightContext {
     }
 
     async fn load_plants(&mut self, pool: &DbPool) -> Result<()> {
-        let rows = sqlx::query("SELECT plant_id, code FROM plants")
+        let rows = sqlx::query("SELECT plant_id, plot_id, code FROM plants")
             .fetch_all(pool)
             .await?;
         for row in rows {
             let id: Uuid = row.try_get("plant_id")?;
+            let plot_id: Uuid = row.try_get("plot_id")?;
             let code: String = row.try_get("code")?;
-            self.plants.insert(code, PlantRecord { id });
+            self.plants
+                .insert((plot_id, code.clone()), PlantRecord { id, code });
         }
         Ok(())
     }
 
     async fn load_stems(&mut self, pool: &DbPool) -> Result<()> {
-        let rows = sqlx::query(
-            r#"
-                SELECT st.stem_id, st.code AS stem_code, pl.code AS plant_code
-                FROM stems st
-                JOIN plants pl ON st.plant_id = pl.plant_id
-            "#,
-        )
-        .fetch_all(pool)
-        .await?;
+        let rows = sqlx::query("SELECT stem_id, plant_id, code FROM stems")
+            .fetch_all(pool)
+            .await?;
         for row in rows {
             let id: Uuid = row.try_get("stem_id")?;
-            let code: String = row.try_get("stem_code")?;
-            let plant_code: String = row.try_get("plant_code")?;
-            self.stems.insert(code, StemRecord { id, plant_code });
+            let plant_id: Uuid = row.try_get("plant_id")?;
+            let code: String = row.try_get("code")?;
+            self.stems.insert((plant_id, code), StemRecord { id });
         }
         Ok(())
     }
@@ -1538,17 +1538,36 @@ impl PreflightContext {
             .ok_or_else(|| anyhow!("species '{}' not found", code))
     }
 
-    fn lookup_plant(&self, code: &str) -> Result<&PlantRecord> {
-        self.plants
-            .get(code)
-            .ok_or_else(|| anyhow!("plant '{}' not found", code))
+    fn plant_exists_in_plot(&self, plot_id: Uuid, code: &str) -> bool {
+        self.plants.contains_key(&(plot_id, code.to_string()))
     }
 
-    fn lookup_stem(&self, code: &str) -> Result<&StemRecord> {
-        self.stems
-            .get(code)
-            .ok_or_else(|| anyhow!("stem '{}' not found", code))
+    fn lookup_plant(&self, code: &str) -> Result<&PlantRecord> {
+        let mut matches = self.plants.values().filter(|record| record.code == code);
+        let first = matches
+            .next()
+            .ok_or_else(|| anyhow!("plant '{}' not found", code))?;
+        if matches.next().is_some() {
+            return Err(anyhow!(
+                "plant '{}' exists in multiple plots; ensure plant codes are unique per plot",
+                code
+            ));
+        }
+        Ok(first)
     }
+
+    fn stem_exists_for_plant(&self, plant_id: Uuid, code: &str) -> bool {
+        self.stems.contains_key(&(plant_id, code.to_string()))
+    }
+
+    fn lookup_stem_for_plant(&self, plant_id: Uuid, code: &str) -> Result<&StemRecord> {
+        self.stems
+            .get(&(plant_id, code.to_string()))
+            .ok_or_else(|| anyhow!("stem '{}' not found for plant '{}'", code, plant_id))
+    }
+
+    // lookup_stem_for_plant provides the canonical stem resolution; callers that
+    // only have a stem code must first resolve the owning plant.
 
     fn lookup_datalogger_type(&self, code: &str) -> Result<&DataloggerTypeRecord> {
         self.datalogger_types
@@ -1607,12 +1626,12 @@ impl PreflightContext {
         self.plots_by_name.entry(plot_name).or_default().push(id);
     }
 
-    fn insert_plant(&mut self, code: String, record: PlantRecord) {
-        self.plants.insert(code, record);
+    fn insert_plant(&mut self, plot_id: Uuid, code: String, record: PlantRecord) {
+        self.plants.insert((plot_id, code), record);
     }
 
-    fn insert_stem(&mut self, code: String, record: StemRecord) {
-        self.stems.insert(code, record);
+    fn insert_stem(&mut self, plant_id: Uuid, code: String, record: StemRecord) {
+        self.stems.insert((plant_id, code), record);
     }
 
     fn insert_datalogger(&mut self, code: String, record: DataloggerRecord) {

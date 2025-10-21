@@ -60,10 +60,11 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
     let mut parsed_files = Vec::new();
     let mut reports = Vec::new();
     let mut new_hashes = Vec::new();
+    let mut seen_hashes = existing_hashes.clone();
 
     for input in inputs {
         let hash = compute_hash(input.contents);
-        if existing_hashes.contains(&hash) {
+        if seen_hashes.contains(&hash) {
             reports.push(FileReport {
                 path: input.path.to_string(),
                 hash,
@@ -114,6 +115,7 @@ pub fn ingest_files(inputs: &[FileInput<'_>], existing_hashes: &HashSet<String>)
 
         match parsed_opt {
             Some(data) => {
+                seen_hashes.insert(hash.clone());
                 new_hashes.push(hash.clone());
                 parsed_files.push(ParsedFile {
                     hash: hash.clone(),

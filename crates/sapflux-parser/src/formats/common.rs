@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use chrono::NaiveDateTime;
 use polars::prelude::*;
 
+use super::schema::{required_thermistor_metrics, LOGGER_COLUMNS};
 use crate::errors::ParserError;
 use crate::model::{
     FileMetadata, LoggerData, Sdi12Address, SensorData, ThermistorDepth, ThermistorPairData,
@@ -214,29 +215,34 @@ impl SensorFrameBuilder {
                 .get(&address)
                 .expect("sensor accumulator missing");
 
-            let sensor_df = if acc.sensor_metric_order.is_empty() {
+            let mut sensor_columns = Vec::new();
+            for metric in &acc.sensor_metric_order {
+                let data = acc
+                    .sensor_metric_values
+                    .get(metric)
+                    .expect("missing sensor metric vector");
+                if data.len() != row_count {
+                    return Err(ParserError::Validation {
+                        parser,
+                        message: format!(
+                            "sensor {address} metric {} had {} rows, expected {row_count}",
+                            metric.canonical_name(),
+                            data.len()
+                        ),
+                    });
+                }
+                if matches!(metric, SensorMetric::TotalSapFlow) {
+                    continue;
+                }
+                sensor_columns
+                    .push(Series::new(metric.canonical_name().into(), data.clone()).into());
+            }
+
+            let sensor_df = if sensor_columns.is_empty() {
                 None
             } else {
-                let mut columns = Vec::with_capacity(acc.sensor_metric_order.len());
-                for metric in &acc.sensor_metric_order {
-                    let data = acc
-                        .sensor_metric_values
-                        .get(metric)
-                        .expect("missing sensor metric vector");
-                    if data.len() != row_count {
-                        return Err(ParserError::Validation {
-                            parser,
-                            message: format!(
-                                "sensor {address} metric {} had {} rows, expected {row_count}",
-                                metric.canonical_name(),
-                                data.len()
-                            ),
-                        });
-                    }
-                    columns.push(Series::new(metric.canonical_name().into(), data.clone()).into());
-                }
                 Some(
-                    DataFrame::new(columns).map_err(|err| ParserError::Validation {
+                    DataFrame::new(sensor_columns).map_err(|err| ParserError::Validation {
                         parser,
                         message: format!(
                             "failed to construct sensor dataframe for {address}: {err}"
@@ -251,7 +257,9 @@ impl SensorFrameBuilder {
                     .pair_metric_order
                     .get(depth)
                     .expect("missing depth metric order");
-                let mut columns = Vec::with_capacity(metrics.len());
+                let canonical_metrics = required_thermistor_metrics();
+                let mut extras: Vec<&'static str> = Vec::new();
+
                 for metric in metrics {
                     let key = (*depth, *metric);
                     let data = acc
@@ -268,8 +276,38 @@ impl SensorFrameBuilder {
                             ),
                         });
                     }
-                    columns.push(Series::new(metric.canonical_name().into(), data.clone()).into());
+
+                    if matches!(metric, ThermistorMetric::SapFluxDensity) {
+                        continue;
+                    }
+
+                    if !canonical_metrics.contains(metric) {
+                        extras.push(metric.canonical_name());
+                    }
                 }
+
+                if !extras.is_empty() {
+                    return Err(ParserError::Validation {
+                        parser,
+                        message: format!(
+                            "sensor {address} {depth} unexpected thermistor columns: {}",
+                            extras.join(", ")
+                        ),
+                    });
+                }
+
+                let mut columns = Vec::with_capacity(canonical_metrics.len());
+                for metric in canonical_metrics {
+                    let key = (*depth, *metric);
+                    if let Some(data) = acc.pair_metric_values.get(&key) {
+                        columns
+                            .push(Series::new(metric.canonical_name().into(), data.clone()).into());
+                    } else {
+                        let missing: Vec<Option<f64>> = vec![None; row_count];
+                        columns.push(Series::new(metric.canonical_name().into(), missing).into());
+                    }
+                }
+
                 let df = DataFrame::new(columns).map_err(|err| ParserError::Validation {
                     parser,
                     message: format!(
@@ -305,6 +343,8 @@ pub(crate) fn build_logger_dataframe(
         });
     }
 
+    let row_count = columns.timestamp.len();
+
     let ts_series = Series::new("timestamp".into(), columns.timestamp);
     let ts_series = ts_series
         .cast(&DataType::Datetime(TimeUnit::Microseconds, None))
@@ -313,22 +353,62 @@ pub(crate) fn build_logger_dataframe(
             message: format!("failed to cast timestamp column: {err}"),
         })?;
 
-    let mut cols: Vec<Column> = Vec::new();
+    let battery_values: Vec<Option<f64>> = match columns.battery_voltage.take() {
+        Some(values) => {
+            if values.len() != row_count {
+                return Err(ParserError::Validation {
+                    parser,
+                    message: format!(
+                        "battery_voltage_v column had {} rows, expected {row_count}",
+                        values.len()
+                    ),
+                });
+            }
+            values
+        }
+        None => vec![None; row_count],
+    };
+
+    let panel_values: Vec<Option<f64>> = match columns.panel_temperature.take() {
+        Some(values) => {
+            if values.len() != row_count {
+                return Err(ParserError::Validation {
+                    parser,
+                    message: format!(
+                        "panel_temperature_c column had {} rows, expected {row_count}",
+                        values.len()
+                    ),
+                });
+            }
+            values
+        }
+        None => vec![None; row_count],
+    };
+
+    let logger_values: Vec<Option<String>> = match columns.logger_id.take() {
+        Some(values) => {
+            if values.len() != row_count {
+                return Err(ParserError::Validation {
+                    parser,
+                    message: format!(
+                        "logger_id column had {} rows, expected {row_count}",
+                        values.len()
+                    ),
+                });
+            }
+            values
+        }
+        None => vec![None; row_count],
+    };
+
+    let utf8: Vec<Option<&str>> = logger_values.iter().map(|v| v.as_deref()).collect();
+
+    let mut cols: Vec<Column> = Vec::with_capacity(LOGGER_COLUMNS.len());
     cols.push(ts_series.into());
     cols.push(Series::new("record".into(), columns.record).into());
-
-    if let Some(values) = columns.battery_voltage.take() {
-        cols.push(Series::new("battery_voltage_v".into(), values).into());
-    }
-
-    if let Some(values) = columns.panel_temperature.take() {
-        cols.push(Series::new("panel_temperature_c".into(), values).into());
-    }
-
-    if let Some(values) = columns.logger_id.take() {
-        let utf8: Vec<Option<&str>> = values.iter().map(|v| v.as_deref()).collect();
-        cols.push(Series::new("logger_id".into(), utf8).into());
-    }
+    cols.push(Series::new("battery_voltage_v".into(), battery_values).into());
+    cols.push(Series::new("panel_temperature_c".into(), panel_values).into());
+    cols.push(Series::new("logger_id".into(), utf8).into());
 
     DataFrame::new(cols).map_err(|err| ParserError::Validation {
         parser,
