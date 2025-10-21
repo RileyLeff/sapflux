@@ -64,8 +64,10 @@ fn timestamp_fixer_converts_to_utc() {
         end_timestamp_local: None,
     }];
 
-    let corrected =
+    let result =
         timestamp_fixer::correct_timestamps(&df, &sites, &deployments).expect("fix timestamps");
+    assert!(result.skipped_chunks.is_empty());
+    let corrected = result.dataframe;
 
     let timestamp_utc = corrected
         .column("timestamp_utc")
@@ -97,8 +99,10 @@ fn timestamp_fixer_handles_dst_ambiguous_time() {
         end_timestamp_local: None,
     }];
 
-    let corrected =
+    let result =
         timestamp_fixer::correct_timestamps(&df, &sites, &deployments).expect("fix timestamps");
+    assert!(result.skipped_chunks.is_empty());
+    let corrected = result.dataframe;
 
     let ts_utc = corrected
         .column("timestamp_utc")
@@ -109,4 +113,30 @@ fn timestamp_fixer_handles_dst_ambiguous_time() {
     let utc_value = ts_utc.get(0).expect("value");
     let expected = parse_naive("2024-11-03 05:30:00");
     assert_eq!(naive_to_micros(expected), utc_value);
+}
+
+#[test]
+fn timestamp_fixer_skips_chunks_without_deployment() {
+    let times = [parse_naive("2024-07-01 12:00:00")];
+    let df = make_observations(&times, &["fileA"]);
+
+    let site_id = Uuid::new_v4();
+    let sites = vec![SiteMetadata {
+        site_id,
+        timezone: New_York,
+    }];
+
+    let deployments: Vec<DeploymentMetadata> = Vec::new();
+
+    let result = timestamp_fixer::correct_timestamps(&df, &sites, &deployments)
+        .expect("timestamp fixer should not error");
+
+    assert!(result.dataframe.is_empty());
+    assert_eq!(result.skipped_chunks.len(), 1);
+    let skipped = &result.skipped_chunks[0];
+    assert_eq!(skipped.row_count, 1);
+    assert!(matches!(
+        skipped.reason,
+        timestamp_fixer::SkippedChunkReason::NoActiveDeployment
+    ));
 }

@@ -29,6 +29,27 @@ pub enum TimestampFixerError {
 }
 
 #[derive(Debug, Clone)]
+pub struct TimestampFixResult {
+    pub dataframe: DataFrame,
+    pub skipped_chunks: Vec<SkippedChunk>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SkippedChunk {
+    pub logger_id: String,
+    pub file_set_signature: String,
+    pub anchor_timestamp: NaiveDateTime,
+    pub row_count: usize,
+    pub reason: SkippedChunkReason,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SkippedChunkReason {
+    NoActiveDeployment,
+    MissingUtcOffset,
+}
+
+#[derive(Debug, Clone)]
 pub struct SiteMetadata {
     pub site_id: Uuid,
     pub timezone: Tz,
@@ -61,9 +82,12 @@ pub fn correct_timestamps(
     observations: &DataFrame,
     sites: &[SiteMetadata],
     deployments: &[DeploymentMetadata],
-) -> Result<DataFrame, TimestampFixerError> {
+) -> Result<TimestampFixResult, TimestampFixerError> {
     if observations.is_empty() {
-        return Ok(observations.clone());
+        return Ok(TimestampFixResult {
+            dataframe: observations.clone(),
+            skipped_chunks: Vec::new(),
+        });
     }
 
     let mut records_map: HashMap<(String, i64), RecordEntry> = HashMap::new();
@@ -86,10 +110,18 @@ pub fn correct_timestamps(
 
     record_rows.sort_by_key(|row| (row.logger_id.clone(), row.record));
 
+    let mut chunk_row_counts: HashMap<(String, String), usize> = HashMap::new();
+    for row in &record_rows {
+        *chunk_row_counts
+            .entry((row.logger_id.clone(), row.file_set_signature.clone()))
+            .or_insert(0) += 1;
+    }
+
     let site_map: HashMap<Uuid, &SiteMetadata> = sites.iter().map(|s| (s.site_id, s)).collect();
     let deployment_map = build_deployment_map(deployments);
 
-    let chunk_offsets = compute_chunk_offsets(&record_rows, &site_map, &deployment_map)?;
+    let (chunk_offsets, skipped_info) =
+        compute_chunk_offsets(&record_rows, &site_map, &deployment_map)?;
 
     let row_count = record_rows.len();
     let mut logger_ids = Vec::with_capacity(row_count);
@@ -101,23 +133,17 @@ pub fn correct_timestamps(
 
     for row in record_rows.iter() {
         let key = (row.logger_id.clone(), row.file_set_signature.clone());
-        let offset =
-            chunk_offsets
-                .get(&key)
-                .ok_or_else(|| TimestampFixerError::MissingUtcOffset {
-                    logger_id: row.logger_id.clone(),
-                    file_set_signature: row.file_set_signature.clone(),
-                })?;
+        if let Some(offset) = chunk_offsets.get(&key) {
+            let local_dt = naive_from_micros(row.timestamp_micros)?;
+            let utc_dt = local_dt - Duration::seconds(*offset as i64);
 
-        let local_dt = naive_from_micros(row.timestamp_micros)?;
-        let utc_dt = local_dt - Duration::seconds(*offset as i64);
-
-        logger_ids.push(row.logger_id.clone());
-        records.push(row.record);
-        timestamps.push(row.timestamp_micros);
-        signatures.push(row.file_set_signature.clone());
-        offsets_per_record.push(*offset);
-        timestamp_utc.push(naive_to_micros(utc_dt));
+            logger_ids.push(row.logger_id.clone());
+            records.push(row.record);
+            timestamps.push(row.timestamp_micros);
+            signatures.push(row.file_set_signature.clone());
+            offsets_per_record.push(*offset);
+            timestamp_utc.push(naive_to_micros(utc_dt));
+        }
     }
 
     let record_df = df![
@@ -152,7 +178,7 @@ pub fn correct_timestamps(
     ])
     .collect()?;
 
-    let final_df = observations
+    let joined_df = observations
         .clone()
         .lazy()
         .join(
@@ -167,8 +193,37 @@ pub fn correct_timestamps(
             JoinArgs::new(JoinType::Left),
         )
         .collect()?;
+    let filtered_df = joined_df
+        .lazy()
+        .filter(col("timestamp_utc").is_not_null())
+        .collect()?;
 
-    Ok(final_df)
+    if filtered_df.column("timestamp_utc")?.null_count() > 0 {
+        return Err(TimestampFixerError::MissingUtcOffset {
+            logger_id: String::new(),
+            file_set_signature: String::new(),
+        });
+    }
+
+    let mut skipped_chunks: Vec<SkippedChunk> = Vec::new();
+    for (logger_id, signature, anchor_ts, reason) in skipped_info {
+        let row_count = chunk_row_counts
+            .get(&(logger_id.clone(), signature.clone()))
+            .copied()
+            .unwrap_or(0);
+        skipped_chunks.push(SkippedChunk {
+            logger_id,
+            file_set_signature: signature,
+            anchor_timestamp: anchor_ts,
+            row_count,
+            reason,
+        });
+    }
+
+    Ok(TimestampFixResult {
+        dataframe: filtered_df,
+        skipped_chunks,
+    })
 }
 
 fn populate_records_map(
@@ -247,7 +302,13 @@ fn compute_chunk_offsets(
     entries: &[RecordRow],
     site_map: &HashMap<Uuid, &SiteMetadata>,
     deployments: &HashMap<&str, Vec<&DeploymentMetadata>>,
-) -> Result<HashMap<(String, String), i32>, TimestampFixerError> {
+) -> Result<
+    (
+        HashMap<(String, String), i32>,
+        Vec<(String, String, NaiveDateTime, SkippedChunkReason)>,
+    ),
+    TimestampFixerError,
+> {
     let mut anchor_map: HashMap<(String, String), (i64, i64)> = HashMap::new();
 
     for row in entries.iter() {
@@ -263,14 +324,26 @@ fn compute_chunk_offsets(
     }
 
     let mut offsets = HashMap::with_capacity(anchor_map.len());
+    let mut skipped = Vec::new();
 
     for ((logger_id, signature), (_, anchor_micros)) in anchor_map.into_iter() {
         let anchor_time = naive_from_micros(anchor_micros)?;
-        let offset = find_offset_for_chunk(&logger_id, anchor_time, site_map, deployments)?;
-        offsets.insert((logger_id, signature), offset);
+        match find_offset_for_chunk(&logger_id, anchor_time, site_map, deployments)? {
+            OffsetLookup::Offset(offset) => {
+                offsets.insert((logger_id, signature), offset);
+            }
+            OffsetLookup::Skipped(reason) => {
+                skipped.push((logger_id, signature, anchor_time, reason));
+            }
+        }
     }
 
-    Ok(offsets)
+    Ok((offsets, skipped))
+}
+
+enum OffsetLookup {
+    Offset(i32),
+    Skipped(SkippedChunkReason),
 }
 
 fn find_offset_for_chunk(
@@ -278,19 +351,22 @@ fn find_offset_for_chunk(
     anchor_time: NaiveDateTime,
     site_map: &HashMap<Uuid, &SiteMetadata>,
     deployments: &HashMap<&str, Vec<&DeploymentMetadata>>,
-) -> Result<i32, TimestampFixerError> {
-    let deployment = deployments
-        .get(logger_id)
-        .and_then(|deps| {
-            deps.iter().find(|d| {
-                anchor_time >= d.start_timestamp_local
-                    && d.end_timestamp_local.map_or(true, |end| anchor_time < end)
-            })
+) -> Result<OffsetLookup, TimestampFixerError> {
+    let deployment_opt = deployments.get(logger_id).and_then(|deps| {
+        deps.iter().find(|d| {
+            anchor_time >= d.start_timestamp_local
+                && d.end_timestamp_local.map_or(true, |end| anchor_time < end)
         })
-        .ok_or_else(|| TimestampFixerError::NoActiveDeployment {
-            logger_id: logger_id.to_string(),
-            anchor_time,
-        })?;
+    });
+
+    let deployment = match deployment_opt {
+        Some(dep) => dep,
+        None => {
+            return Ok(OffsetLookup::Skipped(
+                SkippedChunkReason::NoActiveDeployment,
+            ));
+        }
+    };
 
     let site = site_map
         .get(&deployment.site_id)
@@ -308,7 +384,7 @@ fn find_offset_for_chunk(
         LocalResult::None => 0,
     };
 
-    Ok(offset_seconds)
+    Ok(OffsetLookup::Offset(offset_seconds))
 }
 
 fn naive_from_micros(value: i64) -> Result<NaiveDateTime, TimestampFixerError> {

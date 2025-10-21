@@ -1,0 +1,64 @@
+{
+  "status": "success",
+  "receipt": {
+    "transaction_id": "d4219416-5797-443b-b2b5-f928003bc532",
+    "dry_run": false,
+    "files": [
+      {
+        "path": "CR300Series_420_SapFlowAll.dat",
+        "hash": "8e9e5ba28654004fa2249cdc5c19c0885dad2c21f02708fac959e2bdb9ca9188",
+        "status": "Parsed",
+        "parser_attempts": [],
+        "first_error_line": null
+      }
+    ],
+    "ingestion_summary": {
+      "total": 1,
+      "parsed": 1,
+      "duplicates": 0,
+      "failed": 0
+    },
+    "pipeline": {
+      "pipeline": "standard_v1_dst_fix",
+      "status": "success",
+      "row_count": 100,
+      "error": null,
+      "quality_summary": {
+        "total_rows": 100,
+        "suspect_rows": 0,
+        "good_rows": 100,
+        "suspect_ratio": 0.0
+      },
+      "provenance_summary": null,
+      "record_summary": {
+        "logger_count": 1,
+        "sensor_count": 4,
+        "timeframe_utc": {
+          "start": "2025-07-30T00:00:00.000000Z",
+          "end": "2025-07-30T12:00:00.000000Z"
+        }
+      }
+    },
+    "artifacts": {
+      "output_id": "ea81f2aa-bade-4aac-a5e1-65d73c751117",
+      "parquet_key": "outputs/ea81f2aa-bade-4aac-a5e1-65d73c751117.parquet",
+      "cartridge_key": "repro-cartridges/ea81f2aa-bade-4aac-a5e1-65d73c751117.zip"
+    },
+    "metadata_summary": {
+      "projects_added": 2,
+      "sites_added": 3,
+      "zones_added": 10,
+      "plots_added": 41,
+      "species_added": 3,
+      "plants_added": 58,
+      "stems_added": 58,
+      "datalogger_types_added": 2,
+      "dataloggers_added": 34,
+      "datalogger_aliases_added": 1,
+      "sensor_types_added": 2,
+      "sensor_thermistor_pairs_added": 4,
+      "deployments_added": 83,
+      "parameter_overrides_upserted": 4
+    }
+  }
+}

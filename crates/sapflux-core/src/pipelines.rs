@@ -25,6 +25,7 @@ use crate::{
     quality_filters,
     timestamp_fixer::{
         self, DeploymentMetadata as TsDeploymentMetadata, SiteMetadata as TsSiteMetadata,
+        SkippedChunk,
     },
 };
 use sapflux_parser::ParsedFileData;
@@ -235,6 +236,11 @@ impl ExecutionContext {
     }
 }
 
+pub struct PipelineBatchOutput {
+    pub dataframe: DataFrame,
+    pub skipped_chunks: Vec<SkippedChunk>,
+}
+
 pub trait ProcessingPipeline: Send + Sync {
     fn code_identifier(&self) -> &'static str;
     fn version(&self) -> &'static str;
@@ -243,7 +249,7 @@ pub trait ProcessingPipeline: Send + Sync {
         &self,
         _context: &ExecutionContext,
         _parsed_batch: &[&dyn ParsedData],
-    ) -> Result<DataFrame>;
+    ) -> Result<PipelineBatchOutput>;
 }
 
 #[derive(Debug, Clone)]
@@ -295,7 +301,7 @@ impl ProcessingPipeline for StandardPipelineStub {
         &self,
         context: &ExecutionContext,
         _parsed_batch: &[&dyn ParsedData],
-    ) -> Result<DataFrame> {
+    ) -> Result<PipelineBatchOutput> {
         if context.timestamp_deployments.is_empty() || context.timestamp_sites.is_empty() {
             return Err(anyhow!(
                 "standard_v1_dst_fix requires deployment/site metadata"
@@ -311,11 +317,13 @@ impl ProcessingPipeline for StandardPipelineStub {
         }
 
         let flattened = flatten_parsed_files(&typed_files)?;
-        let corrected = timestamp_fixer::correct_timestamps(
+        let timestamp_result = timestamp_fixer::correct_timestamps(
             &flattened,
             &context.timestamp_sites,
             &context.timestamp_deployments,
         )?;
+        let corrected = timestamp_result.dataframe;
+        let skipped_chunks = timestamp_result.skipped_chunks;
 
         let enriched = metadata_enricher::enrich_with_metadata(
             &corrected,
@@ -336,7 +344,10 @@ impl ProcessingPipeline for StandardPipelineStub {
         let calculated = calculator::apply_dma_peclet(&resolved)?;
         let with_quality = quality_filters::apply_quality_filters(&calculated, Utc::now())?;
 
-        Ok(with_quality)
+        Ok(PipelineBatchOutput {
+            dataframe: with_quality,
+            skipped_chunks,
+        })
     }
 }
 

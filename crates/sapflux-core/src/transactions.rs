@@ -15,6 +15,7 @@ use crate::metadata_manifest;
 use crate::object_store::ObjectStore;
 use crate::outputs::publish_output;
 use crate::pipelines::{all_pipelines, ExecutionContext};
+use crate::timestamp_fixer::{SkippedChunk, SkippedChunkReason, TimestampFixerError};
 use polars::prelude::{ChunkAgg, DataFrame};
 
 #[derive(Debug)]
@@ -49,6 +50,8 @@ pub struct PipelineSummary {
     pub quality_summary: Option<QualitySummary>,
     pub provenance_summary: Option<ProvenanceSummary>,
     pub record_summary: Option<RecordSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skipped_chunks: Option<Vec<SkippedChunkSummary>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,6 +123,15 @@ pub struct PipelineArtifacts {
     pub output_id: Uuid,
     pub parquet_key: String,
     pub cartridge_key: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SkippedChunkSummary {
+    pub logger_id: String,
+    pub file_set_signature: String,
+    pub anchor_timestamp_local: String,
+    pub row_count: usize,
+    pub reason: String,
 }
 
 const TRANSACTION_LOCK_KEY: i64 = 0x5350464C5558; // "SPFLUX"
@@ -234,6 +246,7 @@ async fn execute_transaction_locked(
                 quality_summary: None,
                 provenance_summary: None,
                 record_summary: None,
+                skipped_chunks: None,
             },
             dataframe: None,
         }
@@ -249,6 +262,7 @@ async fn execute_transaction_locked(
                     quality_summary: None,
                     provenance_summary: None,
                     record_summary: None,
+                    skipped_chunks: None,
                 },
                 dataframe: None,
             },
@@ -450,6 +464,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 quality_summary: None,
                 provenance_summary: None,
                 record_summary: None,
+                skipped_chunks: None,
             },
             dataframe: None,
         };
@@ -465,6 +480,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 quality_summary: None,
                 provenance_summary: None,
                 record_summary: None,
+                skipped_chunks: None,
             },
             dataframe: None,
         };
@@ -479,30 +495,52 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
 
     if let Some(pipeline) = pipeline {
         match pipeline.run_batch(context, &parsed_refs) {
-            Ok(df) => PipelineRun {
-                summary: PipelineSummary {
-                    pipeline: Some(pipeline.code_identifier().to_string()),
-                    status: PipelineStatus::Success,
-                    row_count: Some(df.height()),
-                    error: None,
-                    quality_summary: compute_quality_summary(&df),
-                    provenance_summary: compute_provenance_summary(&df),
-                    record_summary: compute_record_summary(&df),
-                },
-                dataframe: Some(df),
-            },
-            Err(err) => PipelineRun {
-                summary: PipelineSummary {
-                    pipeline: Some(pipeline.code_identifier().to_string()),
-                    status: PipelineStatus::Failed,
-                    row_count: None,
-                    error: Some(err.to_string()),
-                    quality_summary: None,
-                    provenance_summary: None,
-                    record_summary: None,
-                },
-                dataframe: None,
-            },
+            Ok(output) => {
+                let df = output.dataframe;
+                let skipped_chunk_summaries = summarize_skipped_chunks(output.skipped_chunks);
+
+                PipelineRun {
+                    summary: PipelineSummary {
+                        pipeline: Some(pipeline.code_identifier().to_string()),
+                        status: PipelineStatus::Success,
+                        row_count: Some(df.height()),
+                        error: None,
+                        quality_summary: compute_quality_summary(&df),
+                        provenance_summary: compute_provenance_summary(&df),
+                        record_summary: compute_record_summary(&df),
+                        skipped_chunks: skipped_chunk_summaries,
+                    },
+                    dataframe: Some(df),
+                }
+            }
+            Err(err) => {
+                let error_message = err.to_string();
+                let mut status = PipelineStatus::Failed;
+
+                if let Some(tf_err) = err.downcast_ref::<TimestampFixerError>() {
+                    match tf_err {
+                        TimestampFixerError::NoActiveDeployment { .. }
+                        | TimestampFixerError::MissingUtcOffset { .. } => {
+                            status = PipelineStatus::Skipped;
+                        }
+                        _ => {}
+                    }
+                }
+
+                PipelineRun {
+                    summary: PipelineSummary {
+                        pipeline: Some(pipeline.code_identifier().to_string()),
+                        status,
+                        row_count: None,
+                        error: Some(error_message),
+                        quality_summary: None,
+                        provenance_summary: None,
+                        record_summary: None,
+                        skipped_chunks: None,
+                    },
+                    dataframe: None,
+                }
+            }
         }
     } else {
         PipelineRun {
@@ -514,9 +552,39 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 quality_summary: None,
                 provenance_summary: None,
                 record_summary: None,
+                skipped_chunks: None,
             },
             dataframe: None,
         }
+    }
+}
+
+fn summarize_skipped_chunks(chunks: Vec<SkippedChunk>) -> Option<Vec<SkippedChunkSummary>> {
+    if chunks.is_empty() {
+        return None;
+    }
+
+    let summaries = chunks
+        .into_iter()
+        .map(|chunk| SkippedChunkSummary {
+            logger_id: chunk.logger_id,
+            file_set_signature: chunk.file_set_signature,
+            anchor_timestamp_local: chunk
+                .anchor_timestamp
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            row_count: chunk.row_count,
+            reason: skipped_reason_to_str(chunk.reason).to_string(),
+        })
+        .collect();
+
+    Some(summaries)
+}
+
+fn skipped_reason_to_str(reason: SkippedChunkReason) -> &'static str {
+    match reason {
+        SkippedChunkReason::NoActiveDeployment => "no_active_deployment",
+        SkippedChunkReason::MissingUtcOffset => "missing_utc_offset",
     }
 }
 

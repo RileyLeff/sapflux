@@ -97,8 +97,10 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
         .expect("standard pipeline registered");
 
     let output = pipeline.run_batch(&context, &batch)?;
+    assert!(output.skipped_chunks.is_empty());
+    let df = output.dataframe;
 
-    let signature_series = output.column("file_set_signature")?.str()?;
+    let signature_series = df.column("file_set_signature")?.str()?;
     let expected = {
         let mut hashes = vec!["hash_a", "hash_b"];
         hashes.sort();
@@ -111,22 +113,22 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     assert_eq!(unique_signatures.len(), 1);
     assert_eq!(unique_signatures.iter().next().unwrap(), &expected);
 
-    let ts_utc = output.column("timestamp_utc")?.datetime()?;
+    let ts_utc = df.column("timestamp_utc")?.datetime()?;
     assert_eq!(ts_utc.null_count(), 0);
 
-    assert!(output.column("calculation_method_used").is_ok());
-    assert!(output.column("sap_flux_density_j_dma_cm_hr").is_ok());
-    assert!(output.column("quality").is_ok());
+    assert!(df.column("calculation_method_used").is_ok());
+    assert!(df.column("sap_flux_density_j_dma_cm_hr").is_ok());
+    assert!(df.column("quality").is_ok());
 
-    assert!(output.height() > 0);
+    assert!(df.height() > 0);
 
-    let records = output.column("record")?.i64()?;
-    let loggers = output.column("logger_id")?.str()?;
-    let depths = output.column("thermistor_depth")?.str()?;
-    let addresses = output.column("sdi12_address")?.str()?;
-    let signatures = output.column("file_set_signature")?.str()?;
+    let records = df.column("record")?.i64()?;
+    let loggers = df.column("logger_id")?.str()?;
+    let depths = df.column("thermistor_depth")?.str()?;
+    let addresses = df.column("sdi12_address")?.str()?;
+    let signatures = df.column("file_set_signature")?.str()?;
     let mut unique_pairs: HashSet<(String, i64, String, String, String)> = HashSet::new();
-    for idx in 0..output.height() {
+    for idx in 0..df.height() {
         let logger = loggers
             .get(idx)
             .expect("logger_id should be present in pipeline output");
@@ -150,10 +152,10 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
             signature.to_string(),
         ));
     }
-    assert_eq!(unique_pairs.len() * 2, output.height());
+    assert_eq!(unique_pairs.len() * 2, df.height());
 
     let mut duplicate_counts: HashMap<(String, i64, String, String), usize> = HashMap::new();
-    for idx in 0..output.height() {
+    for idx in 0..df.height() {
         let key = (
             loggers.get(idx).expect("logger_id").to_string(),
             records.get(idx).expect("record"),
