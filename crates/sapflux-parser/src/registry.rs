@@ -1,7 +1,5 @@
 use crate::errors::{ParserAttempt, ParserError};
-use crate::formats::{
-    Cr200TableParser, Cr300LegacyParser, Cr300TableParser, SapFlowAllParser,
-};
+use crate::formats::{Cr200TableParser, Cr300LegacyParser, Cr300TableParser, SapFlowAllParser};
 use crate::model::ParsedFileData;
 
 pub trait SapflowParser {

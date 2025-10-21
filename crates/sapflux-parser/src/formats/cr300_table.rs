@@ -318,6 +318,7 @@ impl SapflowParser for Cr300TableParser {
 
         let mut previous_record: Option<i64> = None;
         let mut canonical_logger_id: Option<String> = None;
+        let mut logger_id_column_present = false;
 
         for (row_idx, record) in records.enumerate() {
             let record = record.map_err(|err| ParserError::Csv {
@@ -339,6 +340,21 @@ impl SapflowParser for Cr300TableParser {
 
             let line_index = row_idx + 5; // account for four header rows (1-indexed)
 
+            let mut row_valid = true;
+            let mut row_timestamp: Option<i64> = None;
+            let mut row_record: Option<i64> = None;
+            let mut row_battery: Option<Option<f64>> = None;
+            let mut row_panel: Option<Option<f64>> = None;
+            let mut row_logger_id: Option<String> = None;
+            let mut pending_sensor_metrics: Vec<(Sdi12Address, SensorMetric, Option<f64>)> =
+                Vec::new();
+            let mut pending_thermistor_metrics: Vec<(
+                Sdi12Address,
+                ThermistorDepth,
+                ThermistorMetric,
+                Option<f64>,
+            )> = Vec::new();
+
             for (idx, role) in column_roles.iter().enumerate() {
                 let header_name = columns.get(idx).unwrap_or("");
                 let value = record.get(idx).unwrap_or("");
@@ -346,7 +362,7 @@ impl SapflowParser for Cr300TableParser {
                     ColumnRole::Logger(kind) => match kind {
                         LoggerColumnKind::Timestamp => {
                             let micros = parse_timestamp(Self::NAME, value, line_index)?;
-                            logger_columns.timestamp.push(micros);
+                            row_timestamp = Some(micros);
                         }
                         LoggerColumnKind::Record => {
                             let record_value =
@@ -366,19 +382,20 @@ impl SapflowParser for Cr300TableParser {
                                 }
                             }
                             previous_record = Some(record_value);
-                            logger_columns.record.push(record_value);
+                            row_record = Some(record_value);
                         }
                         LoggerColumnKind::BatteryVoltage => {
                             let parsed =
                                 parse_optional_f64(Self::NAME, value, line_index, header_name)?;
-                            logger_columns.battery_mut().push(parsed);
+                            row_battery = Some(parsed);
                         }
                         LoggerColumnKind::PanelTemperature => {
                             let parsed =
                                 parse_optional_f64(Self::NAME, value, line_index, header_name)?;
-                            logger_columns.panel_mut().push(parsed);
+                            row_panel = Some(parsed);
                         }
                         LoggerColumnKind::LoggerId => {
+                            logger_id_column_present = true;
                             let parsed =
                                 parse_optional_i64(Self::NAME, value, line_index, header_name)?;
 
@@ -388,55 +405,96 @@ impl SapflowParser for Cr300TableParser {
                                 message: "logger id column contained NULL".to_string(),
                             })?;
 
-                            let value_str = value.to_string();
-                            if let Some(existing) = canonical_logger_id.as_ref() {
-                                if existing != &value_str {
-                                    return Err(ParserError::Validation {
-                                        parser: Self::NAME,
-                                        message: format!(
-                                            "logger id column contained inconsistent values ({} != {})",
-                                            existing,
-                                            value_str
-                                        ),
-                                    });
-                                }
-                            } else {
-                                canonical_logger_id = Some(value_str.clone());
-                            }
-
-                            logger_columns.logger_id_mut().push(Some(value_str));
+                            row_logger_id = Some(value.to_string());
                         }
                     },
                     ColumnRole::SensorAddress { address } => {
-                        let parsed =
-                            parse_sdi12_address(Self::NAME, value, line_index, header_name)?;
-                        if parsed != *address {
-                            return Err(ParserError::DataRow {
-                                parser: Self::NAME,
-                                line_index,
-                                message: format!(
-                                    "column '{header_name}' expected SDI-12 address '{}' but found '{}'",
-                                    address,
-                                    value.trim()
-                                ),
-                            });
+                        match parse_sdi12_address(Self::NAME, value, line_index, header_name) {
+                            Ok(parsed) if parsed == *address => {}
+                            _ => {
+                                row_valid = false;
+                            }
                         }
                     }
                     ColumnRole::SensorMetric { address, metric } => {
+                        if !row_valid {
+                            continue;
+                        }
                         let parsed =
                             parse_optional_f64(Self::NAME, value, line_index, header_name)?;
-                        sensor_builder.push_sensor_metric(*address, *metric, parsed);
+                        pending_sensor_metrics.push((*address, *metric, parsed));
                     }
                     ColumnRole::ThermistorMetric {
                         address,
                         depth,
                         metric,
                     } => {
+                        if !row_valid {
+                            continue;
+                        }
                         let parsed =
                             parse_optional_f64(Self::NAME, value, line_index, header_name)?;
-                        sensor_builder.push_thermistor_metric(*address, *depth, *metric, parsed);
+                        pending_thermistor_metrics.push((*address, *depth, *metric, parsed));
                     }
                 }
+            }
+
+            if !row_valid {
+                continue;
+            }
+
+            let timestamp = row_timestamp.ok_or_else(|| ParserError::DataRow {
+                parser: Self::NAME,
+                line_index,
+                message: "timestamp column missing".to_string(),
+            })?;
+            let record_value = row_record.ok_or_else(|| ParserError::DataRow {
+                parser: Self::NAME,
+                line_index,
+                message: "record column missing".to_string(),
+            })?;
+
+            if let Some(value_str) = row_logger_id.as_ref() {
+                if let Some(existing) = canonical_logger_id.as_ref() {
+                    if existing != value_str {
+                        return Err(ParserError::Validation {
+                            parser: Self::NAME,
+                            message: format!(
+                                "logger id column contained inconsistent values ({} != {})",
+                                existing, value_str
+                            ),
+                        });
+                    }
+                } else {
+                    canonical_logger_id = Some(value_str.clone());
+                }
+            }
+
+            logger_columns.timestamp.push(timestamp);
+            logger_columns.record.push(record_value);
+
+            let battery_value = row_battery.unwrap_or(None);
+            logger_columns.battery_mut().push(battery_value);
+
+            let panel_value = row_panel.unwrap_or(None);
+            logger_columns.panel_mut().push(panel_value);
+
+            if logger_id_column_present {
+                let value = row_logger_id
+                    .clone()
+                    .or_else(|| canonical_logger_id.clone())
+                    .ok_or_else(|| ParserError::Validation {
+                        parser: Self::NAME,
+                        message: "unable to determine logger id".to_string(),
+                    })?;
+                logger_columns.logger_id_mut().push(Some(value));
+            }
+
+            for (address, metric, parsed) in pending_sensor_metrics {
+                sensor_builder.push_sensor_metric(address, metric, parsed);
+            }
+            for (address, depth, metric, parsed) in pending_thermistor_metrics {
+                sensor_builder.push_thermistor_metric(address, depth, metric, parsed);
             }
 
             row_count += 1;

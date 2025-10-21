@@ -6,8 +6,7 @@ use sapflux_parser::{
     formats::{
         Cr200TableParser as ExternalCr200TableParser,
         Cr300LegacyParser as ExternalCr300LegacyParser,
-        Cr300TableParser as ExternalCr300TableParser,
-        SapFlowAllParser as ExternalSapFlowAllParser,
+        Cr300TableParser as ExternalCr300TableParser, SapFlowAllParser as ExternalSapFlowAllParser,
     },
     ParsedFileData as ExternalParsedFileData,
 };

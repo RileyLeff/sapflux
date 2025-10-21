@@ -3,9 +3,7 @@ use std::path::PathBuf;
 
 use crate::errors::ParserError;
 use crate::formats::schema::{required_thermistor_metrics, LOGGER_COLUMNS};
-use crate::formats::{
-    build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser,
-};
+use crate::formats::{build_logger_dataframe, Cr300TableParser, LoggerColumns, SapFlowAllParser};
 use crate::model::{ParsedFileData, ThermistorDepth};
 use crate::parse_sapflow_file;
 use crate::registry::SapflowParser;
@@ -50,6 +48,30 @@ fn parses_sapflow_all_multi_sensor() {
     assert!(inner.df.column("sap_flux_density_cmh").is_err());
     assert!(outer.df.column("sap_flux_density_cmh").is_err());
     assert_eq!(inner.df.height(), parsed.logger.df.height());
+}
+
+#[test]
+fn sapflow_all_parses_three_sensor_file() {
+    let content = fixture("CR300Series_423_SapFlowAll.dat");
+    let parsed = parse_sapflow_file(&content).expect("three sensor SapFlowAll parse failed");
+
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+    assert_eq!(parsed.logger.df.height(), 2);
+    assert_eq!(parsed.logger.sensors.len(), 3);
+
+    let expected_columns: Vec<&str> = required_thermistor_metrics()
+        .iter()
+        .map(|metric| metric.canonical_name())
+        .collect();
+
+    for sensor in &parsed.logger.sensors {
+        assert!(sensor.sensor_df.is_none());
+        assert_eq!(sensor.thermistor_pairs.len(), 2);
+        for pair in &sensor.thermistor_pairs {
+            assert_eq!(pair.df.get_column_names(), expected_columns);
+            assert_eq!(pair.df.height(), parsed.logger.df.height());
+        }
+    }
 }
 
 #[test]
@@ -134,6 +156,25 @@ fn parses_cr300_legacy_table_file() {
 }
 
 #[test]
+fn cr300_table_skips_rows_with_invalid_sdi() {
+    let content = fixture("CR300Series_502_InvalidSdi.csv");
+    let parsed = parse_sapflow_file(&content).expect("CR300 invalid SDI parse failed");
+
+    assert_eq!(parsed.logger.df.height(), 4);
+
+    let records = parsed
+        .logger
+        .df
+        .column("record")
+        .expect("record column missing")
+        .i64()
+        .expect("record column not integer")
+        .into_no_null_iter()
+        .collect::<Vec<_>>();
+    assert_eq!(records, vec![0, 1, 3, 4]);
+}
+
+#[test]
 fn parses_cr200_table_file() {
     let content = fixture("CR200Series_304_Table2.dat");
     let parsed = parse_sapflow_file(&content).expect("CR200 table parse failed");
@@ -151,7 +192,11 @@ fn parses_cr200_table_file() {
         .df
         .column("panel_temperature_c")
         .expect("panel_temperature_c column missing");
-    assert!(panel_col.f64().unwrap().into_iter().all(|entry| entry.is_none()));
+    assert!(panel_col
+        .f64()
+        .unwrap()
+        .into_iter()
+        .all(|entry| entry.is_none()));
 
     let sensor = &parsed.logger.sensors[0];
     assert!(sensor.sensor_df.is_none());
@@ -182,6 +227,38 @@ fn parses_cr200_table_file() {
         .column("logger_id")
         .expect("logger_id column missing");
     assert_eq!(logger_id_col.str().unwrap().get(0), Some("304"));
+}
+
+#[test]
+fn parses_cr200_table1_truncated_units() {
+    let content = fixture("CR200Series_304_Table1_Truncated.csv");
+    let parsed = parse_sapflow_file(&content).expect("CR200 truncated header parse failed");
+
+    assert_eq!(parsed.logger.df.get_column_names(), LOGGER_COLUMNS);
+
+    let ids = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing")
+        .str()
+        .expect("logger_id column not utf8");
+    assert!(ids.into_iter().all(|value| value == Some("304")));
+}
+
+#[test]
+fn cr200_logger_id_tolerates_sparse_values() {
+    let content = fixture("CR200Series_305_Table2_NanId.csv");
+    let parsed = parse_sapflow_file(&content).expect("CR200 sparse id parse failed");
+
+    let ids = parsed
+        .logger
+        .df
+        .column("logger_id")
+        .expect("logger_id column missing")
+        .str()
+        .expect("logger_id column not utf8");
+    assert!(ids.into_iter().all(|value| value == Some("305")));
 }
 
 #[test]

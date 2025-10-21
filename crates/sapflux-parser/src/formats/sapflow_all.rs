@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use csv::StringRecord;
 
 use crate::errors::ParserError;
@@ -9,6 +11,137 @@ use super::{
     parse_optional_f64, parse_optional_i64, parse_required_i64, parse_timestamp, ColumnRole,
     LoggerColumnKind, LoggerColumns, SensorFrameBuilder, ThermistorMetric,
 };
+
+#[derive(Clone, Copy)]
+struct SensorColumnSpec {
+    suffix: &'static str,
+    depth: ThermistorDepth,
+    metric: ThermistorMetric,
+    unit: &'static str,
+}
+
+const SENSOR_COLUMN_SPECS: [SensorColumnSpec; 20] = [
+    SensorColumnSpec {
+        suffix: "alpout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::Alpha,
+        unit: "ratio",
+    },
+    SensorColumnSpec {
+        suffix: "alpinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::Alpha,
+        unit: "ratio",
+    },
+    SensorColumnSpec {
+        suffix: "betout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::Beta,
+        unit: "ratio",
+    },
+    SensorColumnSpec {
+        suffix: "betinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::Beta,
+        unit: "ratio",
+    },
+    SensorColumnSpec {
+        suffix: "tmxtout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::TimeToMaxDownstream,
+        unit: "sec",
+    },
+    SensorColumnSpec {
+        suffix: "tmxtinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::TimeToMaxDownstream,
+        unit: "sec",
+    },
+    SensorColumnSpec {
+        suffix: "tpdsout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::PrePulseTempDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "dtdsout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::MaxTempRiseDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tsdsout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::PostPulseTempDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tpusout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::PrePulseTempUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "dtusout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::MaxTempRiseUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tsusout",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::PostPulseTempUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tpdsinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::PrePulseTempDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "dtdsinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::MaxTempRiseDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tsdsinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::PostPulseTempDownstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tpusinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::PrePulseTempUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "dtusinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::MaxTempRiseUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tsusinn",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::PostPulseTempUpstream,
+        unit: "degC",
+    },
+    SensorColumnSpec {
+        suffix: "tmxtuso",
+        depth: ThermistorDepth::Outer,
+        metric: ThermistorMetric::TimeToMaxUpstream,
+        unit: "sec",
+    },
+    SensorColumnSpec {
+        suffix: "tmxtusi",
+        depth: ThermistorDepth::Inner,
+        metric: ThermistorMetric::TimeToMaxUpstream,
+        unit: "sec",
+    },
+];
 
 pub struct SapFlowAllParser;
 
@@ -52,81 +185,17 @@ impl SapFlowAllParser {
 
         if let Some((address, suffix)) = Self::split_sensor_column(trimmed) {
             let lower = suffix.to_ascii_lowercase();
-            let (depth, metric) = match lower.as_str() {
-                "alpout" => (ThermistorDepth::Outer, ThermistorMetric::Alpha),
-                "alpinn" => (ThermistorDepth::Inner, ThermistorMetric::Alpha),
-                "betout" => (ThermistorDepth::Outer, ThermistorMetric::Beta),
-                "betinn" => (ThermistorDepth::Inner, ThermistorMetric::Beta),
-                "tmxtout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::TimeToMaxDownstream,
-                ),
-                "tmxtinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::TimeToMaxDownstream,
-                ),
-                "tpdsout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::PrePulseTempDownstream,
-                ),
-                "tpdsinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::PrePulseTempDownstream,
-                ),
-                "dtdsout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::MaxTempRiseDownstream,
-                ),
-                "dtdsinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::MaxTempRiseDownstream,
-                ),
-                "tsdsout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::PostPulseTempDownstream,
-                ),
-                "tsdsinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::PostPulseTempDownstream,
-                ),
-                "tpusout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::PrePulseTempUpstream,
-                ),
-                "tpusinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::PrePulseTempUpstream,
-                ),
-                "dtusout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::MaxTempRiseUpstream,
-                ),
-                "dtusinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::MaxTempRiseUpstream,
-                ),
-                "tsusout" => (
-                    ThermistorDepth::Outer,
-                    ThermistorMetric::PostPulseTempUpstream,
-                ),
-                "tsusinn" => (
-                    ThermistorDepth::Inner,
-                    ThermistorMetric::PostPulseTempUpstream,
-                ),
-                "tmxtuso" => (ThermistorDepth::Outer, ThermistorMetric::TimeToMaxUpstream),
-                "tmxtusi" => (ThermistorDepth::Inner, ThermistorMetric::TimeToMaxUpstream),
-                other => {
-                    return Err(ParserError::FormatMismatch {
-                        parser: Self::NAME,
-                        reason: format!("unrecognized sensor column suffix '{other}'"),
-                    });
-                }
-            };
+            if let Some(spec) = Self::sensor_spec_by_suffix(&lower) {
+                return Ok(ColumnRole::ThermistorMetric {
+                    address,
+                    depth: spec.depth,
+                    metric: spec.metric,
+                });
+            }
 
-            return Ok(ColumnRole::ThermistorMetric {
-                address,
-                depth,
-                metric,
+            return Err(ParserError::FormatMismatch {
+                parser: Self::NAME,
+                reason: format!("unrecognized sensor column suffix '{lower}'"),
             });
         }
 
@@ -147,6 +216,33 @@ impl SapFlowAllParser {
         let addr_char = prefix.chars().nth(1)?;
         let address = Sdi12Address::new(addr_char).ok()?;
         Some((address, suffix))
+    }
+
+    fn sensor_spec_by_suffix(lower: &str) -> Option<&'static SensorColumnSpec> {
+        SENSOR_COLUMN_SPECS.iter().find(|spec| spec.suffix == lower)
+    }
+
+    fn logger_unit_matches(kind: LoggerColumnKind, value: &str) -> bool {
+        match kind {
+            LoggerColumnKind::Timestamp => value.eq_ignore_ascii_case("TS"),
+            LoggerColumnKind::Record => value.eq_ignore_ascii_case("RN"),
+            LoggerColumnKind::BatteryVoltage => {
+                value.is_empty() || value.eq_ignore_ascii_case("Volts")
+            }
+            LoggerColumnKind::PanelTemperature => {
+                value.is_empty() || value.eq_ignore_ascii_case("degC")
+            }
+            LoggerColumnKind::LoggerId => value.is_empty(),
+        }
+    }
+
+    fn logger_characteristic_matches(kind: LoggerColumnKind, value: &str) -> bool {
+        match kind {
+            LoggerColumnKind::Timestamp | LoggerColumnKind::Record => value.is_empty(),
+            LoggerColumnKind::BatteryVoltage
+            | LoggerColumnKind::PanelTemperature
+            | LoggerColumnKind::LoggerId => value.is_empty() || value.eq_ignore_ascii_case("Smp"),
+        }
     }
 
     fn reader_builder() -> csv::ReaderBuilder {
@@ -210,8 +306,10 @@ impl SapFlowAllParser {
                 source: err,
             })?;
 
-        Self::validate_units(&columns, &units)?;
-        Self::validate_measurements(&characteristics)?;
+        let column_roles = Self::classify_columns(&columns)?;
+
+        Self::validate_units(&columns, &units, &column_roles)?;
+        Self::validate_measurements(&columns, &characteristics, &column_roles)?;
 
         if units.len() != columns.len() || characteristics.len() != columns.len() {
             return Err(ParserError::FormatMismatch {
@@ -219,8 +317,6 @@ impl SapFlowAllParser {
                 reason: "header rows have inconsistent column counts".to_string(),
             });
         }
-
-        let column_roles = Self::classify_columns(&columns)?;
 
         let mut logger_columns = LoggerColumns::new(0);
         let mut sensor_builder = SensorFrameBuilder::new();
@@ -326,13 +422,7 @@ impl SapFlowAllParser {
                             parse_optional_f64(Self::NAME, value, line_index, header_name)?;
                         sensor_builder.push_thermistor_metric(*address, *depth, *metric, parsed);
                     }
-                    ColumnRole::SensorAddress { .. } | ColumnRole::SensorMetric { .. } => {
-                        return Err(ParserError::FormatMismatch {
-                            parser: Self::NAME,
-                            reason: "unexpected sensor column kind in SapFlowAll parser"
-                                .to_string(),
-                        });
-                    }
+                    ColumnRole::SensorAddress { .. } | ColumnRole::SensorMetric { .. } => {}
                 }
             }
 
@@ -382,66 +472,226 @@ impl SapFlowAllParser {
             })
         }
     }
-    fn validate_units(columns: &StringRecord, units: &StringRecord) -> Result<(), ParserError> {
-        const EXPECTED_UNITS: &[&str] = &[
-            "TS", "RN", "", "", "ratio", "ratio", "ratio", "ratio", "sec", "sec", "degC", "degC",
-            "degC", "degC", "degC", "degC", "degC", "degC", "degC", "degC", "degC", "degC", "sec",
-            "sec", "ratio", "ratio", "ratio", "ratio", "sec", "sec", "degC", "degC", "degC",
-            "degC", "degC", "degC", "degC", "degC", "degC", "degC", "degC", "degC", "sec", "sec",
-        ];
-        if units.len() != EXPECTED_UNITS.len() {
+    fn validate_units(
+        columns: &StringRecord,
+        units: &StringRecord,
+        roles: &[ColumnRole],
+    ) -> Result<(), ParserError> {
+        if units.len() != roles.len() {
             return Err(ParserError::InvalidHeader {
                 parser: Self::NAME,
                 row_index: 3,
                 message: format!(
                     "expected {} unit columns, found {}",
-                    EXPECTED_UNITS.len(),
+                    roles.len(),
                     units.len()
                 ),
             });
         }
-        for (idx, (found, expected)) in units.iter().zip(EXPECTED_UNITS.iter()).enumerate() {
-            if found != *expected {
+
+        let mut sensor_counts: HashMap<Sdi12Address, usize> = HashMap::new();
+        let mut current_address: Option<Sdi12Address> = None;
+        let mut metric_index: usize = 0;
+
+        for (idx, (role, unit)) in roles.iter().zip(units.iter()).enumerate() {
+            match role {
+                ColumnRole::Logger(kind) => {
+                    current_address = None;
+                    metric_index = 0;
+                    if !Self::logger_unit_matches(*kind, unit) {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 3,
+                            message: format!(
+                                "unexpected units '{unit}' for column '{}'",
+                                columns.get(idx).unwrap_or("")
+                            ),
+                        });
+                    }
+                }
+                ColumnRole::ThermistorMetric {
+                    address,
+                    depth,
+                    metric,
+                } => {
+                    if current_address != Some(*address) {
+                        if let Some(prev) = current_address {
+                            if metric_index != SENSOR_COLUMN_SPECS.len() {
+                                return Err(ParserError::InvalidHeader {
+                                    parser: Self::NAME,
+                                    row_index: 3,
+                                    message: format!(
+                                        "sensor {prev} had {metric_index} columns, expected {}",
+                                        SENSOR_COLUMN_SPECS.len()
+                                    ),
+                                });
+                            }
+                        }
+                        current_address = Some(*address);
+                        metric_index = 0;
+                    }
+
+                    if metric_index >= SENSOR_COLUMN_SPECS.len() {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 3,
+                            message: format!(
+                                "sensor {address} had more than {} columns",
+                                SENSOR_COLUMN_SPECS.len()
+                            ),
+                        });
+                    }
+
+                    let spec = &SENSOR_COLUMN_SPECS[metric_index];
+                    if spec.depth != *depth || spec.metric != *metric {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 3,
+                            message: format!(
+                                "unexpected column '{}' at position {idx}",
+                                columns.get(idx).unwrap_or("")
+                            ),
+                        });
+                    }
+                    if unit != spec.unit {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 3,
+                            message: format!(
+                                "unexpected units '{unit}' for column '{}' (expected '{}')",
+                                columns.get(idx).unwrap_or(""),
+                                spec.unit
+                            ),
+                        });
+                    }
+                    metric_index += 1;
+                    *sensor_counts.entry(*address).or_insert(0) += 1;
+                }
+                ColumnRole::SensorAddress { .. } | ColumnRole::SensorMetric { .. } => {}
+            }
+        }
+
+        if let Some(address) = current_address {
+            if metric_index != SENSOR_COLUMN_SPECS.len() {
                 return Err(ParserError::InvalidHeader {
                     parser: Self::NAME,
                     row_index: 3,
                     message: format!(
-                        "unexpected units '{found}' for column '{}' at position {idx}",
-                        columns.get(idx).unwrap_or("")
+                        "sensor {address} had {metric_index} columns, expected {}",
+                        SENSOR_COLUMN_SPECS.len()
                     ),
                 });
             }
         }
+
+        for (address, count) in sensor_counts {
+            if count != SENSOR_COLUMN_SPECS.len() {
+                return Err(ParserError::InvalidHeader {
+                    parser: Self::NAME,
+                    row_index: 3,
+                    message: format!(
+                        "sensor {address} had {count} columns, expected {}",
+                        SENSOR_COLUMN_SPECS.len()
+                    ),
+                });
+            }
+        }
+
         Ok(())
     }
 
-    fn validate_measurements(characteristics: &StringRecord) -> Result<(), ParserError> {
-        const EXPECTED: &[&str] = &[
-            "", "", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
-            "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
-            "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
-            "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
-        ];
-        if characteristics.len() != EXPECTED.len() {
+    fn validate_measurements(
+        columns: &StringRecord,
+        characteristics: &StringRecord,
+        roles: &[ColumnRole],
+    ) -> Result<(), ParserError> {
+        if characteristics.len() != roles.len() {
             return Err(ParserError::InvalidHeader {
                 parser: Self::NAME,
                 row_index: 4,
                 message: format!(
                     "expected {} characteristic columns, found {}",
-                    EXPECTED.len(),
+                    roles.len(),
                     characteristics.len()
                 ),
             });
         }
-        for (idx, (found, expected)) in characteristics.iter().zip(EXPECTED.iter()).enumerate() {
-            if found != *expected {
+
+        let mut current_address: Option<Sdi12Address> = None;
+        let mut metric_index: usize = 0;
+
+        for (idx, (role, value)) in roles.iter().zip(characteristics.iter()).enumerate() {
+            match role {
+                ColumnRole::Logger(kind) => {
+                    current_address = None;
+                    metric_index = 0;
+                    if !Self::logger_characteristic_matches(*kind, value) {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 4,
+                            message: format!(
+                                "unexpected characteristic '{value}' for column '{}'",
+                                columns.get(idx).unwrap_or("")
+                            ),
+                        });
+                    }
+                }
+                ColumnRole::ThermistorMetric { address, .. } => {
+                    if current_address != Some(*address) {
+                        if let Some(prev) = current_address {
+                            if metric_index != SENSOR_COLUMN_SPECS.len() {
+                                return Err(ParserError::InvalidHeader {
+                                    parser: Self::NAME,
+                                    row_index: 4,
+                                    message: format!(
+                                        "sensor {prev} had {metric_index} characteristics, expected {}",
+                                        SENSOR_COLUMN_SPECS.len()
+                                    ),
+                                });
+                            }
+                        }
+                        current_address = Some(*address);
+                        metric_index = 0;
+                    }
+                    if metric_index >= SENSOR_COLUMN_SPECS.len() {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 4,
+                            message: format!(
+                                "sensor {address} had more than {} characteristics",
+                                SENSOR_COLUMN_SPECS.len()
+                            ),
+                        });
+                    }
+                    if !value.eq_ignore_ascii_case("Smp") {
+                        return Err(ParserError::InvalidHeader {
+                            parser: Self::NAME,
+                            row_index: 4,
+                            message: format!(
+                                "unexpected characteristic '{value}' for column '{}'",
+                                columns.get(idx).unwrap_or("")
+                            ),
+                        });
+                    }
+                    metric_index += 1;
+                }
+                ColumnRole::SensorAddress { .. } | ColumnRole::SensorMetric { .. } => {}
+            }
+        }
+
+        if let Some(address) = current_address {
+            if metric_index != SENSOR_COLUMN_SPECS.len() {
                 return Err(ParserError::InvalidHeader {
                     parser: Self::NAME,
                     row_index: 4,
-                    message: format!("unexpected value '{found}' at measurement column {idx}"),
+                    message: format!(
+                        "sensor {address} had {metric_index} characteristics, expected {}",
+                        SENSOR_COLUMN_SPECS.len()
+                    ),
                 });
             }
         }
+
         Ok(())
     }
 }

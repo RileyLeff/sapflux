@@ -7,8 +7,8 @@ use crate::registry::SapflowParser;
 use super::{
     build_logger_dataframe, derive_logger_id_from_header, make_logger_data, parse_metadata,
     parse_optional_f64, parse_optional_i64, parse_required_i64, parse_sdi12_address,
-    parse_timestamp, ColumnRole, LoggerColumnKind, LoggerColumns, SensorFrameBuilder,
-    SensorMetric, ThermistorMetric,
+    parse_timestamp, ColumnRole, LoggerColumnKind, LoggerColumns, SensorFrameBuilder, SensorMetric,
+    ThermistorMetric,
 };
 
 pub struct Cr200TableParser;
@@ -59,14 +59,14 @@ impl Cr200TableParser {
                         metric: SensorMetric::TotalSapFlow,
                     });
                 }
-                "vhout" => {
+                "vhout" | "vhouter" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Outer,
                         metric: ThermistorMetric::SapFluxDensity,
                     });
                 }
-                "vhin" => {
+                "vhin" | "vhinner" => {
                     return Ok(ColumnRole::ThermistorMetric {
                         address,
                         depth: ThermistorDepth::Inner,
@@ -166,15 +166,15 @@ impl Cr200TableParser {
             "Volts",
             "",
             "",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
-            "unit",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
+            "UNIT_SENSOR",
         ];
         if units.len() != EXPECTED.len() {
             return Err(ParserError::InvalidHeader {
@@ -188,7 +188,21 @@ impl Cr200TableParser {
             });
         }
         for (idx, (found, expected)) in units.iter().zip(EXPECTED.iter()).enumerate() {
-            if found != *expected {
+            let ok = match *expected {
+                "UNIT_SENSOR" => matches!(
+                    found,
+                    "unit"
+                        | "UNIT"
+                        | "literPerHour"
+                        | "literPerHo"
+                        | "heatVelocity"
+                        | "heatVeloci"
+                        | "logTRatio"
+                        | "second"
+                ),
+                other => found == other,
+            };
+            if !ok {
                 return Err(ParserError::InvalidHeader {
                     parser: Self::NAME,
                     row_index: 3,
@@ -201,19 +215,7 @@ impl Cr200TableParser {
 
     fn validate_measurements(characteristics: &StringRecord) -> Result<(), ParserError> {
         const EXPECTED: &[&str] = &[
-            "",
-            "",
-            "Min",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
-            "Smp",
+            "", "", "Min", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp", "Smp",
             "Smp",
         ];
         if characteristics.len() != EXPECTED.len() {
@@ -232,9 +234,7 @@ impl Cr200TableParser {
                 return Err(ParserError::InvalidHeader {
                     parser: Self::NAME,
                     row_index: 4,
-                    message: format!(
-                        "unexpected value '{found}' at measurement column {idx}"
-                    ),
+                    message: format!("unexpected value '{found}' at measurement column {idx}"),
                 });
             }
         }
@@ -318,6 +318,8 @@ impl SapflowParser for Cr200TableParser {
         let mut row_count = 0usize;
         let mut previous_record: Option<i64> = None;
         let mut canonical_logger_id: Option<String> = None;
+        let mut logger_id_values: Vec<Option<String>> = Vec::new();
+        let mut logger_id_column_present = false;
 
         for (row_idx, record) in records.enumerate() {
             let record = record.map_err(|err| ParserError::Csv {
@@ -379,31 +381,30 @@ impl SapflowParser for Cr200TableParser {
                             logger_columns.panel_mut().push(parsed);
                         }
                         LoggerColumnKind::LoggerId => {
+                            logger_id_column_present = true;
                             let parsed =
                                 parse_optional_i64(Self::NAME, value, line_index, header_name)?;
-                            let value = parsed.ok_or_else(|| ParserError::DataRow {
-                                parser: Self::NAME,
-                                line_index,
-                                message: "logger id column contained NULL".to_string(),
-                            })?;
 
-                            let value_str = value.to_string();
-                            if let Some(existing) = canonical_logger_id.as_ref() {
-                                if existing != &value_str {
-                                    return Err(ParserError::Validation {
-                                        parser: Self::NAME,
-                                        message: format!(
-                                            "logger id column contained inconsistent values ({} != {})",
-                                            existing,
-                                            value_str
-                                        ),
-                                    });
+                            if let Some(value) = parsed {
+                                let value_str = value.to_string();
+                                if let Some(existing) = canonical_logger_id.as_ref() {
+                                    if existing != &value_str {
+                                        return Err(ParserError::Validation {
+                                            parser: Self::NAME,
+                                            message: format!(
+                                                "logger id column contained inconsistent values ({} != {})",
+                                                existing,
+                                                value_str
+                                            ),
+                                        });
+                                    }
+                                } else {
+                                    canonical_logger_id = Some(value_str.clone());
                                 }
+                                logger_id_values.push(Some(value_str));
                             } else {
-                                canonical_logger_id = Some(value_str.clone());
+                                logger_id_values.push(None);
                             }
-
-                            logger_columns.logger_id_mut().push(Some(value_str));
                         }
                     },
                     ColumnRole::SensorAddress { address } => {
@@ -443,6 +444,39 @@ impl SapflowParser for Cr200TableParser {
 
         if row_count == 0 {
             return Err(ParserError::EmptyData { parser: Self::NAME });
+        }
+
+        if logger_id_column_present {
+            if canonical_logger_id.is_none() {
+                canonical_logger_id = Some(derive_logger_id_from_header(Self::NAME, &metadata)?);
+            }
+
+            let canonical = canonical_logger_id.expect("canonical logger id must exist");
+            let mut any_observed = false;
+            for entry in logger_id_values.iter_mut() {
+                if let Some(value) = entry {
+                    any_observed = true;
+                    if value != &canonical {
+                        return Err(ParserError::Validation {
+                            parser: Self::NAME,
+                            message: format!(
+                                "logger id column contained inconsistent values ({} != {})",
+                                value, canonical
+                            ),
+                        });
+                    }
+                } else {
+                    *entry = Some(canonical.clone());
+                }
+            }
+
+            if !any_observed {
+                for entry in logger_id_values.iter_mut() {
+                    *entry = Some(canonical.clone());
+                }
+            }
+
+            logger_columns.logger_id = Some(logger_id_values);
         }
 
         if logger_columns.logger_id.is_none() {
