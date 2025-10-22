@@ -20,7 +20,29 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
     let flux_min = df.column("quality_min_flux_cm_hr")?.f64()?;
     let sap_flux = df.column("sap_flux_density_j_dma_cm_hr")?.f64()?;
     let logger_id = df.column("logger_id")?.str()?;
+    let sdi_series = df.column("sdi12_address")?.str()?;
     let record_series = df.column("record")?.i64()?;
+
+    let mut earliest_start_by_sensor: HashMap<(String, String), i64> = HashMap::new();
+    for idx in 0..len {
+        let (Some(logger), Some(address), Some(start_value)) = (
+            logger_id.get(idx),
+            sdi_series.get(idx),
+            start_ts.get(idx),
+        ) else {
+            continue;
+        };
+
+        let key = (logger.to_string(), address.to_string());
+        earliest_start_by_sensor
+            .entry(key)
+            .and_modify(|existing| {
+                if start_value < *existing {
+                    *existing = start_value;
+                }
+            })
+            .or_insert(start_value);
+    }
 
     let mut per_logger: HashMap<&str, Vec<(i64, i64, usize)>> = HashMap::new();
 
@@ -59,9 +81,10 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
 
     for (idx, &has_gap) in record_gap_flags.iter().enumerate() {
         let ts = timestamp.get(idx);
+        let deployment_start = start_ts.get(idx);
         let mut reasons = Vec::new();
 
-        if let (Some(ts_val), Some(start_val)) = (ts, start_ts.get(idx)) {
+        if let (Some(ts_val), Some(start_val)) = (ts, deployment_start) {
             let grace = start_grace.get(idx).unwrap_or(0.0);
             let limit = (start_val as f64) - grace * MINUTES_TO_MICROS;
             if (ts_val as f64) < limit {
@@ -70,6 +93,21 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
         }
 
         if let Some(ts_val) = ts {
+            if deployment_start.is_none() {
+                if let (Some(logger), Some(address)) =
+                    (logger_id.get(idx), sdi_series.get(idx))
+                {
+                    let key = (logger.to_string(), address.to_string());
+                    if let Some(&earliest_start) = earliest_start_by_sensor.get(&key) {
+                        let grace = start_grace.get(idx).unwrap_or(0.0);
+                        let limit = (earliest_start as f64) - grace * MINUTES_TO_MICROS;
+                        if (ts_val as f64) < limit {
+                            reasons.push("timestamp_before_first_deployment");
+                        }
+                    }
+                }
+            }
+
             let effective_end = end_ts.get(idx).unwrap_or(now_micros);
             let grace = end_grace.get(idx).unwrap_or(0.0);
             let limit = (effective_end as f64) + grace * MINUTES_TO_MICROS;

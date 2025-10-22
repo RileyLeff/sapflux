@@ -1,5 +1,21 @@
 # Changelog
 
+## 2025-10-22
+
+### Added
+- Quality filter now marks rows whose timestamps fall before the earliest deployment for a given logger/address, producing a `timestamp_before_first_deployment` reason.
+- Pipeline summary includes `excluded_rows_no_deployment` so receipts surface rows dropped due to missing deployment metadata.
+
+### Changed
+- Quality filters require `sdi12_address` and compute earliest deployment timestamps per sensor before applying suspect flags.
+- Pipeline drops rows without `deployment_id` prior to publishing outputs, updating all derived summaries to use the filtered frame.
+- Rileydata smoke script respects `SMOKE_SKIP_STACK=1`, allowing reuse of a running stack during debugging.
+- `api` service runs with `RUST_LOG=info` in docker-compose for easier diagnostics.
+
+### Fixed
+- Rows lacking deployment metadata are excluded from parquet outputs while still accounted for in transaction receipts.
+
+
 ## 2025-10-21
 
 ### Added

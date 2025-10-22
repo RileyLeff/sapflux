@@ -14,7 +14,7 @@ use crate::object_store::ObjectStore;
 use crate::outputs::publish_output;
 use crate::pipelines::{all_pipelines, ExecutionContext};
 use crate::timestamp_fixer::{SkippedChunk, SkippedChunkReason, TimestampFixerError};
-use polars::prelude::{ChunkAgg, DataFrame};
+use polars::prelude::{ChunkAgg, DataFrame, PolarsError};
 
 #[derive(Debug)]
 pub struct TransactionFile {
@@ -50,6 +50,8 @@ pub struct PipelineSummary {
     pub record_summary: Option<RecordSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skipped_chunks: Option<Vec<SkippedChunkSummary>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub excluded_rows_no_deployment: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -245,6 +247,7 @@ async fn execute_transaction_locked(
                 provenance_summary: None,
                 record_summary: None,
                 skipped_chunks: None,
+                excluded_rows_no_deployment: None,
             },
             dataframe: None,
         }
@@ -261,6 +264,7 @@ async fn execute_transaction_locked(
                     provenance_summary: None,
                     record_summary: None,
                     skipped_chunks: None,
+                    excluded_rows_no_deployment: None,
                 },
                 dataframe: None,
             },
@@ -463,6 +467,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 provenance_summary: None,
                 record_summary: None,
                 skipped_chunks: None,
+                excluded_rows_no_deployment: None,
             },
             dataframe: None,
         };
@@ -479,6 +484,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 provenance_summary: None,
                 record_summary: None,
                 skipped_chunks: None,
+                excluded_rows_no_deployment: None,
             },
             dataframe: None,
         };
@@ -496,19 +502,47 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
             Ok(output) => {
                 let df = output.dataframe;
                 let skipped_chunk_summaries = summarize_skipped_chunks(output.skipped_chunks);
+                let (filtered_df, excluded_without_deployment) =
+                    match filter_rows_without_deployment(&df) {
+                        Ok(result) => result,
+                        Err(err) => {
+                            return PipelineRun {
+                                summary: PipelineSummary {
+                                    pipeline: Some(pipeline.code_identifier().to_string()),
+                                    status: PipelineStatus::Failed,
+                                    row_count: None,
+                                    error: Some(format!(
+                                        "failed to filter rows without deployment metadata: {err}"
+                                    )),
+                                    quality_summary: None,
+                                    provenance_summary: None,
+                                    record_summary: None,
+                                    skipped_chunks: skipped_chunk_summaries,
+                                    excluded_rows_no_deployment: None,
+                                },
+                                dataframe: None,
+                            };
+                        }
+                    };
+                let excluded_rows_no_deployment = if excluded_without_deployment > 0 {
+                    Some(excluded_without_deployment)
+                } else {
+                    None
+                };
 
                 PipelineRun {
                     summary: PipelineSummary {
                         pipeline: Some(pipeline.code_identifier().to_string()),
                         status: PipelineStatus::Success,
-                        row_count: Some(df.height()),
+                        row_count: Some(filtered_df.height()),
                         error: None,
-                        quality_summary: compute_quality_summary(&df),
-                        provenance_summary: compute_provenance_summary(&df),
-                        record_summary: compute_record_summary(&df),
+                        quality_summary: compute_quality_summary(&filtered_df),
+                        provenance_summary: compute_provenance_summary(&filtered_df),
+                        record_summary: compute_record_summary(&filtered_df),
                         skipped_chunks: skipped_chunk_summaries,
+                        excluded_rows_no_deployment,
                     },
-                    dataframe: Some(df),
+                    dataframe: Some(filtered_df),
                 }
             }
             Err(err) => {
@@ -533,6 +567,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                         provenance_summary: None,
                         record_summary: None,
                         skipped_chunks: None,
+                        excluded_rows_no_deployment: None,
                     },
                     dataframe: None,
                 }
@@ -549,6 +584,7 @@ fn run_pipeline(context: &ExecutionContext, batch: &IngestionBatch) -> PipelineR
                 provenance_summary: None,
                 record_summary: None,
                 skipped_chunks: None,
+                excluded_rows_no_deployment: None,
             },
             dataframe: None,
         }
@@ -582,6 +618,14 @@ fn skipped_reason_to_str(reason: SkippedChunkReason) -> &'static str {
         SkippedChunkReason::NoActiveDeployment => "no_active_deployment",
         SkippedChunkReason::MissingUtcOffset => "missing_utc_offset",
     }
+}
+
+fn filter_rows_without_deployment(df: &DataFrame) -> Result<(DataFrame, usize), PolarsError> {
+    let total_rows = df.height();
+    let mask = df.column("deployment_id")?.is_not_null();
+    let filtered = df.filter(&mask)?;
+    let excluded = total_rows.saturating_sub(filtered.height());
+    Ok((filtered, excluded))
 }
 
 fn compute_quality_summary(df: &DataFrame) -> Option<QualitySummary> {

@@ -132,6 +132,7 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     compose_cmd = shlex.split(os.environ.get("COMPOSE", "docker compose"))
     stack = "sapflux-rileydata-full"
+    skip_stack = os.environ.get("SMOKE_SKIP_STACK") == "1"
     manifest_path = repo_root / "rileydata" / "transaction" / "meta_tx.toml"
     rawdata_dir = repo_root / "rileydata" / "rawdata"
     output_dir = repo_root / "rileydata" / "output"
@@ -145,10 +146,11 @@ def main() -> None:
         manifest_text = manifest_path.read_text()
         tmp_manifest_path.write_text(manifest_text.replace("[[deployments.add]]", "[[deployments]]"))
 
-        # Start fresh stack
-        run(compose_cmd + ["-p", stack, "down", "-v"], check=False)
-        run(compose_cmd + ["-p", stack, "up", "-d", "--build"])
-        run(compose_cmd + ["-p", stack, "wait"], check=False)
+        # Start fresh stack unless disabled (for debugging)
+        if not skip_stack:
+            run(compose_cmd + ["-p", stack, "down", "-v"], check=False)
+            run(compose_cmd + ["-p", stack, "up", "-d", "--build"])
+            run(compose_cmd + ["-p", stack, "wait"], check=False)
 
         wait_for_api("http://localhost:8080/health")
 

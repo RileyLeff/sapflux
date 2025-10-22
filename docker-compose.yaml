@@ -55,6 +55,7 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       SAPFLUX_GIT_COMMIT_HASH: local-dev
       S3_BUCKET: sapflux
+      RUST_LOG: info
     ports:
       - "8080:8080"
     command: ["/app/sapflux", "serve", "--addr", "0.0.0.0:8080"]
