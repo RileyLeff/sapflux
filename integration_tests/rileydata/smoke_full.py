@@ -48,6 +48,12 @@ class LazyFile:
         self._fh = None
 
     def read(self, size: int = -1) -> bytes:
+        if size == -1:
+            # `requests` reads the full file in a single call; avoid holding
+            # a persistent handle when we only need the bytes once.
+            with open(self.path, "rb") as fh:
+                return fh.read()
+
         if self._fh is None:
             self._fh = open(self.path, "rb")
         data = self._fh.read(size)
@@ -76,7 +82,8 @@ def build_multipart(manifest: Path, raw_files: Iterable[Path]) -> List[Tuple[str
         )
     )
     for path in raw_files:
-        files.append(("files[]", (path.name, LazyFile(path), "application/octet-stream")))
+        if path.is_file():
+            files.append(("files[]", (path.name, LazyFile(path), "application/octet-stream")))
     return files
 
 
@@ -184,9 +191,17 @@ def main() -> None:
             "http://localhost:8080/transactions", tmp_manifest_path, raw_files
         )
 
+        try:
+            response_json = response.json
+        except RuntimeError:
+            response_json = response.raw_text
+
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         receipt_path = output_dir / f"full_smoke_{timestamp}.json"
-        receipt_path.write_text(json.dumps(response.json, indent=2))
+        if isinstance(response_json, dict):
+            receipt_path.write_text(json.dumps(response_json, indent=2))
+        else:
+            receipt_path.write_text(str(response_json))
         print(f"Receipt saved to {receipt_path}")
 
         if response.status != "success":
@@ -202,7 +217,8 @@ def main() -> None:
         print("Smoke rileydata full test completed successfully")
     finally:
         try:
-            run(compose_cmd + ["-p", stack, "down", "-v"], check=False)
+            if not skip_stack:
+                run(compose_cmd + ["-p", stack, "down", "-v"], check=False)
         finally:
             if tmp_manifest_path.exists():
                 tmp_manifest_path.unlink()
