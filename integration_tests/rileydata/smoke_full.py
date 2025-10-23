@@ -18,6 +18,10 @@ from typing import Iterable, List, Tuple
 import requests
 
 
+API_BASE_URL = os.environ.get('SMOKE_API_BASE_URL', 'http://localhost:8080')
+API_MESSAGE = os.environ.get('SMOKE_MESSAGE', 'rileydata-full')
+
+
 @dataclass
 class ResponseData:
     status: str
@@ -90,7 +94,7 @@ def build_multipart(manifest: Path, raw_files: Iterable[Path]) -> List[Tuple[str
 def request_transaction(url: str, manifest: Path, raw_files: Iterable[Path]) -> ResponseData:
     files = build_multipart(manifest, raw_files)
     data = {
-        "message": "rileydata-full",
+        "message": API_MESSAGE,
         "dry_run": "false",
     }
 
@@ -157,12 +161,11 @@ def main() -> None:
         if not skip_stack:
             run(compose_cmd + ["-p", stack, "down", "-v"], check=False)
             run(compose_cmd + ["-p", stack, "up", "-d", "--build"])
-            run(compose_cmd + ["-p", stack, "wait"], check=False)
 
-        wait_for_api("http://localhost:8080/health")
+        wait_for_api(f"{API_BASE_URL}/health")
 
         for endpoint in ("admin/migrate", "admin/seed"):
-            resp = requests.post(f"http://localhost:8080/{endpoint}", timeout=30)
+            resp = requests.post(f"{API_BASE_URL}/{endpoint}", timeout=30)
             resp.raise_for_status()
 
         run(
@@ -188,7 +191,7 @@ def main() -> None:
         print(f"Posting manifest with {len(raw_files)} files")
 
         response = request_transaction(
-            "http://localhost:8080/transactions", tmp_manifest_path, raw_files
+            f"{API_BASE_URL}/transactions", tmp_manifest_path, raw_files
         )
 
         try:

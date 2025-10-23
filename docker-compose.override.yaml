@@ -1,4 +1,0 @@
-services:
-  api:
-    environment:
-      RUST_LOG: "debug,sapflux=trace"

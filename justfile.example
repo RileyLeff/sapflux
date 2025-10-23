@@ -1,0 +1,20 @@
+set shell := ["bash", "-c"]
+
+# Run the Riley data smoke test against a specific context/host.
+# Example: `just smoketest acacia` or `just smoketest redwood`
+smoketest target="acacia":
+	set -euo pipefail
+	docker context use {{target}}
+	if [ "{{target}}" = "acacia" ]; then \
+		SMOKE_API_BASE_URL="http://acacia:8080"; \
+		COMPOSE_CMD="docker --context acacia compose"; \
+	else \
+		SMOKE_API_BASE_URL="http://localhost:8080"; \
+		COMPOSE_CMD="docker compose"; \
+	fi; \
+	$$COMPOSE_CMD -p sapflux-rileydata-full logs -f & LOG_PID=$$!; \
+	cleanup() { kill $$LOG_PID 2>/dev/null || true; }; \
+	trap cleanup EXIT; \
+	SMOKE_API_BASE_URL="$$SMOKE_API_BASE_URL" \
+	COMPOSE="$$COMPOSE_CMD" \
+		uv run integration_tests/rileydata/smoke_full.py
