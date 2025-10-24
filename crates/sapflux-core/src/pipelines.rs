@@ -85,6 +85,8 @@ impl ExecutionContext {
             SELECT
                 d.deployment_id,
                 d.project_id,
+                projects.code AS project_code,
+                projects.name AS project_name,
                 d.stem_id,
                 d.sdi_address,
                 d.start_timestamp_utc,
@@ -92,10 +94,18 @@ impl ExecutionContext {
                 d.installation_metadata,
                 dl.code AS datalogger_code,
                 s.site_id,
+                s.code AS site_code,
+                s.name AS site_name,
                 zones.zone_id,
+                zones.name AS zone_name,
                 plots.plot_id,
+                plots.name AS plot_name,
                 plants.plant_id,
-                species.species_id
+                plants.code AS plant_code,
+                species.species_id,
+                species.code AS species_code,
+                species.latin_name AS species_latin_name,
+                st.code AS stem_code
             FROM deployments d
             JOIN dataloggers dl ON d.datalogger_id = dl.datalogger_id
             JOIN stems st ON d.stem_id = st.stem_id
@@ -104,6 +114,7 @@ impl ExecutionContext {
             JOIN zones ON plots.zone_id = zones.zone_id
             JOIN sites s ON zones.site_id = s.site_id
             JOIN species ON plants.species_id = species.species_id
+            JOIN projects ON d.project_id = projects.project_id
             WHERE d.include_in_pipeline = TRUE
             "#,
         )
@@ -116,6 +127,8 @@ impl ExecutionContext {
         for row in deployment_rows {
             let deployment_id: Uuid = row.try_get("deployment_id")?;
             let project_id: Uuid = row.try_get("project_id")?;
+            let project_code: String = row.try_get("project_code")?;
+            let project_name: Option<String> = row.try_get("project_name")?;
             let stem_id: Uuid = row.try_get("stem_id")?;
             let sdi_address: String = row.try_get("sdi_address")?;
             let start_timestamp_utc: DateTime<Utc> = row.try_get("start_timestamp_utc")?;
@@ -123,10 +136,18 @@ impl ExecutionContext {
             let installation_metadata: Option<Value> = row.try_get("installation_metadata")?;
             let datalogger_code: String = row.try_get("datalogger_code")?;
             let site_id: Uuid = row.try_get("site_id")?;
+            let site_code: String = row.try_get("site_code")?;
+            let site_name: Option<String> = row.try_get("site_name")?;
             let zone_id: Option<Uuid> = row.try_get("zone_id")?;
+            let zone_name: Option<String> = row.try_get("zone_name")?;
             let plot_id: Option<Uuid> = row.try_get("plot_id")?;
+            let plot_name: Option<String> = row.try_get("plot_name")?;
             let plant_id: Uuid = row.try_get("plant_id")?;
+            let plant_code: String = row.try_get("plant_code")?;
             let species_id: Uuid = row.try_get("species_id")?;
+            let species_code: String = row.try_get("species_code")?;
+            let species_latin_name: Option<Value> = row.try_get("species_latin_name")?;
+            let stem_code: String = row.try_get("stem_code")?;
 
             let tz = site_tz_map
                 .get(&site_id)
@@ -144,18 +165,29 @@ impl ExecutionContext {
             });
 
             let installation_metadata = json_value_to_map(installation_metadata);
+            let species_scientific_name = scientific_name_from_latin(species_latin_name.as_ref());
 
             enrichment_deployments.push(EnrichmentDeploymentRow {
                 deployment_id,
                 datalogger_id: datalogger_code.clone(),
                 sdi_address,
                 project_id,
+                project_code: Some(project_code),
+                project_name,
                 site_id,
+                site_code: Some(site_code),
+                site_name,
                 zone_id,
+                zone_name,
                 plot_id,
+                plot_name,
                 plant_id: Some(plant_id),
+                plant_code: Some(plant_code),
                 species_id: Some(species_id),
+                species_code: Some(species_code),
+                species_scientific_name,
                 stem_id,
+                stem_code: Some(stem_code),
                 start_timestamp_utc: datetime_to_utc_micros(start_timestamp_utc),
                 end_timestamp_utc: end_timestamp_utc.map(datetime_to_utc_micros),
                 installation_metadata,
@@ -362,4 +394,89 @@ fn json_value_to_map(value: Option<Value>) -> HashMap<String, Value> {
 #[cfg(feature = "runtime")]
 fn datetime_to_utc_micros(dt: DateTime<Utc>) -> i64 {
     dt.timestamp_micros()
+}
+
+#[cfg(feature = "runtime")]
+fn scientific_name_from_latin(value: Option<&Value>) -> Option<String> {
+    value.and_then(|val| match val {
+        Value::String(text) => normalize_scientific_name(text),
+        Value::Object(map) => {
+            const CANDIDATE_KEYS: [&str; 5] = ["binomial", "scientific", "value", "name", "text"];
+            for key in CANDIDATE_KEYS {
+                if let Some(Value::String(text)) = map.get(key) {
+                    if let Some(normalized) = normalize_scientific_name(text) {
+                        return Some(normalized);
+                    }
+                }
+            }
+
+            if let (Some(Value::String(genus)), Some(Value::String(species))) =
+                (map.get("genus"), map.get("species"))
+            {
+                let mut base = format!("{genus} {species}");
+                if let Some(Value::String(subspecies)) = map.get("subspecies") {
+                    base.push(' ');
+                    base.push_str(subspecies);
+                }
+                if let Some(normalized) = normalize_scientific_name(&base) {
+                    return Some(normalized);
+                }
+            }
+
+            for value in map.values() {
+                if let Value::String(text) = value {
+                    if let Some(normalized) = normalize_scientific_name(text) {
+                        return Some(normalized);
+                    }
+                }
+            }
+
+            None
+        }
+        Value::Array(items) => {
+            for item in items {
+                if let Some(normalized) = scientific_name_from_latin(Some(item)) {
+                    return Some(normalized);
+                }
+            }
+            None
+        }
+        _ => None,
+    })
+}
+
+#[cfg(feature = "runtime")]
+fn normalize_scientific_name(raw: &str) -> Option<String> {
+    let tokens: Vec<&str> = raw.split_whitespace().filter(|s| !s.is_empty()).collect();
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let genus = tokens[0];
+    if genus.is_empty() {
+        return None;
+    }
+
+    let mut chars = genus.chars();
+    let first = chars.next()?;
+    let mut normalized = String::new();
+    for c in first.to_uppercase() {
+        normalized.push(c);
+    }
+    normalized.push_str(&chars.as_str().to_ascii_lowercase());
+
+    let mut formatted_tail: Vec<String> = Vec::new();
+    for token in tokens.iter().skip(1) {
+        if token.is_empty() {
+            continue;
+        }
+        formatted_tail.push(token.to_ascii_lowercase());
+    }
+
+    if !formatted_tail.is_empty() {
+        normalized.push(' ');
+        normalized.push_str(&formatted_tail.join(" "));
+    }
+
+    Some(normalized)
 }

@@ -92,7 +92,11 @@ fn quality_filters_flag_expected_rules() -> PolarsResult<()> {
             vec![5.0f64; timestamp_values.len()],
         )
         .into(),
-        Series::new("quality_gap_years".into(), vec![0.01f64; timestamp_values.len()]).into(),
+        Series::new(
+            "quality_gap_years".into(),
+            vec![0.01f64; timestamp_values.len()],
+        )
+        .into(),
         Series::new(
             "quality_max_flux_cm_hr".into(),
             vec![20.0f64; timestamp_values.len()],

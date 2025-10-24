@@ -27,12 +27,22 @@ pub struct DeploymentRow {
     pub datalogger_id: String,
     pub sdi_address: String,
     pub project_id: Uuid,
+    pub project_code: Option<String>,
+    pub project_name: Option<String>,
     pub site_id: Uuid,
+    pub site_code: Option<String>,
+    pub site_name: Option<String>,
     pub zone_id: Option<Uuid>,
+    pub zone_name: Option<String>,
     pub plot_id: Option<Uuid>,
+    pub plot_name: Option<String>,
     pub plant_id: Option<Uuid>,
+    pub plant_code: Option<String>,
     pub species_id: Option<Uuid>,
+    pub species_code: Option<String>,
+    pub species_scientific_name: Option<String>,
     pub stem_id: Uuid,
+    pub stem_code: Option<String>,
     pub start_timestamp_utc: i64,
     pub end_timestamp_utc: Option<i64>,
     pub installation_metadata: HashMap<String, Value>,
@@ -114,6 +124,16 @@ pub fn enrich_with_metadata(
     let mut plant_ids = Vec::with_capacity(observations.height());
     let mut species_ids = Vec::with_capacity(observations.height());
     let mut stem_ids = Vec::with_capacity(observations.height());
+    let mut project_codes = Vec::with_capacity(observations.height());
+    let mut project_names = Vec::with_capacity(observations.height());
+    let mut site_codes = Vec::with_capacity(observations.height());
+    let mut site_names = Vec::with_capacity(observations.height());
+    let mut zone_names = Vec::with_capacity(observations.height());
+    let mut plot_names = Vec::with_capacity(observations.height());
+    let mut plant_codes = Vec::with_capacity(observations.height());
+    let mut stem_codes = Vec::with_capacity(observations.height());
+    let mut species_codes = Vec::with_capacity(observations.height());
+    let mut species_scientific_names = Vec::with_capacity(observations.height());
     let mut deployment_start_us = Vec::with_capacity(observations.height());
     let mut deployment_end_us = Vec::with_capacity(observations.height());
 
@@ -131,6 +151,16 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut project_codes,
+                    &mut project_names,
+                    &mut site_codes,
+                    &mut site_names,
+                    &mut zone_names,
+                    &mut plot_names,
+                    &mut plant_codes,
+                    &mut stem_codes,
+                    &mut species_codes,
+                    &mut species_scientific_names,
                     &mut deployment_start_us,
                     &mut deployment_end_us,
                     &mut metadata_columns,
@@ -151,6 +181,16 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut project_codes,
+                    &mut project_names,
+                    &mut site_codes,
+                    &mut site_names,
+                    &mut zone_names,
+                    &mut plot_names,
+                    &mut plant_codes,
+                    &mut stem_codes,
+                    &mut species_codes,
+                    &mut species_scientific_names,
                     &mut deployment_start_us,
                     &mut deployment_end_us,
                     &mut metadata_columns,
@@ -171,6 +211,16 @@ pub fn enrich_with_metadata(
                     &mut plant_ids,
                     &mut species_ids,
                     &mut stem_ids,
+                    &mut project_codes,
+                    &mut project_names,
+                    &mut site_codes,
+                    &mut site_names,
+                    &mut zone_names,
+                    &mut plot_names,
+                    &mut plant_codes,
+                    &mut stem_codes,
+                    &mut species_codes,
+                    &mut species_scientific_names,
                     &mut deployment_start_us,
                     &mut deployment_end_us,
                     &mut metadata_columns,
@@ -211,6 +261,16 @@ pub fn enrich_with_metadata(
             plant_ids.push(dep.plant_id.map(|id| id.to_string()));
             species_ids.push(dep.species_id.map(|id| id.to_string()));
             stem_ids.push(Some(dep.stem_id.to_string()));
+            project_codes.push(dep.project_code.clone());
+            project_names.push(dep.project_name.clone());
+            site_codes.push(dep.site_code.clone());
+            site_names.push(dep.site_name.clone());
+            zone_names.push(dep.zone_name.clone());
+            plot_names.push(dep.plot_name.clone());
+            plant_codes.push(dep.plant_code.clone());
+            stem_codes.push(dep.stem_code.clone());
+            species_codes.push(dep.species_code.clone());
+            species_scientific_names.push(dep.species_scientific_name.clone());
             deployment_start_us.push(Some(dep.start_timestamp_utc));
             deployment_end_us.push(dep.end_timestamp_utc);
 
@@ -229,6 +289,16 @@ pub fn enrich_with_metadata(
                 &mut plant_ids,
                 &mut species_ids,
                 &mut stem_ids,
+                &mut project_codes,
+                &mut project_names,
+                &mut site_codes,
+                &mut site_names,
+                &mut zone_names,
+                &mut plot_names,
+                &mut plant_codes,
+                &mut stem_codes,
+                &mut species_codes,
+                &mut species_scientific_names,
                 &mut deployment_start_us,
                 &mut deployment_end_us,
                 &mut metadata_columns,
@@ -246,6 +316,19 @@ pub fn enrich_with_metadata(
     enriched.with_column(Series::new("plant_id".into(), plant_ids))?;
     enriched.with_column(Series::new("species_id".into(), species_ids))?;
     enriched.with_column(Series::new("stem_id".into(), stem_ids))?;
+    enriched.with_column(Series::new("project_code".into(), project_codes))?;
+    enriched.with_column(Series::new("project_name".into(), project_names))?;
+    enriched.with_column(Series::new("site_code".into(), site_codes))?;
+    enriched.with_column(Series::new("site_name".into(), site_names))?;
+    enriched.with_column(Series::new("zone_name".into(), zone_names))?;
+    enriched.with_column(Series::new("plot_name".into(), plot_names))?;
+    enriched.with_column(Series::new("plant_code".into(), plant_codes))?;
+    enriched.with_column(Series::new("stem_code".into(), stem_codes))?;
+    enriched.with_column(Series::new("species_code".into(), species_codes))?;
+    enriched.with_column(Series::new(
+        "species_scientific_name".into(),
+        species_scientific_names,
+    ))?;
     enriched.with_column(
         Series::new("deployment_start_timestamp_utc".into(), deployment_start_us).cast(
             &DataType::Datetime(TimeUnit::Microseconds, Some(polars::prelude::TimeZone::UTC)),
@@ -329,6 +412,16 @@ fn push_none(
     plant_ids: &mut Vec<Option<String>>,
     species_ids: &mut Vec<Option<String>>,
     stem_ids: &mut Vec<Option<String>>,
+    project_codes: &mut Vec<Option<String>>,
+    project_names: &mut Vec<Option<String>>,
+    site_codes: &mut Vec<Option<String>>,
+    site_names: &mut Vec<Option<String>>,
+    zone_names: &mut Vec<Option<String>>,
+    plot_names: &mut Vec<Option<String>>,
+    plant_codes: &mut Vec<Option<String>>,
+    stem_codes: &mut Vec<Option<String>>,
+    species_codes: &mut Vec<Option<String>>,
+    species_scientific_names: &mut Vec<Option<String>>,
     deployment_start_us: &mut Vec<Option<i64>>,
     deployment_end_us: &mut Vec<Option<i64>>,
     metadata_columns: &mut HashMap<String, Vec<Option<String>>>,
@@ -342,6 +435,16 @@ fn push_none(
     plant_ids.push(None);
     species_ids.push(None);
     stem_ids.push(None);
+    project_codes.push(None);
+    project_names.push(None);
+    site_codes.push(None);
+    site_names.push(None);
+    zone_names.push(None);
+    plot_names.push(None);
+    plant_codes.push(None);
+    stem_codes.push(None);
+    species_codes.push(None);
+    species_scientific_names.push(None);
     deployment_start_us.push(None);
     deployment_end_us.push(None);
 

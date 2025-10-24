@@ -58,6 +58,14 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     let plant_id = Uuid::new_v4();
     let species_id = Uuid::new_v4();
     let stem_id = Uuid::new_v4();
+    let project_code = "PRJ";
+    let site_code = "SITE";
+    let plant_code = "PLANT";
+    let stem_code_str = "STEM1";
+    let species_code = "SPEC";
+    let zone_name = Some("Zone A".to_string());
+    let plot_name = Some("Plot 1".to_string());
+    let species_scientific_name = Some("Specia example".to_string());
 
     let start_utc = timezone
         .from_local_datetime(&start_local)
@@ -71,12 +79,22 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
             datalogger_id: logger_id.to_string(),
             sdi_address: address.to_string(),
             project_id,
+            project_code: Some(project_code.to_string()),
+            project_name: Some("Project Name".to_string()),
             site_id,
+            site_code: Some(site_code.to_string()),
+            site_name: Some("Site Name".to_string()),
             zone_id: None,
+            zone_name: zone_name.clone(),
             plot_id: None,
+            plot_name: plot_name.clone(),
             plant_id: Some(plant_id),
+            plant_code: Some(plant_code.to_string()),
             species_id: Some(species_id),
+            species_code: Some(species_code.to_string()),
+            species_scientific_name: species_scientific_name.clone(),
             stem_id,
+            stem_code: Some(stem_code_str.to_string()),
             start_timestamp_utc: start_utc.timestamp_micros(),
             end_timestamp_utc: None,
             installation_metadata: Default::default(),

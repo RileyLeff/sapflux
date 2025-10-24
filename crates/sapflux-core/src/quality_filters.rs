@@ -25,11 +25,9 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
 
     let mut earliest_start_by_sensor: HashMap<(String, String), i64> = HashMap::new();
     for idx in 0..len {
-        let (Some(logger), Some(address), Some(start_value)) = (
-            logger_id.get(idx),
-            sdi_series.get(idx),
-            start_ts.get(idx),
-        ) else {
+        let (Some(logger), Some(address), Some(start_value)) =
+            (logger_id.get(idx), sdi_series.get(idx), start_ts.get(idx))
+        else {
             continue;
         };
 
@@ -94,9 +92,7 @@ pub fn apply_quality_filters(df: &DataFrame, now: DateTime<Utc>) -> Result<DataF
 
         if let Some(ts_val) = ts {
             if deployment_start.is_none() {
-                if let (Some(logger), Some(address)) =
-                    (logger_id.get(idx), sdi_series.get(idx))
-                {
+                if let (Some(logger), Some(address)) = (logger_id.get(idx), sdi_series.get(idx)) {
                     let key = (logger.to_string(), address.to_string());
                     if let Some(&earliest_start) = earliest_start_by_sensor.get(&key) {
                         let grace = start_grace.get(idx).unwrap_or(0.0);

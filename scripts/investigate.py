@@ -19,17 +19,7 @@ def main() -> None:
 
     df = pl.read_parquet(most_recent)
 
-    print("Column names:")
-    print(df.columns)
-    print(f"\nTotal columns: {len(df.columns)}")
-    print(f"Total rows: {len(df)}\n")
-
-    print("Sample data for each column (first 5 rows):")
-    print("=" * 80)
-
-    for col in df.columns:
-        print(f"\n{col}:")
-        print(df[col].head(5))
+    df.glimpse()
 
 
 if __name__ == "__main__":
