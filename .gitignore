@@ -10,3 +10,4 @@ dirgrab.txt
 integration_tests/rileydata/rawdata
 integration_tests/*
 Justfile
+integration_tests/qc_outputs/

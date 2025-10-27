@@ -78,6 +78,14 @@ fn timestamp_fixer_converts_to_utc() {
     let first = timestamp_utc.get(0).expect("first row");
     let first_naive = parse_naive("2024-07-01 16:00:00");
     assert_eq!(naive_to_micros(first_naive), first);
+
+    let raw_local = corrected
+        .column("raw_local_timestamp_often_wrong")
+        .expect("raw timestamp column")
+        .datetime()
+        .expect("datetime");
+    let raw_first = raw_local.get(0).expect("raw value");
+    assert_eq!(naive_to_micros(times[0]), raw_first);
 }
 
 #[test]

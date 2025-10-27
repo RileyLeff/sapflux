@@ -134,6 +134,9 @@ fn timestamp_fixer_groups_records_by_file_signature() -> Result<()> {
     let ts_utc = df.column("timestamp_utc")?.datetime()?;
     assert_eq!(ts_utc.null_count(), 0);
 
+    let raw_local = df.column("raw_local_timestamp_often_wrong")?.datetime()?;
+    assert_eq!(raw_local.null_count(), 0);
+
     assert!(df.column("calculation_method_used").is_ok());
     assert!(df.column("sap_flux_density_j_dma_cm_hr").is_ok());
     assert!(df.column("quality").is_ok());

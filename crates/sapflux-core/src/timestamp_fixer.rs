@@ -223,8 +223,24 @@ pub fn correct_timestamps(
         });
     }
 
+    let mut output_df = filtered_df;
+    if output_df
+        .get_column_names()
+        .iter()
+        .any(|name| name.as_str() == "timestamp")
+    {
+        let mut raw_series = output_df
+            .column("timestamp")
+            .map_err(TimestampFixerError::from)?
+            .clone();
+        raw_series.rename("raw_local_timestamp_often_wrong".into());
+        output_df
+            .with_column(raw_series)
+            .map_err(TimestampFixerError::from)?;
+    }
+
     Ok(TimestampFixResult {
-        dataframe: filtered_df,
+        dataframe: output_df,
         skipped_chunks,
     })
 }
